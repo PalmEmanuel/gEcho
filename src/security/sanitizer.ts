@@ -7,7 +7,9 @@ export function sanitizeFilePath(filePath: string, workspaceRoot?: string): stri
   const normalized = path.normalize(filePath);
   // Reject absolute paths that escape workspace
   if (path.isAbsolute(normalized) && workspaceRoot) {
-    if (!normalized.startsWith(workspaceRoot)) {
+    const normalizedRoot = path.normalize(workspaceRoot);
+    const rootWithSep = normalizedRoot.endsWith(path.sep) ? normalizedRoot : normalizedRoot + path.sep;
+    if (!normalized.startsWith(rootWithSep) && normalized !== normalizedRoot) {
       throw new Error(`Path traversal attempt blocked: ${filePath}`);
     }
   }
