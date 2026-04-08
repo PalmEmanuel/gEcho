@@ -25,7 +25,13 @@
 3. Merge `.squad/decisions/inbox/` files into `.squad/decisions.md` (deduplicated, delete inbox files after merge)
 4. Append cross-agent context updates to affected agents' history.md
 5. Archive decisions older than 30 days to `decisions-archive.md` if decisions.md exceeds ~20KB
-6. `git add .squad/ && git commit -F {temp-msg-file}`
+6. **Branch-aware commit:**
+   - Read `TARGET_BRANCH` from the spawn prompt (coordinator always provides it).
+   - If `TARGET_BRANCH` is a new branch that doesn't exist yet, create it: `git checkout -b {TARGET_BRANCH}`.
+   - If it already exists, switch to it: `git checkout {TARGET_BRANCH}`.
+   - `git add .squad/ && git commit -F {temp-msg-file}`
+   - `git push -u origin {TARGET_BRANCH}`
+   - If `TARGET_BRANCH` starts with `chore/squad-state`, open a PR: `gh pr create --title "chore: update squad state" --body "Session logging and decision merging." --base main`
 7. Summarize any history.md files that exceed 12KB into `## Core Context`
 
 ## Boundaries
