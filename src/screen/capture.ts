@@ -18,7 +18,6 @@ export class ScreenCapture {
 
     const cfg = getConfig();
     const fps = config?.fps ?? cfg.gif.fps;
-    const gifWidth = config?.width ?? cfg.gif.width;
 
     let safeFfmpegPath: string;
     try {
@@ -35,7 +34,9 @@ export class ScreenCapture {
         '-f', 'avfoundation',
         '-framerate', String(fps),
         '-i', '1',
-        '-vf', `crop=${width}:${height}:${x}:${y},scale=${gifWidth}:-1:flags=lanczos`,
+        '-vf', `crop=${width}:${height}:${x}:${y}`,
+        '-vcodec', 'libx264',
+        '-preset', 'ultrafast',
         '-y', outputPath,
       ];
     } else if (platform === 'linux') {
@@ -44,6 +45,8 @@ export class ScreenCapture {
         '-framerate', String(fps),
         '-video_size', `${width}x${height}`,
         '-i', `:0.0+${x},${y}`,
+        '-vcodec', 'libx264',
+        '-preset', 'ultrafast',
         '-y', outputPath,
       ];
     } else {
@@ -55,6 +58,8 @@ export class ScreenCapture {
         '-offset_y', String(y),
         '-video_size', `${width}x${height}`,
         '-i', 'desktop',
+        '-vcodec', 'libx264',
+        '-preset', 'ultrafast',
         '-y', outputPath,
       ];
     }

@@ -70,7 +70,8 @@ function isValidStep(step: unknown): boolean {
     case 'paste':
       return typeof s['text'] === 'string';
     case 'scroll':
-      return typeof s['lines'] === 'number';
+      return typeof s['lines'] === 'number' &&
+             (s['direction'] === 'up' || s['direction'] === 'down');
     default:
       return false;
   }
