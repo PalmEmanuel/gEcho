@@ -18,7 +18,15 @@
     "url": "https://github.com/emanuelpalm/gEcho/issues"
   },
   "homepage": "https://github.com/emanuelpalm/gEcho#readme",
-  "keywords": ["recording", "gif", "replay", "automation", "demo", "screencast", "workbook"],
+  "keywords": [
+    "recording",
+    "gif",
+    "replay",
+    "automation",
+    "demo",
+    "screencast",
+    "workbook"
+  ],
   "engines": {
     "vscode": "^1.101.0"
   },
@@ -30,6 +38,11 @@
   "main": "./out/src/extension.js",
   "contributes": {
     "commands": [
+      {
+        "command": "gecho.showCommands",
+        "title": "Show Commands",
+        "category": "gEcho"
+      },
       {
         "command": "gecho.startEchoRecording",
         "title": "gEcho: Start Echo Recording"
@@ -53,6 +66,11 @@
       {
         "command": "gecho.replayAsGif",
         "title": "gEcho: Replay as GIF"
+      },
+      {
+        "command": "gecho.cancelReplay",
+        "title": "Cancel Replay",
+        "category": "gEcho"
       }
     ],
     "configuration": {
@@ -101,7 +119,9 @@
         "extensions": [
           ".gecho.json"
         ],
-        "aliases": ["gEcho Workbook"]
+        "aliases": [
+          "gEcho Workbook"
+        ]
       }
     ],
     "jsonValidation": [
@@ -131,5 +151,8 @@
     "eslint": "^8.56.0",
     "mocha": "^10.4.0",
     "typescript": "^5.4.0"
-  }
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ]
 }

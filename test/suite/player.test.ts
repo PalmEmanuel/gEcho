@@ -64,7 +64,7 @@ describe('WorkbookPlayer', () => {
   });
 
   describe('Step dispatch', () => {
-    it('type step with no delay calls executeCommand("type") once with full text', async () => {
+    it('type step with no delay dispatches per-character with default 55ms delay', async () => {
       const calls: Array<{ cmd: string; args: any }> = [];
       const orig = (vscode.commands as any).executeCommand;
       (vscode.commands as any).executeCommand = async (cmd: string, args: any) => { calls.push({ cmd, args }); };
@@ -72,11 +72,10 @@ describe('WorkbookPlayer', () => {
         const player = new WorkbookPlayer();
         await player.play({
           version: '1.0', metadata: { name: 't' },
-          steps: [{ type: 'type', text: 'hello' }],
+          steps: [{ type: 'type', text: 'hi' }],
         });
-        assert.strictEqual(calls.length, 1);
-        assert.strictEqual(calls[0].cmd, 'type');
-        assert.deepStrictEqual(calls[0].args, { text: 'hello' });
+        assert.strictEqual(calls.length, 2, 'Should dispatch one call per character with default delay');
+        assert.deepStrictEqual(calls.map(c => c.args.text), ['h', 'i']);
       } finally {
         (vscode.commands as any).executeCommand = orig;
       }
@@ -133,7 +132,7 @@ describe('WorkbookPlayer', () => {
       }
     });
 
-    it('key step calls executeCommand with terminal sendSequence', async () => {
+    it('key step with known shortcut (escape) calls mapped VS Code command', async () => {
       const calls: Array<{ cmd: string; args: any }> = [];
       const orig = (vscode.commands as any).executeCommand;
       (vscode.commands as any).executeCommand = async (cmd: string, args: any) => { calls.push({ cmd, args }); };
@@ -144,8 +143,41 @@ describe('WorkbookPlayer', () => {
           steps: [{ type: 'key', key: 'escape' }],
         });
         assert.strictEqual(calls.length, 1);
-        assert.strictEqual(calls[0].cmd, 'workbench.action.terminal.sendSequence');
-        assert.deepStrictEqual(calls[0].args, { text: 'escape' });
+        assert.strictEqual(calls[0].cmd, 'cancelSelection');
+      } finally {
+        (vscode.commands as any).executeCommand = orig;
+      }
+    });
+
+    it('key step with single character dispatches via type command', async () => {
+      const calls: Array<{ cmd: string; args: any }> = [];
+      const orig = (vscode.commands as any).executeCommand;
+      (vscode.commands as any).executeCommand = async (cmd: string, args: any) => { calls.push({ cmd, args }); };
+      try {
+        const player = new WorkbookPlayer();
+        await player.play({
+          version: '1.0', metadata: { name: 't' },
+          steps: [{ type: 'key', key: 'x' }],
+        });
+        assert.strictEqual(calls.length, 1);
+        assert.strictEqual(calls[0].cmd, 'type');
+        assert.deepStrictEqual(calls[0].args, { text: 'x' });
+      } finally {
+        (vscode.commands as any).executeCommand = orig;
+      }
+    });
+
+    it('key step with unknown multi-key sequence is silently skipped', async () => {
+      const calls: string[] = [];
+      const orig = (vscode.commands as any).executeCommand;
+      (vscode.commands as any).executeCommand = async (cmd: string) => { calls.push(cmd); };
+      try {
+        const player = new WorkbookPlayer();
+        await player.play({
+          version: '1.0', metadata: { name: 't' },
+          steps: [{ type: 'key', key: 'ctrl+shift+unknown' }],
+        });
+        assert.strictEqual(calls.length, 0, 'Unknown multi-key should be skipped silently');
       } finally {
         (vscode.commands as any).executeCommand = orig;
       }
@@ -161,9 +193,12 @@ describe('WorkbookPlayer', () => {
       );
     });
 
-    it('paste step calls executeCommand("type") with paste text', async () => {
+    it('paste step writes to clipboard then calls clipboardPasteAction', async () => {
       const calls: Array<{ cmd: string; args: any }> = [];
-      const orig = (vscode.commands as any).executeCommand;
+      const origExec = (vscode.commands as any).executeCommand;
+      let clipboardText = '';
+      const origClipboard = (vscode.env as any).clipboard;
+      (vscode.env as any).clipboard = { writeText: async (t: string) => { clipboardText = t; } };
       (vscode.commands as any).executeCommand = async (cmd: string, args: any) => { calls.push({ cmd, args }); };
       try {
         const player = new WorkbookPlayer();
@@ -171,11 +206,12 @@ describe('WorkbookPlayer', () => {
           version: '1.0', metadata: { name: 't' },
           steps: [{ type: 'paste', text: 'clipboard content' }],
         });
+        assert.strictEqual(clipboardText, 'clipboard content', 'Should write to clipboard');
         assert.strictEqual(calls.length, 1);
-        assert.strictEqual(calls[0].cmd, 'type');
-        assert.deepStrictEqual(calls[0].args, { text: 'clipboard content' });
+        assert.strictEqual(calls[0].cmd, 'editor.action.clipboardPasteAction');
       } finally {
-        (vscode.commands as any).executeCommand = orig;
+        (vscode.commands as any).executeCommand = origExec;
+        (vscode.env as any).clipboard = origClipboard;
       }
     });
 
