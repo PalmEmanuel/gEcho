@@ -43,5 +43,6 @@ How to decide who handles what.
 3. **Quick facts → coordinator answers directly.** Don't spawn an agent for factual questions from context.
 4. **When two agents could handle it**, pick the one whose domain is the primary concern.
 5. **"Team, ..." → fan-out.** Spawn all relevant agents in parallel as `mode: "background"`.
-6. **Anticipate downstream work.** If a feature is being built, spawn Grimoire to write test cases from requirements simultaneously.
-7. **Issue-labeled work** — when a `squad:{member}` label is applied to an issue, route to that member. Gecko handles all `squad` (base label) triage.
+6. **Grimoire is always involved in feature work.** Every new feature spawns Grimoire in parallel. No feature ships without test coverage. This is non-negotiable.
+7. **Anticipate downstream work.** If a feature is being built, spawn Grimoire to write test cases from requirements simultaneously — not after.
+8. **Issue-labeled work** — when a `squad:{member}` label is applied to an issue, route to that member. Gecko handles all `squad` (base label) triage.

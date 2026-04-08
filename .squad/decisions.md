@@ -270,3 +270,14 @@ Could use `["Visualization"]` or `["Other", "Snippets"]` for better Marketplace 
 ---
 
 **Status:** Wave 3 security & UX fixes completed by Epoch, Vex, Chronos. All critical and high issues resolved.
+
+---
+
+## 2026-04-08T10:47:22Z: User directive
+**By:** Emanuel Palm (via Copilot)
+
+**What:** Every new feature must have proper tests. Grimoire is always involved when features are built — no feature ships without test coverage.
+
+**Why:** User requirement — quality and maintainability standard for the project.
+
+**Effect on routing:** All feature work spawns Grimoire in parallel. Grimoire's test coverage is a required deliverable, not optional.

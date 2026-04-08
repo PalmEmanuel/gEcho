@@ -32,6 +32,24 @@ describe('validateWorkbook edge cases', () => {
     };
     assert.strictEqual(validateWorkbook(bad), false);
   });
+
+  it('returns false for TypeStep missing required text field', () => {
+    const bad = {
+      version: '1.0',
+      metadata: { name: 'x' },
+      steps: [{ type: 'type' }],
+    };
+    assert.strictEqual(validateWorkbook(bad), false);
+  });
+
+  it('returns false for step with unknown type', () => {
+    const bad = {
+      version: '1.0',
+      metadata: { name: 'x' },
+      steps: [{ type: 'unknown-step' }],
+    };
+    assert.strictEqual(validateWorkbook(bad), false);
+  });
 });
 
 describe('StepType discriminated union', () => {
