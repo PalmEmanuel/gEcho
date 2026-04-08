@@ -36,6 +36,25 @@ How to decide who handles what.
 3. Members can reassign by removing their label and adding another member's label.
 4. The `squad` label is the "inbox" — untriaged issues waiting for Gecko's review.
 
+## Branch & PR Workflow
+
+`main` is protected. All work ships through pull requests. Full rules are in `.squad/identity/wisdom.md` (read by every agent at spawn).
+
+**Quick reference — branch naming:**
+
+| Work type | Pattern | Example |
+|-----------|---------|---------|
+| Feature | `feat/{scope}-{slug}` | `feat/replay-loop-mode` |
+| Bug fix | `fix/{scope}-{slug}` | `fix/player-delay-clamp` |
+| Issue-driven | `squad/{issue-number}-{slug}` | `squad/42-add-scroll-step` |
+| CI / tooling | `chore/{slug}` | `chore/update-ci-matrix` |
+| Test-only | `test/{slug}` | `test/player-step-dispatch` |
+| Squad state only | `chore/squad-state-{YYYYMMDD}` | `chore/squad-state-20260408` |
+
+**Coordinator responsibility:** always pass `TARGET_BRANCH` to every agent spawn and to Scribe.
+
+---
+
 ## Rules
 
 1. **Eager by default** — spawn all agents who could usefully start work, including anticipatory downstream work.
@@ -46,3 +65,4 @@ How to decide who handles what.
 6. **Grimoire is always involved in feature work.** Every new feature spawns Grimoire in parallel. No feature ships without test coverage. This is non-negotiable.
 7. **Anticipate downstream work.** If a feature is being built, spawn Grimoire to write test cases from requirements simultaneously — not after.
 8. **Issue-labeled work** — when a `squad:{member}` label is applied to an issue, route to that member. Gecko handles all `squad` (base label) triage.
+9. **All feature work → branch + PR.** No agent may commit source changes directly to `main`. See Branch & PR Workflow above.

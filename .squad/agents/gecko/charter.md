@@ -14,7 +14,7 @@
 - Overall extension architecture and component boundaries
 - Workbook format specification (`gecho.json` schema evolution)
 - Scope and prioritization decisions
-- Code review and PR approval gates
+- Code review and PR approval gates — **all PRs targeting `main` require my review before merge**
 - Team coordination and cross-cutting concerns
 
 ## How I Work
