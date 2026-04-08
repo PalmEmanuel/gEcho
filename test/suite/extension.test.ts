@@ -3,12 +3,12 @@ import * as vscode from 'vscode';
 
 describe('Extension Tests', () => {
   it('Extension should be present', () => {
-    const extension = vscode.extensions.getExtension('gecho.gecho');
+    const extension = vscode.extensions.getExtension('PalmEmanuel.gEcho');
     assert.notStrictEqual(extension, undefined);
   });
 
   it('all gecho commands are registered at activation', async () => {
-    const ext = vscode.extensions.getExtension('gecho.gecho');
+    const ext = vscode.extensions.getExtension('PalmEmanuel.gEcho');
     if (ext && !ext.isActive) { await ext.activate(); }
     const all = await vscode.commands.getCommands(true);
     const expected = [

@@ -1,9 +1,9 @@
 {
-  "name": "gecho",
+  "name": "gEcho",
   "displayName": "gEcho",
   "description": "Record, replay, and generate reproducible GIFs from VS Code interactions.",
   "version": "0.0.1",
-  "publisher": "gecho",
+  "publisher": "PalmEmanuel",
   "icon": "images/icon.png",
   "galleryBanner": {
     "color": "#1E1432",
