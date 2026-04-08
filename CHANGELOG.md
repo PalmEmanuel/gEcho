@@ -1,13 +1,8 @@
 # Changelog
 
-All notable changes to gEcho will be documented here.
+All notable changes to gEcho will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
-
-### Added
-- Initial extension scaffold
-- Echo recording mode (workbook JSON)
-- GIF recording mode (ffmpeg screen capture)
-- Workbook replay engine
-- Replay as GIF (combined mode)
-- Cross-platform support: macOS, Linux (X11), Windows

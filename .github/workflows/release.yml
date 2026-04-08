@@ -8,6 +8,9 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 
@@ -27,3 +30,34 @@ jobs:
           name: release-vsix
           path: '*.vsix'
           retention-days: 90
+
+      - name: Generate CHANGELOG
+        id: changelog
+        uses: requarks/changelog-action@v1
+        with:
+          token: ${{ github.token }}
+          tag: ${{ github.ref_name }}
+          reverseOrder: true
+          excludeTypes: docs,style,refactor,test,ci,chore,revert
+          excludeScopes: ci,release
+          useGitmojis: false
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.changelog.outputs.changes }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-preview') }}
+          generate_release_notes: false
+          files: '*.vsix'
+
+      - name: Create PR for CHANGELOG update
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          commit-message: "chore(release): Update CHANGELOG for ${{ github.ref_name }}"
+          title: "chore(release): Update CHANGELOG for ${{ github.ref_name }}"
+          body: Automatic CHANGELOG update for release ${{ github.ref_name }}.
+          labels: release
+          base: main
+          branch: release-${{ github.ref_name }}
