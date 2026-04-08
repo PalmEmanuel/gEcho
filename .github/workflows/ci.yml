@@ -3,8 +3,22 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '.squad/**'
+      - '*.md'
+      - 'images/**'
+      - 'docs/**'
+      - '.github/workflows/squad-*.yml'
+      - '.github/workflows/sync-squad-labels.yml'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '.squad/**'
+      - '*.md'
+      - 'images/**'
+      - 'docs/**'
+      - '.github/workflows/squad-*.yml'
+      - '.github/workflows/sync-squad-labels.yml'
 
 jobs:
   build-and-test:
