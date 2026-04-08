@@ -68,6 +68,24 @@ describe('validateWorkbook', () => {
   it('returns true for workbook with all step types', () => {
     assert.strictEqual(validateWorkbook(makeFullWorkbook()), true);
   });
+
+  it('returns false for scroll step missing direction', () => {
+    const bad = {
+      version: '1.0',
+      metadata: { name: 'x' },
+      steps: [{ type: 'scroll', lines: 3 }],
+    };
+    assert.strictEqual(validateWorkbook(bad), false);
+  });
+
+  it('returns false for scroll step with invalid direction', () => {
+    const bad = {
+      version: '1.0',
+      metadata: { name: 'x' },
+      steps: [{ type: 'scroll', lines: 3, direction: 'sideways' }],
+    };
+    assert.strictEqual(validateWorkbook(bad), false);
+  });
 });
 
 describe('workbook roundtrip', () => {
