@@ -1,6 +1,5 @@
 import { spawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
-import * as vscode from 'vscode';
 import { getWindowBounds, detectPlatform } from '../platform/index.js';
 import type { GifConfig } from '../types/index.js';
 import { sanitizeFfmpegPath } from '../security/index.js';
