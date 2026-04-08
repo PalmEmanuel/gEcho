@@ -6,6 +6,7 @@ export class WorkbookPlayer {
   private cancelled = false;
 
   async play(workbook: Workbook, config?: ReplayConfig): Promise<void> {
+    if (this.cancelled) { return; }
     this.cancelled = false;
     const speed = config?.speed ?? 1.0;
 

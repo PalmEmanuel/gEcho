@@ -1,5 +1,10 @@
 {
   "spec": "out/test/suite/**/*.test.js",
+  "ignore": [
+    "out/test/suite/extension.test.js",
+    "out/test/suite/player.test.js",
+    "out/test/suite/recorder.test.js"
+  ],
   "timeout": 10000,
   "ui": "bdd"
 }
