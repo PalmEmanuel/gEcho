@@ -1,0 +1,19 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "name": "Example Workbook",
+    "description": "Demonstrates all gEcho step types",
+    "created": "2026-04-08T00:00:00.000Z"
+  },
+  "steps": [
+    { "type": "openFile", "path": "src/extension.ts" },
+    { "type": "wait", "ms": 500 },
+    { "type": "type", "text": "// Hello from gEcho!", "delay": 55 },
+    { "type": "command", "id": "workbench.action.files.save" },
+    { "type": "select", "anchor": [0, 0], "active": [0, 20] },
+    { "type": "key", "key": "escape" },
+    { "type": "paste", "text": "// Pasted text" },
+    { "type": "scroll", "direction": "down", "lines": 3 },
+    { "type": "wait", "ms": 1000, "until": "idle" }
+  ]
+}
