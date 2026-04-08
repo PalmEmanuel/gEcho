@@ -18,6 +18,7 @@
 | Grimoire | 🧪 Tester | `.squad/agents/grimoire/charter.md` | active |
 | Chronos | ⚙️ DevOps/CI | `.squad/agents/chronos/charter.md` | active |
 | Warden | 🔒 Security/Auth | `.squad/agents/warden/charter.md` | active |
+| Sigil | 🎨 Designer | `.squad/agents/sigil/charter.md` | active |
 | Scribe | 📋 Session Logger | `.squad/agents/scribe/charter.md` | active |
 | Ralph | 🔄 Work Monitor | `.squad/agents/ralph/charter.md` | active |
 

@@ -1,5 +1,12 @@
 # 🦎 gEcho
 
+<p align="center">
+  <img src="images/icon.png" alt="gEcho logo" width="128" />
+</p>
+
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/gecho.gecho?label=VS%20Code%20Marketplace&logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=gecho.gecho)
+[![Downloads](https://img.shields.io/visual-studio-marketplace/d/gecho.gecho)](https://marketplace.visualstudio.com/items?itemName=gecho.gecho)
+
 **Record, replay, and generate reproducible GIFs from VS Code interactions.**
 
 gEcho is a VS Code extension with two recording modes:

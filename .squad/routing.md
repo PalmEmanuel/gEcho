@@ -12,6 +12,7 @@ How to decide who handles what.
 | Tests, quality, edge cases | Grimoire | Unit tests, integration tests, mock design, coverage |
 | CI pipelines, VSIX packaging, releases | Chronos | GitHub Actions, cross-platform builds, publish automation |
 | Security, permissions, credential storage | Warden | SecretStorage, npm audit, permission review, workbook data safety |
+| Visual design, icon, marketplace assets, README visuals | Sigil | icon.png, galleryBanner, screenshots, README images |
 | Code review | Gecko | Review PRs, check quality, enforce workbook schema compat |
 | Scope & priorities | Gecko | What to build next, trade-offs, architectural decisions |
 | Session logging | Scribe | Automatic — never needs routing |

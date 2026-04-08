@@ -15,4 +15,9 @@
 
 ## Learnings
 
-<!-- Append new learnings below. Each entry is something lasting about the project. -->
+- **npm ci for CI reproducibility:** Use `npm ci` (not `npm install`) in workflows to lock exact dependency versions from package-lock.json
+- **xvfb-run on Linux:** VS Code extension tests require a display; Linux CI needs `xvfb-run -a` wrapper; macOS and Windows have native displays
+- **VSIX packaging once per matrix:** Generate VSIX only on ubuntu-latest to avoid triple artifacts; use conditional steps `if: runner.os == 'Linux'`
+- **Marketplace publish requires separate secret:** VSCE_PAT must be configured separately; CI prepares artifacts but doesn't publish
+- **Cross-platform matrix non-negotiable:** Always test on [ubuntu-latest, macos-latest, windows-latest] to catch platform bugs early
+

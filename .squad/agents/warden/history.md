@@ -15,3 +15,11 @@
 ## Learnings
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
+
+### 2025-01-01 — Security Baseline Established
+
+- Created `src/security/sanitizer.ts` with three guards: `sanitizeFilePath`, `sanitizeCommandId`, `sanitizeFfmpegPath`. Re-exported via `src/security/index.ts`.
+- Added `.github/SECURITY.md` covering workbook trust, screen recording, keystroke recording, and ffmpegPath injection risks.
+- Decisions filed in `.squad/decisions/inbox/warden-security-baseline.md`: sanitizers must be called at replay time; Echo mode requires a confirm dialog before recording; no SecretStorage needed for current scope; VSIX bundles no credentials.
+- The `package` script already uses `--no-dependencies`, which is correct for a zero-runtime-dependency extension — this should be preserved.
+- `gecho.ffmpegPath` defaults to `"ffmpeg"` (bare binary name). `sanitizeFfmpegPath` does not block spaces, so paths like `/usr/local/bin/ffmpeg` and `C:\Program Files\ffmpeg\bin\ffmpeg.exe` are accepted; only shell metacharacters are rejected.

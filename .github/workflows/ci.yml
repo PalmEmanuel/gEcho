@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run compile
+
+      - run: npm run lint
+
+      - if: runner.os == 'Linux'
+        run: xvfb-run -a npm test
+
+      - if: runner.os != 'Linux'
+        run: npm test
+
+      - if: runner.os == 'Linux'
+        run: npm run package
+
+      - if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-artifact
+          path: '*.vsix'
+          retention-days: 30

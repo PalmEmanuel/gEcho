@@ -14,4 +14,9 @@
 
 ## Learnings
 
-<!-- Append new learnings below. Each entry is something lasting about the project. -->
+- **TypeStep.delay semantics**: The recorded `delay` field stores elapsed ms since `startTime` (a timestamp), not a per-character typing interval. During replay, `step.delay` is treated as the per-char delay between keystrokes. These are different semantics — manually authored workbooks use `delay` as typing cadence (e.g. 55 ms/char), while recorder-generated workbooks use it as a recording timestamp.
+- **ffmpeg SIGINT vs SIGKILL**: ffmpeg must receive SIGINT (not SIGKILL) to flush its output buffers and finalize the file. On some platforms, ffmpeg exits with code 255 when killed by SIGINT — treat both 0 and 255 as success in `stop()`.
+- **ffmpeg startup detection**: ffmpeg writes to stderr immediately when it begins encoding. Resolving the `start()` promise on first stderr data (rather than a fixed timeout) is a reliable event-driven signal that the capture has actually started.
+- **Node16 module resolution**: All imports of local `.ts` files require the `.js` extension in import paths (compiled output uses `.js`). This is enforced by `moduleResolution: Node16` in tsconfig.
+- **CommandStep.args is `unknown`**: The type is `unknown`, not `unknown[]`. During replay, the args must be narrowed: spread if array, pass as single arg otherwise.
+

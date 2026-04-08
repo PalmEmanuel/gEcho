@@ -15,3 +15,11 @@
 ## Learnings
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
+
+### 2026-04-08 — Wave 1 Test Scaffolding
+
+- **Import paths need `.js` extensions** — Node16 module resolution requires explicit `.js` extensions in all imports, even when importing `.ts` source files. TypeScript resolves them correctly at compile time.
+- **Mocha UI must be consistent** — The `test/suite/index.ts` programmatic Mocha runner and `.mocharc.json` must agree on `ui: 'bdd'`. Mixing `suite`/`test` (TDD) with `describe`/`it` (BDD) in the same run causes "not defined" errors.
+- **`validateWorkbook` / `readWorkbook` / `writeWorkbook` are stubs** — All three functions currently throw `'Not implemented'`. Tests are written TDD-style; they will fail until Epoch implements the functions. This is intentional and expected.
+- **Pure-function tests don't need the VS Code extension host** — `platform.test.ts` and `recording.test.ts` import only from `src/types/` and `src/platform/`, so they can run under plain Mocha (via `.mocharc.json`) without `@vscode/test-electron`. VS Code API tests (e.g. `extension.test.ts`) still require the electron runner.
+- **`os.tmpdir()` on macOS returns `/var/folders/…`** — Not `/tmp`. Safe to use for roundtrip test fixtures; cleanup via `fs.rm(dir, { recursive: true, force: true })` in `afterEach`.

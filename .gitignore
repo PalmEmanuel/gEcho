@@ -1,0 +1,13 @@
+node_modules/
+out/
+*.vsix
+.vscode-test/
+.DS_Store
+
+# Squad: ignore runtime state (logs, inbox, sessions)
+.squad/orchestration-log/
+.squad/log/
+.squad/decisions/inbox/
+.squad/sessions/
+# Squad: SubSquad activation file (local to this machine)
+.squad-workstream

@@ -1,0 +1,75 @@
+/**
+ * Workbook types — discriminated union steps and workbook schema.
+ */
+
+export interface TypeStep {
+  type: 'type';
+  text: string;
+  delay?: number;
+}
+
+export interface CommandStep {
+  type: 'command';
+  id: string;
+  args?: unknown;
+}
+
+export interface KeyStep {
+  type: 'key';
+  key: string;
+}
+
+export interface SelectStep {
+  type: 'select';
+  anchor: [number, number];
+  active: [number, number];
+}
+
+export interface WaitStep {
+  type: 'wait';
+  ms: number;
+  until?: 'idle';
+}
+
+export interface OpenFileStep {
+  type: 'openFile';
+  path: string;
+}
+
+export interface PasteStep {
+  type: 'paste';
+  text: string;
+}
+
+export interface ScrollStep {
+  type: 'scroll';
+  direction: 'up' | 'down';
+  lines: number;
+}
+
+export type StepType =
+  | TypeStep
+  | CommandStep
+  | KeyStep
+  | SelectStep
+  | WaitStep
+  | OpenFileStep
+  | PasteStep
+  | ScrollStep;
+
+export interface WorkbookMetadata {
+  name: string;
+  description?: string;
+  windowSize?: { width: number; height: number };
+  created?: string;
+  version?: string;
+}
+
+export interface Workbook {
+  version: string;
+  metadata: WorkbookMetadata;
+  steps: StepType[];
+}
+
+export const WORKBOOK_VERSION = '1.0';
+export const WORKBOOK_FILE_EXTENSION = '.gecho.json';
