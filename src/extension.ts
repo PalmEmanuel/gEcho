@@ -159,11 +159,22 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.window.showWarningMessage('gEcho: No active GIF recording.');
         return;
       }
+
+      let mp4Path: string;
       try {
-        const mp4Path = await activeCapture.stop();
+        mp4Path = await activeCapture.stop();
         activeCapture = undefined;
         setState('idle');
+      } catch (err) {
+        setState('idle');
+        activeCapture = undefined;
+        vscode.window.showErrorMessage(
+          `gEcho: Failed to stop GIF recording — ${err instanceof Error ? err.message : String(err)}`
+        );
+        return;
+      }
 
+      try {
         const saveUri = await vscode.window.showSaveDialog({
           filters: { 'GIF Image': ['gif'] },
           saveLabel: 'Save GIF',
@@ -190,10 +201,9 @@ export function activate(context: vscode.ExtensionContext): void {
           await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(saveUri.fsPath));
         }
       } catch (err) {
-        setState('idle');
-        activeCapture = undefined;
+        await unlink(mp4Path).catch(() => undefined);
         vscode.window.showErrorMessage(
-          `gEcho: Failed to stop GIF recording — ${err instanceof Error ? err.message : String(err)}`
+          `gEcho: GIF conversion failed — ${err instanceof Error ? err.message : String(err)}`
         );
       }
     })

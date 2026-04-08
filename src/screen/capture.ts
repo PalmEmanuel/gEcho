@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
+import { access } from 'node:fs/promises';
 import { getWindowBounds, detectPlatform } from '../platform/index.js';
 import type { GifConfig } from '../types/index.js';
 import { sanitizeFfmpegPath } from '../security/index.js';
@@ -103,14 +104,22 @@ export class ScreenCapture {
   async stop(): Promise<string> {
     const proc = this.ffmpegProcess;
     if (!proc) {
+      try {
+        await access(this.outputPath);
+      } catch {
+        throw new Error(
+          `Recording failed — no output was written to ${this.outputPath}. Check ffmpeg permissions and device availability.`
+        );
+      }
       return this.outputPath;
     }
 
     return new Promise((resolve, reject) => {
       proc.on('close', (code) => {
         this.ffmpegProcess = null;
-        // ffmpeg exits 255 on some platforms when interrupted by SIGINT
-        if (code === 0 || code === 255) {
+        // ffmpeg exits 255 on some platforms when interrupted by SIGINT;
+        // exits 254 (-2 signed) on some macOS/avfoundation combinations
+        if (code === 0 || code === 254 || code === 255) {
           resolve(this.outputPath);
         } else {
           reject(new Error(`ffmpeg exited with code ${code}`));
