@@ -1,8 +1,10 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { unlink } from 'node:fs/promises';
 import { EchoRecorder } from './recording/index.js';
 import { WorkbookPlayer } from './replay/index.js';
 import { ScreenCapture } from './screen/index.js';
+import { GifConverter } from './converter/index.js';
 import { readWorkbook, writeWorkbook } from './workbook/index.js';
 import type { RecordingState, Workbook } from './types/index.js';
 import { WORKBOOK_VERSION } from './types/index.js';
@@ -124,11 +126,12 @@ export function activate(context: vscode.ExtensionContext): void {
       try {
         currentState = 'recording';
         activeCapture = new ScreenCapture();
-        const tmpPath = path.join(
+        await vscode.workspace.fs.createDirectory(context.globalStorageUri);
+        const tmpMp4Path = path.join(
           context.globalStorageUri.fsPath,
-          `gecho-${Date.now()}.gif`
+          `gecho-${Date.now()}.mp4`
         );
-        await activeCapture.start(tmpPath);
+        await activeCapture.start(tmpMp4Path);
         updateStatusBar(statusBarItem);
         vscode.window.showInformationMessage('gEcho: GIF recording started.');
       } catch (err) {
@@ -150,20 +153,38 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       try {
-        const outputPath = await activeCapture.stop();
+        const mp4Path = await activeCapture.stop();
         activeCapture = undefined;
         currentState = 'idle';
         updateStatusBar(statusBarItem);
 
+        const saveUri = await vscode.window.showSaveDialog({
+          filters: { 'GIF Image': ['gif'] },
+          saveLabel: 'Save GIF',
+          defaultUri: vscode.Uri.file(mp4Path.replace('.mp4', '.gif')),
+        });
+        if (!saveUri) {
+          await unlink(mp4Path).catch(() => undefined);
+          return;
+        }
+
+        await vscode.window.withProgress(
+          { location: vscode.ProgressLocation.Notification, title: 'gEcho: Converting to GIF...', cancellable: false },
+          async () => {
+            const converter = new GifConverter();
+            await converter.convert(mp4Path, saveUri.fsPath);
+          }
+        );
+
         const openAction = 'Reveal in Explorer';
         const choice = await vscode.window.showInformationMessage(
-          `gEcho: GIF saved to ${outputPath}`,
+          `gEcho: GIF saved to ${saveUri.fsPath}`,
           openAction
         );
         if (choice === openAction) {
           await vscode.commands.executeCommand(
             'revealFileInOS',
-            vscode.Uri.file(outputPath)
+            vscode.Uri.file(saveUri.fsPath)
           );
         }
       } catch (err) {
@@ -226,6 +247,7 @@ export function activate(context: vscode.ExtensionContext): void {
         );
         return;
       }
+      let tmpMp4Path: string | undefined;
       try {
         const uris = await vscode.window.showOpenDialog({
           filters: { 'gEcho Workbook': ['gecho.json'] },
@@ -250,14 +272,27 @@ export function activate(context: vscode.ExtensionContext): void {
         activeCapture = new ScreenCapture();
         updateStatusBar(statusBarItem);
 
-        await activeCapture.start(saveUri.fsPath);
+        await vscode.workspace.fs.createDirectory(context.globalStorageUri);
+        tmpMp4Path = path.join(
+          context.globalStorageUri.fsPath,
+          `gecho-replay-${Date.now()}.mp4`
+        );
+        await activeCapture.start(tmpMp4Path);
         await activePlayer.play(workbook);
-        await activeCapture.stop();
+        const mp4Path = await activeCapture.stop();
 
         activePlayer = undefined;
         activeCapture = undefined;
         currentState = 'idle';
         updateStatusBar(statusBarItem);
+
+        await vscode.window.withProgress(
+          { location: vscode.ProgressLocation.Notification, title: 'gEcho: Converting to GIF...', cancellable: false },
+          async () => {
+            const converter = new GifConverter();
+            await converter.convert(mp4Path, saveUri.fsPath);
+          }
+        );
 
         vscode.window.showInformationMessage(
           `gEcho: GIF saved to ${saveUri.fsPath}`
@@ -265,6 +300,9 @@ export function activate(context: vscode.ExtensionContext): void {
       } catch (err) {
         if (activeCapture) {
           try { await activeCapture.stop(); } catch { /* ignore cleanup error */ }
+        }
+        if (tmpMp4Path) {
+          await unlink(tmpMp4Path).catch(() => undefined);
         }
         activePlayer = undefined;
         activeCapture = undefined;
