@@ -1,0 +1,11 @@
+{
+  "casting_policy_version": "1.1",
+  "custom_universe": "gecko-wizard-time",
+  "notes": "Custom universe requested by owner: gecko/lizard theme, wizard/fantasy names, time-related names. No superheroes.",
+  "allowlist_universes": [
+    "gecko-wizard-time"
+  ],
+  "universe_capacity": {
+    "gecko-wizard-time": 20
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "assignments": [
+    {
+      "assignment_id": "gecho-initial-2026-04-08",
+      "universe": "gecko-wizard-time",
+      "timestamp": "2026-04-08T09:18:53Z",
+      "requested_by": "Emanuel Palm",
+      "agents": [
+        { "name": "Gecko", "role": "Lead" },
+        { "name": "Epoch", "role": "Backend Dev" },
+        { "name": "Vex", "role": "Frontend Dev" },
+        { "name": "Grimoire", "role": "Tester" },
+        { "name": "Chronos", "role": "DevOps/CI" },
+        { "name": "Warden", "role": "Security/Auth" },
+        { "name": "Scribe", "role": "Session Logger" },
+        { "name": "Ralph", "role": "Work Monitor" }
+      ]
+    }
+  ]
+}
