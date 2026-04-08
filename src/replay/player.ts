@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import type { Workbook, ReplayConfig } from '../types/index.js';
+import { sanitizeCommandId, sanitizeFilePath } from '../security/index.js';
 
 export class WorkbookPlayer {
   private cancelled = false;
@@ -16,12 +17,14 @@ export class WorkbookPlayer {
       switch (step.type) {
         case 'type': {
           if (step.delay !== undefined && step.delay > 0) {
+            // Clamp per-char delay to [0, 500] ms to prevent frozen replays
+            const charDelay = Math.min(step.delay, 500) / speed;
             for (const char of step.text) {
               if (this.cancelled) {
                 break;
               }
               await vscode.commands.executeCommand('type', { text: char });
-              await new Promise<void>(r => setTimeout(r, step.delay! / speed));
+              await new Promise<void>(r => setTimeout(r, charDelay));
             }
           } else {
             await vscode.commands.executeCommand('type', { text: step.text });
@@ -30,14 +33,21 @@ export class WorkbookPlayer {
         }
 
         case 'command': {
+          let safeId: string;
+          try {
+            safeId = sanitizeCommandId(step.id);
+          } catch {
+            vscode.window.showWarningMessage(`gEcho: Blocked unsafe command ID in workbook: "${step.id}"`);
+            return;
+          }
           if (step.args !== undefined) {
             if (Array.isArray(step.args)) {
-              await vscode.commands.executeCommand(step.id, ...(step.args as unknown[]));
+              await vscode.commands.executeCommand(safeId, ...(step.args as unknown[]));
             } else {
-              await vscode.commands.executeCommand(step.id, step.args);
+              await vscode.commands.executeCommand(safeId, step.args);
             }
           } else {
-            await vscode.commands.executeCommand(step.id);
+            await vscode.commands.executeCommand(safeId);
           }
           break;
         }
@@ -66,12 +76,20 @@ export class WorkbookPlayer {
         }
 
         case 'openFile': {
-          const uris = await vscode.workspace.findFiles(step.path, undefined, 1);
+          let safePath: string;
+          try {
+            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            safePath = sanitizeFilePath(step.path, workspaceRoot);
+          } catch {
+            vscode.window.showWarningMessage(`gEcho: Blocked unsafe file path in workbook: "${step.path}"`);
+            return;
+          }
+          const uris = await vscode.workspace.findFiles(safePath, undefined, 1);
           if (uris.length > 0) {
             const doc = await vscode.workspace.openTextDocument(uris[0]);
             await vscode.window.showTextDocument(doc);
           } else {
-            const uri = vscode.Uri.file(step.path);
+            const uri = vscode.Uri.file(safePath);
             const doc = await vscode.workspace.openTextDocument(uri);
             await vscode.window.showTextDocument(doc);
           }
@@ -89,6 +107,11 @@ export class WorkbookPlayer {
             by: 'line',
             value: step.lines,
           });
+          break;
+        }
+
+        default: {
+          // Unrecognized step type — skip silently
           break;
         }
       }

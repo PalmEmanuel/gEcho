@@ -15,3 +15,10 @@
 - **Workbook step types use discriminated unions on the `type` field.** All step processing should use switch statements on `step.type` — never ad-hoc type guards.
 - **Zero runtime dependencies is a hard constraint.** All platform interactions (ffmpeg, AppleScript, xdotool, PowerShell) go through `child_process`. Any new dependency needs a decision record.
 - **Wave 2 complete:** Full team delivered EchoRecorder, WorkbookPlayer, ScreenCapture, platform detection, workbook I/O, 3 test suites, GitHub Actions CI/release, security sanitizers, and brand assets. Project compiles clean; no stubs remain. Ready for testing and bug fixes.
+- **Post-Wave 2 review: sanitizers are dead code.** All three sanitizer functions (`sanitizeCommandId`, `sanitizeFilePath`, `sanitizeFfmpegPath`) exist in `src/security/sanitizer.ts` but are imported and called nowhere. The security contract from the Warden decision is unimplemented. This is the highest-priority fix.
+- **`validateWorkbook` is shallow.** Only checks top-level shape (version, metadata.name, steps is array). Does not validate individual step contents. Combined with missing sanitizers, a malicious workbook gets zero validation before execution.
+- **`deactivate()` is empty.** Active ffmpeg processes, recorders, and players are not cleaned up on extension shutdown. These objects are not registered as disposables.
+- **Missing recording confirmation dialog.** The Warden-mandated confirmation before recording (credential capture protection) was never wired in.
+- **`config.ts` is orphaned.** The `getConfig()` accessor is defined but never imported. `capture.ts` reads config directly instead.
+- **Test coverage gaps:** No tests for sanitizers, player, or capture. One test in `recording.test.ts` will fail because it asserts `validateWorkbook` rejects invalid step shapes, but the validator doesn't check step contents.
+- **Windows `getWindowBounds` returns screen area, not window bounds.** The PowerShell script uses `Screen.WorkingArea` instead of actual window geometry.

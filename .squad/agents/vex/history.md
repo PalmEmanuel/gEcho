@@ -16,6 +16,13 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### Wave 3 — Confirmation dialog, deactivate cleanup
+
+- `WorkbookPlayer` exposes `stop()` (sets `cancelled = true`), NOT `cancel()`. Always use `stop()` to halt an in-progress replay.
+- `deactivate()` is the correct cleanup hook for module-level resources (`activeCapture`, `activeRecorder`, `activePlayer`) that don't implement `vscode.Disposable` directly — no need to push them to `context.subscriptions`.
+- `stopGifRecording` already sets `activeCapture = undefined` after `await activeCapture.stop()`, both in the happy path and the catch block — no additional changes needed there.
+- Confirmation dialog for `startEchoRecording` uses `{ modal: false }` (toast-style) with explicit `'Start Recording'` / `'Cancel'` buttons; guard pattern is `if (confirm !== 'Start Recording') return` to also handle dismiss (undefined).
+
 ### 2026-04-08 — Wave 1: extension.ts + config.ts
 
 - Module resolution is Node16: all internal imports require `.js` extensions even for `.ts` source files.

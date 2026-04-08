@@ -3,6 +3,8 @@ import type { ChildProcess } from 'node:child_process';
 import * as vscode from 'vscode';
 import { getWindowBounds, detectPlatform } from '../platform/index.js';
 import type { GifConfig } from '../types/index.js';
+import { sanitizeFfmpegPath } from '../security/index.js';
+import { getConfig } from '../config.js';
 
 export class ScreenCapture {
   private ffmpegProcess: ChildProcess | null = null;
@@ -14,10 +16,16 @@ export class ScreenCapture {
     const bounds = await getWindowBounds();
     const { x, y, width, height } = bounds;
 
-    const gechoConfig = vscode.workspace.getConfiguration('gecho');
-    const ffmpegPath = gechoConfig.get<string>('ffmpegPath', 'ffmpeg');
-    const fps = config?.fps ?? gechoConfig.get<number>('gif.fps', 10);
-    const gifWidth = config?.width ?? gechoConfig.get<number>('gif.width', 1920);
+    const cfg = getConfig();
+    const fps = config?.fps ?? cfg.gif.fps;
+    const gifWidth = config?.width ?? cfg.gif.width;
+
+    let safeFfmpegPath: string;
+    try {
+      safeFfmpegPath = sanitizeFfmpegPath(cfg.ffmpegPath);
+    } catch (err) {
+      throw new Error(`gEcho: Invalid ffmpeg path — ${err instanceof Error ? err.message : String(err)}`);
+    }
 
     const platform = detectPlatform();
     let args: string[];
@@ -52,7 +60,7 @@ export class ScreenCapture {
     }
 
     return new Promise((resolve, reject) => {
-      const proc = spawn(ffmpegPath, args);
+      const proc = spawn(safeFfmpegPath, args);
       this.ffmpegProcess = proc;
 
       let startupError = '';

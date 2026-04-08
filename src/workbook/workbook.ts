@@ -40,5 +40,38 @@ export function validateWorkbook(data: unknown): data is Workbook {
   if (!Array.isArray(obj['steps'])) {
     return false;
   }
+  // Validate each step's required fields
+  for (const step of obj['steps'] as unknown[]) {
+    if (!isValidStep(step)) {
+      return false;
+    }
+  }
   return true;
+}
+
+function isValidStep(step: unknown): boolean {
+  if (typeof step !== 'object' || step === null) return false;
+  const s = step as Record<string, unknown>;
+  if (typeof s['type'] !== 'string') return false;
+  switch (s['type']) {
+    case 'type':
+      return typeof s['text'] === 'string';
+    case 'command':
+      return typeof s['id'] === 'string';
+    case 'key':
+      return typeof s['key'] === 'string';
+    case 'select':
+      return Array.isArray(s['anchor']) && s['anchor'].length === 2 &&
+             Array.isArray(s['active']) && s['active'].length === 2;
+    case 'wait':
+      return typeof s['ms'] === 'number';
+    case 'openFile':
+      return typeof s['path'] === 'string';
+    case 'paste':
+      return typeof s['text'] === 'string';
+    case 'scroll':
+      return typeof s['lines'] === 'number';
+    default:
+      return false;
+  }
 }

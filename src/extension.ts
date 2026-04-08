@@ -41,6 +41,15 @@ export function activate(context: vscode.ExtensionContext): void {
         );
         return;
       }
+      const confirm = await vscode.window.showWarningMessage(
+        'gEcho will record your keystrokes, commands, and file interactions. Avoid typing passwords or sensitive data during recording.',
+        { modal: false },
+        'Start Recording',
+        'Cancel'
+      );
+      if (confirm !== 'Start Recording') {
+        return;
+      }
       try {
         currentState = 'recording';
         activeRecorder = new EchoRecorder();
@@ -270,5 +279,16 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export function deactivate(): void {
-  // cleanup handled by disposables
+  if (activeCapture) {
+    activeCapture.stop().catch(() => undefined);
+    activeCapture = undefined;
+  }
+  if (activeRecorder) {
+    activeRecorder.stop();
+    activeRecorder = undefined;
+  }
+  if (activePlayer) {
+    activePlayer.stop();
+    activePlayer = undefined;
+  }
 }

@@ -20,4 +20,6 @@
 - **VSIX packaging once per matrix:** Generate VSIX only on ubuntu-latest to avoid triple artifacts; use conditional steps `if: runner.os == 'Linux'`
 - **Marketplace publish requires separate secret:** VSCE_PAT must be configured separately; CI prepares artifacts but doesn't publish
 - **Cross-platform matrix non-negotiable:** Always test on [ubuntu-latest, macos-latest, windows-latest] to catch platform bugs early
+- **VS Code Marketplace requires repository, bugs, homepage fields:** Missing `repository`, `bugs`, or `homepage` in package.json blocks Marketplace publishing; also add relevant `keywords` and expand `categories` for discoverability
+- **VS Code 1.74+ auto-generates activation events:** With vscode >=1.74.0, explicit `activationEvents` for commands are auto-generated from `contributes.commands`; redundant activation events can be removed (gEcho targets 1.101.0, so safe to remove)
 

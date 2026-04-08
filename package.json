@@ -10,21 +10,24 @@
     "theme": "dark"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/emanuelpalm/gEcho.git"
+  },
+  "bugs": {
+    "url": "https://github.com/emanuelpalm/gEcho/issues"
+  },
+  "homepage": "https://github.com/emanuelpalm/gEcho#readme",
+  "keywords": ["recording", "gif", "replay", "automation", "demo", "screencast", "workbook"],
   "engines": {
     "vscode": "^1.101.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Testing",
+    "Debuggers"
   ],
   "main": "./out/src/extension.js",
-  "activationEvents": [
-    "onCommand:gecho.startEchoRecording",
-    "onCommand:gecho.stopEchoRecording",
-    "onCommand:gecho.startGifRecording",
-    "onCommand:gecho.stopGifRecording",
-    "onCommand:gecho.replayWorkbook",
-    "onCommand:gecho.replayAsGif"
-  ],
   "contributes": {
     "commands": [
       {

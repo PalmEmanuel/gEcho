@@ -147,3 +147,126 @@ let activeCapture: ScreenCapture | undefined;
 - All meaningful changes require team consensus
 - Document architectural decisions here
 - Keep history focused on work, decisions focused on direction
+
+---
+
+### Gecko Review Findings — Post-Wave 2 (2026-04-08)
+
+**Date:** 2026-04-08
+**Reviewer:** Gecko (Lead)
+**Scope:** Full codebase review after Wave 2 completion
+
+#### Critical Issues
+
+**1. Security sanitizers are dead code — never called anywhere**
+
+Files: `src/security/sanitizer.ts`, `src/replay/player.ts`, `src/screen/capture.ts`
+
+The Warden decision mandates:
+- `sanitizeCommandId()` before every `vscode.commands.executeCommand(step.id, ...)`
+- `sanitizeFilePath()` before every `openFile` step
+- `sanitizeFfmpegPath()` before spawning ffmpeg
+
+None of these are called. Zero imports from `security/` exist in the codebase. A malicious workbook can execute arbitrary VS Code commands, open files outside the workspace, or inject shell metacharacters into the ffmpeg path.
+
+**Action:** Epoch must wire sanitizers into `player.ts` (command + openFile steps) and `capture.ts` (ffmpeg path). Warden must verify integration.
+
+**2. Missing recording confirmation dialog**
+
+File: `src/extension.ts`
+
+The Security Baseline decision requires a confirmation dialog before recording starts to prevent accidental credential capture. `startEchoRecording` sets state and begins recording immediately with no user confirmation.
+
+**Action:** Vex must add `vscode.window.showWarningMessage` with confirm/cancel before activating the recorder.
+
+**3. No cleanup of active processes on deactivate**
+
+File: `src/extension.ts` (line 272-274)
+
+`deactivate()` is empty. If VS Code shuts down mid-recording or mid-replay, the ffmpeg process is never killed. `activeRecorder`, `activeCapture`, and `activePlayer` are module-level but NOT registered with `context.subscriptions`. Only the statusBarItem is.
+
+**Action:** Vex must implement `deactivate()` to stop activeCapture/activeRecorder/activePlayer and add them as disposables.
+
+#### High Issues
+
+**4. Failing test: validateWorkbook edge case**
+
+File: `test/suite/recording.test.ts` (line 27-34)
+
+Test asserts `validateWorkbook({...steps: [{type:'type', text: 42}]})` returns `false`. But `validateWorkbook` does NOT validate individual step contents — only checks version, metadata.name, and that steps is an array. This test will fail.
+
+**Fix:** Either enhance `validateWorkbook` to validate step shapes (preferred), or fix the test expectation.
+
+**5. `validateWorkbook` doesn't validate step contents**
+
+File: `src/workbook/workbook.ts`
+
+The validator accepts any array as `steps`. A workbook with `steps: [42, "garbage", null]` passes validation. For a security-sensitive replay system, step shapes must be validated before execution.
+
+**Action:** Epoch should add per-step validation with switch on `type` field.
+
+**6. `config.ts` is unused dead code**
+
+File: `src/config.ts`
+
+`getConfig()` is never imported. `capture.ts` reads config directly via `vscode.workspace.getConfiguration`. This creates inconsistency — config defaults are defined in two places (package.json + config.ts).
+
+**Action:** Either wire `getConfig()` into capture.ts and player.ts, or delete config.ts.
+
+#### Medium Issues
+
+**7. Missing `.js` extension in security/index.ts**
+
+File: `src/security/index.ts`
+
+Uses `from './sanitizer'` while every other index.ts uses `.js` extensions. Works under CJS (no `"type": "module"` in package.json) but violates project convention.
+
+**8. Windows `getWindowBounds` returns screen area, not window bounds**
+
+File: `src/platform/platform.ts` (line 67-87)
+
+The PowerShell script uses `[System.Windows.Forms.Screen]::FromHandle($h).WorkingArea` which returns the **screen's working area**, not the VS Code window's actual position and size. GIF recordings on Windows will capture the full screen.
+
+**9. `TypeStep.delay` semantics are confusing**
+
+File: `src/replay/player.ts` (line 24)
+
+`delay` is recorded as elapsed-since-start (ms), but the player uses it as per-character delay: `setTimeout(r, step.delay! / speed)`. If delay is 30000 (30s since recording started), each character gets a 30s pause. The decision doc calls this "typing cadence" but the recording logic doesn't produce cadence values.
+
+**10. No `repository` field in package.json**
+
+Required for Marketplace publishing and for `vsce` to link the extension to its source.
+
+**11. Missing test coverage**
+
+No tests exist for:
+- `security/sanitizer.ts` — the security layer has zero test coverage
+- `replay/player.ts` — the step execution engine
+- `screen/capture.ts` — ffmpeg lifecycle
+- `config.ts` — config accessor (also unused)
+
+**12. `package.json` missing `keywords`**
+
+Discoverability on Marketplace is poor without keywords like `["gif", "recording", "replay", "screencast", "demo"]`.
+
+#### Low Issues
+
+**13. `activationEvents` are redundant**
+
+Since VS Code 1.74+, `onCommand:*` events are auto-inferred from `contributes.commands`. The explicit list is harmless but unnecessary.
+
+**14. `RecordingSession` type is never used**
+
+File: `src/types/recording.ts` — defined but imported nowhere.
+
+**15. No exhaustive check in player.ts switch**
+
+File: `src/replay/player.ts` — no `default` case. If a new step type is added to the union but not to the switch, it silently does nothing.
+
+**16. `categories` in package.json is just `["Other"]`**
+
+Could use `["Visualization"]` or `["Other", "Snippets"]` for better Marketplace placement.
+
+---
+
+**Status:** Wave 3 security & UX fixes completed by Epoch, Vex, Chronos. All critical and high issues resolved.
