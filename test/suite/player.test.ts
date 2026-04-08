@@ -208,21 +208,16 @@ describe('WorkbookPlayer', () => {
       );
     });
 
-    it('stop() mid-play cancels further step execution', async () => {
+    it('stop() before play() cancels all step execution', async () => {
       const calls: string[] = [];
       const orig = (vscode.commands as any).executeCommand;
-      (vscode.commands as any).executeCommand = async (cmd: string, args: any) => {
-        calls.push(`${cmd}:${JSON.stringify(args)}`);
-      };
+      (vscode.commands as any).executeCommand = async (cmd: string) => { calls.push(cmd); };
       try {
         const player = new WorkbookPlayer();
-        // Call stop() before play() so the cancelled flag is already set
         player.stop();
         await player.play({
           version: '1.0', metadata: { name: 't' },
-          steps: [
-            { type: 'type', text: 'should not run' },
-          ],
+          steps: [{ type: 'type', text: 'should not run' }],
         });
         assert.strictEqual(calls.length, 0, 'All steps should be skipped after stop()');
       } finally {
