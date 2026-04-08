@@ -273,6 +273,272 @@ Could use `["Visualization"]` or `["Other", "Snippets"]` for better Marketplace 
 
 ---
 
+---
+
+## Vex — Issue #1 Audit (2026-04-08)
+
+**Date:** 2026-04-08  
+**Author:** Vex  
+**Context:** Post-audit of Issue #1 (extension scaffold)
+
+### Finding: No bundler in use
+
+Issue #1 listed `esbuild.js` as a deliverable. The project uses `tsc` directly with no bundler.  
+There is no existing decision record explicitly approving or rejecting esbuild/bundling.  
+At current scale (small extension, no runtime deps), `tsc` is sufficient.
+
+**Recommendation:** Team should formally record whether a bundler is desired for the production VSIX (smaller artifact, faster load). If esbuild is wanted, a decision + `esbuild.js` + updated `package` script would be needed.
+
+### Finding: activationEvents deviation
+
+Gecko's architecture decision mandates per-command activation (`onCommand:gecho.*`).  
+Current `package.json` uses `onStartupFinished` — eager activation on every VS Code startup.  
+This is harmless for a dev extension but violates the stated constraint.
+
+**Recommendation:** If the team wants to enforce Gecko's constraint, `activationEvents` should be changed back to per-command. Not changed by Vex to avoid unilateral runtime behavior change.
+
+---
+
+## Epoch — GIF Recording Race Condition Fix (2026-04-08)
+
+**Date:** 2026-04-08  
+**Author:** Epoch  
+**Branch:** feat/status-bar-recorder-player
+
+### Context
+
+When ffmpeg fails immediately after printing its version header (e.g. avfoundation permission denied, wrong device index on macOS), `ScreenCapture.start()` resolves (first stderr data received), but the close handler then fires, nulling `this.ffmpegProcess`. A subsequent `stop()` call sees `proc === null` and returned `this.outputPath` unconditionally — even though ffmpeg never wrote the file. The GIF converter then fails with a cryptic code 254 / "No such file or directory" error on the palette-generation pass.
+
+### Decision
+
+#### 1. `ScreenCapture.stop()` early-return path must verify file existence
+
+When `this.ffmpegProcess` is null at `stop()` time, call `fs/promises.access(this.outputPath)` before returning. If the file does not exist, throw:
+
+```
+Recording failed — no output was written to <path>. Check ffmpeg permissions and device availability.
+```
+
+#### 2. Accept exit code 254 as a valid SIGINT response
+
+On some macOS/avfoundation combinations, ffmpeg exits with code 254 (`-2` signed = SIGINT signal 2). The accepted success codes in `stop()` are `0`, `254`, and `255`.
+
+#### 3. GIF recording state is `'recording-gif'`
+
+`startGifRecording` sets `currentState = 'recording-gif'` (not `'recording'`). This is required so the status bar renders the correct label and click-command during GIF recording. `stopGifRecording` guards on `currentState !== 'recording-gif'`.
+
+#### 4. Split try/catch in `stopGifRecording`
+
+Two separate try/catch blocks:
+- **Block 1** — `capture.stop()` → error message: "Failed to stop GIF recording — …"
+- **Block 2** — save dialog + conversion → error message: "GIF conversion failed — …"
+
+### Rationale
+
+- The silent no-file failure is a confusing UX: the user sees a cryptic ffmpeg error about the conversion step, not the actual root cause (ffmpeg never started capturing).
+- Separate error messages give users actionable context: one message for "ffmpeg didn't capture anything" vs. "ffmpeg captured but conversion failed".
+- Using the correct `'recording-gif'` state is required by the status bar architecture (`src/ui/statusBar.ts`) which maps each `RecordingState` to a distinct label + command.
+
+### Files Changed
+
+- `src/screen/capture.ts` — file-existence check + accept exit code 254
+- `src/extension.ts` — correct state + split catch blocks
+
+---
+
+## Chronos — Conventional Commits Enforcement and Auto-Changelog (2026-06-08)
+
+**Date:** 2026-06-08  
+**Agent:** Chronos  
+**Issue:** PalmEmanuel/gEcho#15  
+
+### Decision
+
+Adopt Conventional Commits enforcement on all PRs and automatic CHANGELOG generation on release.
+
+### Rationale
+
+- Consistent commit messages enable automated tooling (changelog, release notes, semantic versioning)
+- `pull_request_target` trigger ensures fork PRs are validated without granting write access
+- bARGE uses this exact pattern successfully; adapting it reduces risk
+
+### Implementation
+
+1. **`validate-pr-title.yml`** — Runs `amannn/action-semantic-pull-request@v6` on every PR open/edit/reopen/sync. Enforces types (feat, fix, docs, style, refactor, test, chore, perf, ci, revert, deps) and optional scopes matching gEcho's architecture (recording, replay, capture, workbook, platform, config, security, ci, release). Subject must start with a capital letter and be ≥10 chars.
+
+2. **`release.yml`** — Extended with:
+   - `requarks/changelog-action@v1`: generates CHANGELOG from commits between last tag and new tag; excludes internal types (docs, style, refactor, test, ci, chore, revert) and scopes (ci, release)
+   - `softprops/action-gh-release@v2`: creates GitHub Release with changelog body + VSIX attachment; marks as pre-release if tag contains `-preview`
+   - `peter-evans/create-pull-request@v7`: opens auto-PR to commit the updated CHANGELOG.md back to main
+
+3. **`CHANGELOG.md`** — Reset to standard Keep a Changelog format with `[Unreleased]` section ready for auto-population.
+
+### Trade-offs
+
+- PR authors must follow conventional commits format (slight friction, but enforced at PR level not commit level)
+- Release workflow requires `contents: write` and `pull-requests: write` permissions
+- No Marketplace publishing secret change needed (existing `VSCE_PAT` not present in current release.yml; can be added separately)
+
+---
+
+## Vex — JSON Schema for .gecho.json files (2026-04-08)
+
+**Date:** 2026-04-08  
+**Author:** Vex  
+**Issue:** #14  
+**PR:** #17  
+**Branch:** feat/json-schema
+
+### What was done
+
+Added `schemas/gecho-v1.schema.json` (JSON Schema draft-07) bundled with the extension to power IntelliSense in VS Code when editing `.gecho.json` workbook files. Registered via `contributes.jsonValidation` in `package.json`.
+
+### Key decisions
+
+- **`oneOf` over `if/then/else`** for the step discriminated union — VS Code's IntelliSense resolves `oneOf` cleanly when each branch has a `const` on the `type` property.
+- **Schema lives in `schemas/`**, not inside `src/`. It's pure JSON with no build step, ships as-is with the extension. Not added to `.vscodeignore`.
+- **`contributes.languages` alias** (`"aliases": ["gEcho Workbook"]`) added so the language picker shows a friendly name instead of "JSON".
+- **`gecho.gif.quality` enum** was already correct — no change needed.
+- **`workbooks/example.gecho.json`** added as a reference file demonstrating all 8 step types; validates cleanly against the schema.
+
+### What others should know
+
+The schema path in `contributes.jsonValidation` uses a relative `./schemas/gecho-v1.schema.json` URL — this is correct for bundled schemas and is resolved by VS Code relative to the extension install directory.
+
+---
+
+## Gecko — bARGE Test Strategy Research (2025-07-18)
+
+**Date:** 2025-07-18  
+**Author:** Gecko (Lead)  
+**Status:** Research complete
+
+**Repo:** https://github.com/PalmEmanuel/bARGE
+
+### Key Patterns Found
+
+1. **Private method testing via reflection** — Use `(obj as any).method` to test private methods without exposing internals.
+
+2. **VS Code API monkey-patching** — Direct replacement of VS Code API methods with test stubs, restored in `finally` blocks. No mocking library needed.
+
+3. **Command registration verification** — Integration tests assert all expected commands are present after extension activation.
+
+4. **Playwright-based webview testing** — Separate tier with custom `acquireVsCodeApi` mock for full DOM testing of VS Code webviews.
+
+5. **Realistic test data generators** — Generate test fixtures matching production data distributions.
+
+6. **Separated CI pipeline** — Independent build and test jobs that run in parallel after build succeeds.
+
+7. **`doesNotReject` for graceful degradation** — Assert that commands don't throw even in error conditions.
+
+### Actionable Takeaways for gEcho
+
+| Priority | Action | Effort |
+|----------|--------|--------|
+| **High** | Add `doesNotReject` tests for all commands with bad inputs | Low |
+| **High** | Use reflection pattern to test sanitizer internals | Low |
+| **Medium** | Create realistic workbook generators for test fixtures | Low |
+| **Medium** | Add integration tests verifying command registration | Low |
+| **Medium** | Add VS Code API monkey-patching for testing | Medium |
+| **Low** | Separate CI into build → test jobs | Low |
+| **Future** | If webviews added, adopt Playwright pattern | High |
+
+---
+
+## Grimoire — bARGE Test Patterns Applicability Assessment (2025-07-18)
+
+**Date:** 2025-07-18  
+**Author:** Grimoire (Tester)  
+**Status:** Assessment complete
+
+### Critical Gaps in gEcho Test Coverage
+
+| File | What's missing |
+|------|----------------|
+| `player.test.ts` | `play()` method entirely untested; security logic completely uncovered |
+| `extension.test.ts` | Zero command registration tests; zero state machine tests |
+| `recording.test.ts` | `EchoRecorder` itself has zero tests |
+
+### High-Value Adoptions
+
+1. **`doesNotReject` for command graceful degradation** — Assert commands don't throw on bad inputs (corrupted workbooks, invalid state transitions, cancelled dialogs).
+
+2. **VS Code API monkey-patching** — Enable testing of `WorkbookPlayer.play()` by mocking `vscode.commands.executeCommand` to verify step dispatch and security checks.
+
+3. **Command registration assertions** — Simple integration test verifying all 6 `gecho.*` commands registered after activation.
+
+### Adapt (needs modification)
+
+4. **Realistic test data generators** — Create `generateWorkbook(stepCount, options?)` factory for stress-testing and edge cases.
+
+5. **Real VS Code documents** — For `.gecho.json` file testing and language detection validation.
+
+### Skip (doesn't apply)
+
+- Private method reflection (gEcho's internals are already public)
+- Playwright webview tests (gEcho has no webview yet)
+- Separate CI pipeline (current scale doesn't justify multi-job overhead)
+
+### Recommended Next Test Sprint
+
+1. **`extension.test.ts` — command registration** *(~30 min)*
+2. **`player.test.ts` — play() security blocking** *(~2 hours)*
+3. **`player.test.ts` — play() step dispatch** *(~3 hours)*
+4. **`recorder.test.ts` (new file)** *(~2 hours)*
+5. **`extension.test.ts` — state machine guards** *(~1.5 hours)*
+6. **`doesNotReject` sweep** *(~1 hour)*
+7. **`workbook.test.ts` — step field edge cases** *(~30 min)*
+
+---
+
+## Grimoire — Wave 4 Test Coverage Implementation (2025-07-18)
+
+**Date:** 2025-07-18  
+**Author:** Grimoire (Tester)  
+**Branch:** test/wave4-coverage  
+**Status:** Implemented, compiled, PR open
+
+### What Was Implemented
+
+#### Priority 1 — `test/suite/extension.test.ts`
+- Added command registration test: all 6 `gecho.*` commands asserted present after activation
+- Added state machine guard tests (monkey-patched `showWarningMessage` and `showOpenDialog`):
+  - `stopEchoRecording` when idle → does not throw
+  - `stopGifRecording` when idle → does not throw
+  - `replayWorkbook` with cancelled dialog → does not throw
+
+#### Priority 2 — `test/suite/player.test.ts`
+- Removed `describe.skip` from integration tests; replaced with real tests
+- Added `vscode` import (all tests run in VS Code Extension Host)
+- **Security blocking tests** (2 tests): unsafe command ID, path traversal — both verify `executeCommand` never called
+- **Step dispatch tests** (9 tests): type, command, key, wait, paste, scroll, select per bARGE patterns
+- **stop() cancellation test**: stop() before play() → all steps skipped
+
+#### Priority 3 — `test/suite/recorder.test.ts` (new file)
+- Created from scratch; 6 tests covering EchoRecorder lifecycle:
+  - start/stop returns empty array
+  - second stop() returns empty array
+  - dispose() doesn't throw (twice)
+  - lifecycle is repeatable (start/stop cycles)
+  - real VS Code integration test: opens scratch doc, types via `type` command, verifies type steps captured
+
+#### Priority 4 — `src/workbook/workbook.ts` scroll direction bug fix
+- Fixed `isValidStep` for `scroll` case: now requires `direction === 'up' || direction === 'down'`
+- Added two validation tests to `test/suite/workbook.test.ts`:
+  - scroll with missing direction → `validateWorkbook` returns false
+  - scroll with invalid direction ('sideways') → `validateWorkbook` returns false
+
+#### Priority 5 — `doesNotReject` sweep
+- Covered inline in the extension.test.ts state machine section
+
+### Key Patterns
+
+- **`vscode.commands.executeCommand` returns `Thenable`** — wrap with `Promise.resolve()` for `assert.doesNotReject`
+- **Monkey-patching pattern** — always use `try/finally` to restore originals
+- **Recorder integration test requires Extension Host** — uses real VS Code events, only works in development host
+
+---
+
 ## 2026-04-08T10:47:22Z: User directive
 **By:** Emanuel Palm (via Copilot)
 
