@@ -136,18 +136,22 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       try {
-        setState('recording-gif');
         activeCapture = new ScreenCapture();
         await vscode.workspace.fs.createDirectory(context.globalStorageUri);
         const tmpMp4Path = path.join(context.globalStorageUri.fsPath, `gecho-${Date.now()}.mp4`);
         await activeCapture.start(tmpMp4Path);
+        await activeCapture.waitForReady(800);
+        setState('recording-gif');
         vscode.window.showInformationMessage('gEcho: GIF recording started.');
       } catch (err) {
         setState('idle');
         activeCapture = undefined;
-        vscode.window.showErrorMessage(
-          `gEcho: Failed to start GIF recording — ${err instanceof Error ? err.message : String(err)}`
-        );
+        const msg = err instanceof Error ? err.message : String(err);
+        const isPermissionError = /permission|AVFoundation|avfoundation/i.test(msg);
+        const hint = process.platform === 'darwin' && isPermissionError
+          ? ' Go to System Settings → Privacy & Security → Screen Recording and enable VS Code.'
+          : '';
+        vscode.window.showErrorMessage(`gEcho: Failed to start GIF recording — ${msg}${hint}`);
       }
     })
   );
@@ -272,6 +276,7 @@ export function activate(context: vscode.ExtensionContext): void {
         await vscode.workspace.fs.createDirectory(context.globalStorageUri);
         tmpMp4Path = path.join(context.globalStorageUri.fsPath, `gecho-replay-${Date.now()}.mp4`);
         await activeCapture.start(tmpMp4Path);
+        await activeCapture.waitForReady(800);
         await activePlayer.play(workbook);
         const mp4Path = await activeCapture.stop();
 
@@ -298,9 +303,12 @@ export function activate(context: vscode.ExtensionContext): void {
         activePlayer = undefined;
         activeCapture = undefined;
         setState('idle');
-        vscode.window.showErrorMessage(
-          `gEcho: Replay as GIF failed — ${err instanceof Error ? err.message : String(err)}`
-        );
+        const msg = err instanceof Error ? err.message : String(err);
+        const isPermissionError = /permission|AVFoundation|avfoundation/i.test(msg);
+        const hint = process.platform === 'darwin' && isPermissionError
+          ? ' Go to System Settings → Privacy & Security → Screen Recording and enable VS Code.'
+          : '';
+        vscode.window.showErrorMessage(`gEcho: Replay as GIF failed — ${msg}${hint}`);
       }
     })
   );
