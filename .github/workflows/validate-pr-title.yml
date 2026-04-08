@@ -43,8 +43,8 @@ jobs:
             ci
             release
           requireScope: false
-          subjectPattern: ^[A-Z].{9,}$
+          subjectPattern: ^.{10,}$
           subjectPatternError: |
             The PR title will be used as the squash commit message.
             Please ensure it follows conventional commits format:
-            "type(optional-scope): Subject starting with capital letter and at least 10 characters"
+            "type(optional-scope): Subject with at least 10 characters"
