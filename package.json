@@ -113,7 +113,9 @@
   },
   "scripts": {
     "compile": "tsc -p ./",
+    "build": "npm run compile",
     "watch": "tsc -watch -p ./",
+    "check-types": "tsc --noEmit",
     "pretest": "npm run compile",
     "test": "node ./out/test/runTest.js",
     "lint": "eslint src --ext ts",
