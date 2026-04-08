@@ -38,9 +38,9 @@ How to decide who handles what.
 
 ## Branch & PR Workflow
 
-`main` is protected. No direct pushes. All work ships through pull requests.
+`main` is protected. All work ships through pull requests. Full rules are in `.squad/identity/wisdom.md` (read by every agent at spawn).
 
-### Branch naming
+**Quick reference — branch naming:**
 
 | Work type | Pattern | Example |
 |-----------|---------|---------|
@@ -51,22 +51,7 @@ How to decide who handles what.
 | Test-only | `test/{slug}` | `test/player-step-dispatch` |
 | Squad state only | `chore/squad-state-{YYYYMMDD}` | `chore/squad-state-20260408` |
 
-### Agent PR rules
-
-1. **Create a branch before touching any source file.** `git checkout -b {branch}` is the first command in every feature agent's run.
-2. **PR titles must follow Conventional Commits** — enforced by CI on every PR.
-   Format: `type(scope): Description starting with capital, ≥10 chars`
-   Valid types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`, `build`, `revert`
-3. **Open the PR via `gh pr create`** after pushing. Include a closes/fixes reference if the work came from an issue.
-4. **Use `--draft` for work in progress** — `gh pr create --draft` when pushing incomplete work.
-5. **Gecko reviews all code PRs** before merge. No self-merge. No squatting on approved PRs.
-6. **Scribe** commits `.squad/` state to the active feature branch. If the coordinator signals no feature branch exists (squad-only session), Scribe creates and pushes `chore/squad-state-{YYYYMMDD}` and opens a PR.
-
-### Coordinator responsibilities
-
-- Pass `TARGET_BRANCH` to every agent spawn that will create or modify source files.
-- Pass `TARGET_BRANCH` to Scribe so it knows where to commit `.squad/` state.
-- If no feature branch is active, tell Scribe `TARGET_BRANCH: "chore/squad-state-{date}"` so it creates one.
+**Coordinator responsibility:** always pass `TARGET_BRANCH` to every agent spawn and to Scribe.
 
 ---
 
