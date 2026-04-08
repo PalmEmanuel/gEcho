@@ -100,7 +100,14 @@
         "id": "json",
         "extensions": [
           ".gecho.json"
-        ]
+        ],
+        "aliases": ["gEcho Workbook"]
+      }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": "*.gecho.json",
+        "url": "./schemas/gecho-v1.schema.json"
       }
     ]
   },
