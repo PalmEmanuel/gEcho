@@ -547,3 +547,38 @@ The schema path in `contributes.jsonValidation` uses a relative `./schemas/gecho
 **Why:** User requirement — quality and maintainability standard for the project.
 
 **Effect on routing:** All feature work spawns Grimoire in parallel. Grimoire's test coverage is a required deliverable, not optional.
+# Decision: Event-driven ffmpeg startup liveness check
+
+**Date:** 2026-04-08  
+**Author:** Epoch  
+**Status:** Implemented  
+
+## Context
+
+`ScreenCapture.start()` resolves as soon as ffmpeg writes anything to stderr — which is the version banner, printed before the capture device is opened. On macOS, if Screen Recording permission is denied or the device index is wrong, ffmpeg exits ~200–500ms after `start()` has resolved. The caller (extension command) then sets state to `'recording-gif'` against a process that is already dead.
+
+The symptom: the user sees "GIF recording started" but gets a confusing error ("no output was written") only when they try to stop.
+
+## Decision
+
+Add `waitForReady(timeoutMs = 800): Promise<void>` to `ScreenCapture`:
+
+- Attach a `once('close')` listener on `this.ffmpegProcess`.
+- If the process exits within the window → reject immediately with the last 500 chars of `startupStderr`.
+- If the `timeoutMs` deadline fires and the process is still alive → remove the listener and resolve.
+
+The timer is purely a deadline, not a polling sleep. This keeps the check event-driven.
+
+## Consequences
+
+- `setState('recording-gif')` and the "GIF recording started" notification must be called **after** `waitForReady()` resolves, not before `start()`.
+- `startupStderr` must be an instance variable (populated in the `stderr.on('data')` handler) so `waitForReady` and the `close` handler can both read it.
+- Apply to both `startGifRecording` and `startReplayGifRecording` (same device, same failure mode).
+- On macOS, check `/permission|AVFoundation/i` in the rejection message and append a System Settings hint to the user-facing error.
+
+## Alternatives Rejected
+
+- **`setImmediate` check only**: Too fast — ffmpeg hasn't had time to fail yet. Only catches processes that are already dead before the microtask queue drains.
+- **Fixed `setTimeout(500)` poll**: Sleep-based; fragile on slow machines. The event-driven `once('close')` + timeout deadline is strictly better.
+- **Retry on stop()**: Detecting failure at stop-time (the old behavior) gives the user no actionable information at the right moment.
+
