@@ -13,7 +13,7 @@
 
 In the app registration:
 1. Click "API permissions" → "Add a permission" → Microsoft Graph → Delegated
-2. Add: `Chat.Read` and `User.Read`
+2. Add: `Chat.ReadWrite` and `User.Read`
 3. Click "Grant admin consent" if your org requires it (or ask your IT admin)
 
 ## 3. Enable public client flow
@@ -75,4 +75,4 @@ The setup script will re-authenticate and update `~/.squad/teams-auth.json`. You
 
 - `~/.squad/teams-config.json` and `~/.squad/teams-auth.json` live in your home directory — **never commit these**
 - The repo's `~/.squad/teams-config.json` template contains no secrets
-- The MSAL token cache uses delegated permissions only — it cannot act on your behalf beyond `Chat.Read` and `User.Read`
+- The MSAL token cache uses delegated permissions only — it cannot act on your behalf beyond `Chat.ReadWrite` and `User.Read`

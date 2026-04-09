@@ -60,6 +60,21 @@ node .squad/scripts/teams-reply.js --file {path/to/result.md}
 
 Do NOT use the outbound webhook for task replies. The webhook is for broadcast notifications (CI failures, PR merges). Chat replies go through the Graph API so they appear as conversation messages in the same chat where the task was sent.
 
+## Teams Task Replies
+
+When a task from Teams is completed, post the result back to the chat:
+
+```bash
+node .squad/scripts/teams-reply.js "✅ Done: {brief result summary}"
+```
+
+Or for longer results:
+```bash
+node .squad/scripts/teams-reply.js --file {path/to/result.md}
+```
+
+Do NOT use the outbound webhook for task replies. The webhook is for broadcast notifications (CI failures, PR merges). Chat replies go through the Graph API so they appear as conversation messages in the same chat where the task was sent.
+
 ## Model
 
 - **Preferred:** claude-haiku-4.5
