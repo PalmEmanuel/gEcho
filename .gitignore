@@ -11,3 +11,5 @@ out/
 .squad/sessions/
 # Squad: SubSquad activation file (local to this machine)
 .squad-workstream
+# Local squad state (outside repo already, but guard just in case)
+.squad/teams-inbox/

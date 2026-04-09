@@ -9,6 +9,8 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+- **Teams webhook URL lives at `~/.squad/teams-webhook.url` (machine-local, never in repo).** All agents read it at runtime via `cat ~/.squad/teams-webhook.url`. The skill at `.squad/skills/teams-notifications/SKILL.md` is the authoritative reference for payload formats and anti-spam rules.
+
 - **Node16 module resolution requires `.js` extensions in imports.** All internal imports (e.g., `from './workbook.js'`) use `.js` even though source is `.ts`. This is a TypeScript + Node16 requirement — downstream agents must follow this convention.
 - **ESLint 8 is required with @typescript-eslint v7.** ESLint 9 has peer dependency conflicts with @typescript-eslint/parser ^7.14.0. Pinned to `^8.56.0`.
 - **tsconfig rootDir is `.` (not `./src`) because test files live outside src/.** Output mirrors the source layout under `out/src/` and `out/test/`. The `main` field in package.json points to `./out/src/extension.js` to match.
