@@ -4,6 +4,9 @@
   "description": "gEcho squad automation scripts",
   "private": true,
   "type": "commonjs",
+  "scripts": {
+    "postinstall": "sed -i '' 's|from \"vscode-jsonrpc/node\"|from \"vscode-jsonrpc/node.js\"|g' node_modules/@github/copilot-sdk/dist/session.js 2>/dev/null || true"
+  },
   "dependencies": {
     "@azure/msal-node": "^3.0.0",
     "@bradygaster/squad-sdk": "latest",
