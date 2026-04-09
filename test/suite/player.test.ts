@@ -196,13 +196,15 @@ describe('WorkbookPlayer', () => {
     it('paste step writes to clipboard then calls clipboardPasteAction', async () => {
       const calls: Array<{ cmd: string; args: any }> = [];
       const origExec = (vscode.commands as any).executeCommand;
-      // vscode.env.clipboard.writeText is non-writable in the VS Code test host — use Object.defineProperty
-      const origWriteText = vscode.env.clipboard.writeText.bind(vscode.env.clipboard);
+      // Replace the entire clipboard object — writeText is non-configurable on the real
+      // clipboard instance in the VS Code test host, so Object.defineProperty on writeText
+      // directly throws "Cannot redefine property" on Linux CI runners.
+      const origClipboard = vscode.env.clipboard;
       let clipboardText = '';
-      Object.defineProperty(vscode.env.clipboard, 'writeText', {
-        configurable: true, writable: true,
-        value: async (t: string) => { clipboardText = t; },
-      });
+      (vscode.env as any).clipboard = {
+        writeText: async (t: string) => { clipboardText = t; },
+        readText: async () => clipboardText,
+      };
       (vscode.commands as any).executeCommand = async (cmd: string, args: any) => { calls.push({ cmd, args }); };
       try {
         const player = new WorkbookPlayer();
@@ -214,10 +216,7 @@ describe('WorkbookPlayer', () => {
         assert.strictEqual(calls.length, 1);
         assert.strictEqual(calls[0].cmd, 'editor.action.clipboardPasteAction');
       } finally {
-        Object.defineProperty(vscode.env.clipboard, 'writeText', {
-          configurable: true, writable: true,
-          value: origWriteText,
-        });
+        (vscode.env as any).clipboard = origClipboard;
         (vscode.commands as any).executeCommand = origExec;
       }
     });
