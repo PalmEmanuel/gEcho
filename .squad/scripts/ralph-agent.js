@@ -17,6 +17,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const SQUAD_DIR = path.join(__dirname, '..');
 const INBOX_DIR = path.join(SQUAD_DIR, 'teams-inbox');
