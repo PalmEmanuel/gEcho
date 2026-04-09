@@ -202,8 +202,11 @@ describe('WorkbookPlayer', () => {
         ?? Object.getOwnPropertyDescriptor(Object.getPrototypeOf(vscode.env), 'clipboard');
       const origClipboard = vscode.env.clipboard;
       let clipboardText = '';
+      // Track all writes so we can verify the paste write happened even though
+      // the player restores the clipboard in its finally block.
+      const writtenTexts: string[] = [];
       const mockClipboard = {
-        writeText: async (t: string) => { clipboardText = t; },
+        writeText: async (t: string) => { clipboardText = t; writtenTexts.push(t); },
         readText: async () => clipboardText,
       };
       Object.defineProperty(vscode.env, 'clipboard', { value: mockClipboard, configurable: true, writable: true });
@@ -214,9 +217,12 @@ describe('WorkbookPlayer', () => {
           version: '1.0', metadata: { name: 't' },
           steps: [{ type: 'paste', text: 'clipboard content' }],
         });
-        assert.strictEqual(clipboardText, 'clipboard content', 'Should write to clipboard');
+        // Player writes text then restores clipboard — check the write happened in order.
+        assert.strictEqual(writtenTexts[0], 'clipboard content', 'Should write to clipboard before paste');
         assert.strictEqual(calls.length, 1);
         assert.strictEqual(calls[0].cmd, 'editor.action.clipboardPasteAction');
+        // Clipboard should be restored to its original value (empty string) after paste.
+        assert.strictEqual(clipboardText, '', 'Clipboard should be restored after paste');
       } finally {
         if (origClipboardDescriptor) {
           Object.defineProperty(vscode.env, 'clipboard', origClipboardDescriptor);
