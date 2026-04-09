@@ -26,23 +26,15 @@ export function activate(context: vscode.ExtensionContext): void {
   // gecho.showCommands — show a quick-pick menu of all gEcho commands
   context.subscriptions.push(
     vscode.commands.registerCommand('gecho.showCommands', async () => {
-      const items: vscode.QuickPickItem[] = [
-        { label: '$(record) Start Echo Recording', description: 'Record keystrokes as a workbook' },
-        { label: '$(device-camera-video) Start GIF Recording', description: 'Capture screen to GIF' },
-        { label: '$(play) Replay Workbook', description: 'Execute a .gecho.json workbook' },
-        { label: '$(play) Replay Workbook as GIF', description: 'Execute workbook and capture GIF' },
+      const items: (vscode.QuickPickItem & { command: string })[] = [
+        { label: '$(record) Start Echo Recording', description: 'Record keystrokes as a workbook', command: 'gecho.startEchoRecording' },
+        { label: '$(device-camera-video) Start GIF Recording', description: 'Capture screen to GIF', command: 'gecho.startGifRecording' },
+        { label: '$(play) Replay Workbook', description: 'Execute a .gecho.json workbook', command: 'gecho.replayWorkbook' },
+        { label: '$(play) Replay Workbook as GIF', description: 'Execute workbook and capture GIF', command: 'gecho.replayAsGif' },
       ];
       const pick = await vscode.window.showQuickPick(items, { placeHolder: 'gEcho — choose an action' });
       if (!pick) { return; }
-      if (pick.label.includes('Echo Recording')) {
-        await vscode.commands.executeCommand('gecho.startEchoRecording');
-      } else if (pick.label.includes('GIF Recording')) {
-        await vscode.commands.executeCommand('gecho.startGifRecording');
-      } else if (pick.label.includes('Replay Workbook as GIF')) {
-        await vscode.commands.executeCommand('gecho.replayAsGif');
-      } else if (pick.label.includes('Replay Workbook')) {
-        await vscode.commands.executeCommand('gecho.replayWorkbook');
-      }
+      await vscode.commands.executeCommand(pick.command);
     })
   );
 
@@ -278,7 +270,7 @@ export function activate(context: vscode.ExtensionContext): void {
         await activeCapture.start(tmpMp4Path);
         await activeCapture.waitForReady(800);
         await activePlayer.play(workbook);
-        const mp4Path = await activeCapture.stop();
+        const mp4Path = await activeCapture?.stop();
 
         activePlayer = undefined;
         activeCapture = undefined;
@@ -288,14 +280,14 @@ export function activate(context: vscode.ExtensionContext): void {
           { location: vscode.ProgressLocation.Notification, title: 'gEcho: Converting to GIF...', cancellable: false },
           async () => {
             const converter = new GifConverter();
-            await converter.convert(mp4Path, saveUri.fsPath);
+            await converter.convert(mp4Path!, saveUri.fsPath);
           }
         );
 
         vscode.window.showInformationMessage(`gEcho: GIF saved to ${saveUri.fsPath}`);
       } catch (err) {
         if (activeCapture) {
-          try { await activeCapture.stop(); } catch { /* ignore */ }
+          try { await activeCapture?.stop(); } catch { /* ignore */ }
         }
         if (tmpMp4Path) {
           await unlink(tmpMp4Path).catch(() => undefined);

@@ -1,14 +1,14 @@
 'use strict';
 
 /**
- * teams-watch.js — Ralph's persistent Teams watch loop.
+ * teams-watch.js — persistent Teams watch loop.
  *
  * Polls the Teams chat on an interval, auto-acknowledges new tasks,
- * and writes them to ~/.squad/teams-inbox/ for the squad to process.
+ * and writes them to .squad/teams-inbox/ (repo-local) for the squad to process.
  *
  * Usage:
- *   node .squad/scripts/ralph-watch.js              # polls every 30s (default)
- *   node .squad/scripts/ralph-watch.js --interval 60  # polls every 60s
+ *   node .squad/scripts/teams-watch.js              # polls every 30s (default)
+ *   node .squad/scripts/teams-watch.js --interval 60  # polls every 60s
  *
  * Stop with Ctrl+C.
  */

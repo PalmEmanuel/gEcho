@@ -58,10 +58,11 @@ async function main() {
 
   console.log('\nEnter bot display names to filter (comma-separated, e.g. "Ralph Squad Bot, Gecho Bot"):');
   const botNamesInput = await question('  Bot display names: ');
-  const botDisplayNames = botNamesInput
+  const botNames = botNamesInput
     .split(',')
     .map((s) => s.trim())
-    .filter((s) => s.length > 0) || ['Ralph Squad', 'Gecho'];
+    .filter((s) => s.length > 0);
+  const botDisplayNames = botNames.length > 0 ? botNames : ['Ralph Squad', 'Gecho'];
 
   const config = {
     clientId,

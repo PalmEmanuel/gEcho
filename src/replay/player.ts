@@ -33,7 +33,7 @@ export class WorkbookPlayer {
   async play(workbook: Workbook, config?: ReplayConfig): Promise<void> {
     if (this.cancelled) { return; }
     this.cancelled = false;
-    const speed = config?.speed ?? 1.0;
+    const speed = Math.max(config?.speed ?? 1.0, 0.1);
 
     for (const step of workbook.steps) {
       if (this.cancelled) {
@@ -124,8 +124,13 @@ export class WorkbookPlayer {
         }
 
         case 'paste': {
-          await vscode.env.clipboard.writeText(step.text);
-          await vscode.commands.executeCommand('editor.action.clipboardPasteAction');
+          const previousClipboardText = await vscode.env.clipboard.readText();
+          try {
+            await vscode.env.clipboard.writeText(step.text);
+            await vscode.commands.executeCommand('editor.action.clipboardPasteAction');
+          } finally {
+            await vscode.env.clipboard.writeText(previousClipboardText);
+          }
           break;
         }
 

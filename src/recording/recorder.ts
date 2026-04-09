@@ -10,12 +10,14 @@ export class EchoRecorder {
   private disposables: vscode.Disposable[] = [];
   /** timestamp of last text-change event — used to suppress implied selection noise */
   private lastTextChangeAt: number = -1;
+  private lastTypeAt: number = 0;
 
   start(): void {
     this.startTime = Date.now();
     this.steps = [];
     this.disposables = [];
     this.lastTextChangeAt = -1;
+    this.lastTypeAt = 0;
 
     this.disposables.push(
       vscode.workspace.onDidChangeTextDocument(event => {
@@ -70,11 +72,12 @@ export class EchoRecorder {
 
   /**
    * Push a type step, coalescing adjacent single-char inserts within
-   * COALESCE_WINDOW_MS into a single step whose `delay` is the average
-   * inter-keystroke interval.
+   * COALESCE_WINDOW_MS into a single step whose `delay` is the
+   * per-keystroke interval (ms since previous typed character).
    */
   private pushTypeStep(text: string, now: number): void {
-    const delay = now - this.startTime;
+    const delay = this.lastTypeAt > 0 ? now - this.lastTypeAt : undefined;
+    this.lastTypeAt = now;
     const prev = this.lastStep();
 
     if (
@@ -82,11 +85,11 @@ export class EchoRecorder {
       text.length === 1 &&
       prev.text.length < 80 &&
       prev.delay !== undefined &&
-      delay - prev.delay < COALESCE_WINDOW_MS
+      (delay ?? 0) < COALESCE_WINDOW_MS
     ) {
       (prev as TypeStep).text += text;
-      // Update delay to reflect the most-recent keystroke timing
-      (prev as TypeStep).delay = delay;
+      // Update delay to reflect the most-recent keystroke interval
+      (prev as TypeStep).delay = delay ?? prev.delay;
     } else {
       this.steps.push({ type: 'type', text, delay });
     }

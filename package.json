@@ -40,7 +40,7 @@
     "commands": [
       {
         "command": "gecho.showCommands",
-        "title": "Show Commands",
+        "title": "gEcho: Show Commands",
         "category": "gEcho"
       },
       {
@@ -69,7 +69,7 @@
       },
       {
         "command": "gecho.cancelReplay",
-        "title": "Cancel Replay",
+        "title": "gEcho: Cancel Replay",
         "category": "gEcho"
       }
     ],
