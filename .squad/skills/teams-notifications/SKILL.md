@@ -1,15 +1,45 @@
 # Skill: teams-notifications
 confidence: medium
-version: 1.0
-authors: [Gecko]
-tags: [teams, notifications, webhook, adaptive-cards]
+version: 1.1
+authors: [Gecko, Epoch]
+tags: [teams, notifications, webhook, adaptive-cards, graph-api]
 
 ## Summary
-How gEcho squad agents send Microsoft Teams notifications via incoming webhook.
+How gEcho squad agents communicate via Microsoft Teams — two distinct channels for two distinct purposes.
 
-## Webhook URL
+## Two channels
+
+### 1. Outbound webhook (`~/.squad/teams-webhook.url`) — broadcast notifications
+Use for: CI failures, PR merges, security findings, major decisions. Messages appear as connector cards in the channel.
+
 The webhook URL is stored at `~/.squad/teams-webhook.url` (never in the repo).
 Read it with: `cat ~/.squad/teams-webhook.url` or `fs.readFileSync(path.join(os.homedir(), '.squad', 'teams-webhook.url'), 'utf8').trim()`
+
+### 2. Graph API chat reply (`teams-reply.js`) — task results
+Use for: responding to `/task` messages in the group chat. Messages appear as real conversation messages from the authenticated user (Emanuel).
+
+```bash
+# Short reply
+node .squad/scripts/teams-reply.js "✅ Done: fixed the status bar icon"
+
+# Long reply from file
+node .squad/scripts/teams-reply.js --file /path/to/result.md
+```
+
+Or from Node.js:
+```js
+const { sendChatMessage } = require('./.squad/scripts/teams-graph-client');
+await sendChatMessage('✅ Done: fixed the status bar icon');
+```
+
+## When to use each channel
+
+| Channel | Use when |
+|---------|----------|
+| Outbound webhook | CI failure, PR merged, security finding, major decision |
+| Graph API chat reply | Responding to a `/task` message from the group chat |
+
+**Never use the webhook for task replies.** Task results go back as chat messages via `teams-reply.js`.
 
 ## When to Send
 Only send when genuinely newsworthy. Default: DON'T send. Send only when:
@@ -97,7 +127,7 @@ Teams group chat message
   → ~/.squad/teams-inbox/{timestamp}-{slug}.md written
   → Ralph picks up file on next loop iteration
   → Routes task to appropriate squad agent
-  → Result posted back via webhook (see formats above)
+  → Result posted back via `teams-reply.js` (Graph API chat message)
   → Inbox file deleted
 ```
 

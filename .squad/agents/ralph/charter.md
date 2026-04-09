@@ -36,11 +36,26 @@
 On each monitoring cycle, after checking GitHub:
 1. Run `node .squad/scripts/teams-monitor.js` (if the file exists)
 2. Check `~/.squad/teams-inbox/` for `.md` files
-3. For each file: read the task, execute it (route to appropriate agent), post result to Teams webhook
+3. For each file: read the task, execute it (route to appropriate agent), post result as a chat reply (see below)
 4. Delete processed task files from inbox
 5. If teams-monitor.js outputs `AUTH_REQUIRED` on stderr: send a Teams notification to Emanuel asking him to re-run `node .squad/scripts/teams-setup.js`, then skip Teams check for this cycle
 
 Never process the same task file twice. Check modification time if needed.
+
+## Teams Task Replies
+
+When a task from Teams is completed, post the result back to the chat:
+
+```bash
+node .squad/scripts/teams-reply.js "✅ Done: {brief result summary}"
+```
+
+Or for longer results:
+```bash
+node .squad/scripts/teams-reply.js --file {path/to/result.md}
+```
+
+Do NOT use the outbound webhook for task replies. The webhook is for broadcast notifications (CI failures, PR merges). Chat replies go through the Graph API so they appear as conversation messages in the same chat where the task was sent.
 
 ## Model
 
