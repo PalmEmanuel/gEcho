@@ -2,7 +2,7 @@ import type { StepType } from './workbook.js';
 
 export type RecordingMode = 'echo' | 'gif' | 'combined';
 
-export type RecordingState = 'idle' | 'recording' | 'replaying';
+export type RecordingState = 'idle' | 'recording' | 'recording-gif' | 'replaying' | 'replaying-gif';
 
 export interface RecordingSession {
   mode: RecordingMode;
