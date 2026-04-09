@@ -250,7 +250,7 @@ async function getNewMessages() {
   const newMessages = messages.filter((msg) => {
     if (!msg.createdDateTime) return false;
     const senderName = msg.from?.user?.displayName || msg.from?.application?.displayName || '';
-    if (isBotSender(senderName)) return false;
+    if (isBotSender(senderName, config)) return false;
     const rawBody = msg.body?.content || '';
     const text = msg.body?.contentType === 'html' ? stripHtml(rawBody) : rawBody;
     return matchTriggerWord(text, triggerWords) !== null;
@@ -282,7 +282,6 @@ async function getNewMessages() {
 /**
  * Post a message to the configured chat.
  * @param {string} text - Plain text or HTML content to send.
- * @param {string} replyToMessageId - Optional message ID to reply to (creates threaded reply).
  */
 async function sendChatMessage(text) {
   const config = loadConfig();
@@ -358,9 +357,18 @@ function matchTriggerWord(text, triggerWords) {
   return null;
 }
 
-function isBotSender(displayName) {
+let _botHeuristicWarnShown = false;
+
+function isBotSender(displayName, config) {
   if (!displayName) return false;
   const lower = displayName.toLowerCase();
+  if (config && Array.isArray(config.botDisplayNames) && config.botDisplayNames.length > 0) {
+    return config.botDisplayNames.some(name => name.toLowerCase() === lower);
+  }
+  if (!_botHeuristicWarnShown) {
+    console.warn('[teams] botDisplayNames not configured — using heuristic bot detection');
+    _botHeuristicWarnShown = true;
+  }
   return lower.includes('squad') || lower.includes('bot') || lower.includes('gecho');
 }
 

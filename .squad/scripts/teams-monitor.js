@@ -44,13 +44,14 @@ function slugify(text) {
 // Core poll — exported for teams-watch.js to call in a loop
 // ---------------------------------------------------------------------------
 
-async function poll() {
+async function poll({ autoReply: autoReplyArg = false } = {}) {
+  const effectiveAutoReply = autoReplyArg || autoReply;
   let result;
   try {
     result = await getNewMessages();
   } catch (err) {
     if (err.code === 'AUTH_REQUIRED') throw err;
-    console.log(`[${new Date().toISOString()}] Network error — skipping Teams check`);
+    console.log(`[${new Date().toISOString()}] Network error — skipping Teams check: ${err.message}`);
     return { found: 0 };
   }
 
@@ -94,7 +95,7 @@ async function poll() {
     console.log(`[${new Date().toISOString()}] Task queued: ${filename}`);
 
     // Auto-acknowledge in Teams if --reply flag is set
-    if (autoReply) {
+    if (effectiveAutoReply) {
       try {
         const firstName = task.senderName ? task.senderName.split(' ')[0] : task.senderName;
         const ackResult = await sendChatMessage(`👋 Got it, ${firstName}! On it...`);
@@ -127,7 +128,7 @@ module.exports = { poll };
 
 if (require.main === module) {
   poll()
-    .then(({ found }) => process.exit(found >= 0 ? 0 : 0))
+    .then(({ found }) => process.exit(0))
     .catch((err) => {
       if (err.code === 'AUTH_REQUIRED') {
         process.stderr.write('AUTH_REQUIRED\n');

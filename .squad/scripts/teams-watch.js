@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * ralph-watch.js — Ralph's persistent Teams watch loop.
+ * teams-watch.js — Ralph's persistent Teams watch loop.
  *
  * Polls the Teams chat on an interval, auto-acknowledges new tasks,
  * and writes them to ~/.squad/teams-inbox/ for the squad to process.
@@ -17,14 +17,12 @@ const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
 
-// MUST be pushed before requiring teams-monitor — autoReply is evaluated at require time.
-process.argv.push('--reply');
-
 const { poll } = require('./teams-monitor');
 
 const SQUAD_DIR = path.join(__dirname, '..');
 const INBOX_DIR = path.join(SQUAD_DIR, 'teams-inbox');
 const PID_FILE = path.join(SQUAD_DIR, 'ralph-watch.pid');
+const LOCK_FILE = path.join(INBOX_DIR, '.ralph-agent.lock');
 
 // Prevent macOS idle sleep while the watch loop runs (display can still lock freely).
 // caffeinate -i: inhibit idle system sleep only. No-op on non-macOS.
@@ -54,11 +52,26 @@ function banner() {
 async function tick() {
   round++;
   try {
-    const result = await poll();
+    const result = await poll({ autoReply: true });
     if (result.found > 0) {
       totalFound += result.found;
       console.log(`📬 Round ${round}: ${result.found} task(s) queued (${totalFound} total this session)`);
       
+      // Concurrency guard: skip if a previous ralph-agent is still alive
+      if (fs.existsSync(LOCK_FILE)) {
+        try {
+          const pid = parseInt(fs.readFileSync(LOCK_FILE, 'utf8').trim(), 10);
+          try {
+            process.kill(pid, 0);
+            console.log(`[ralph-agent] Already running (PID ${pid}), skipping this poll`);
+            return;
+          } catch {
+            // Stale lockfile — process is dead, remove and proceed
+            fs.unlinkSync(LOCK_FILE);
+          }
+        } catch { /* couldn't read lockfile — proceed */ }
+      }
+
       // Spawn ralph-agent to process the tasks (fire-and-forget)
       const agent = spawn('node', [path.join(__dirname, 'ralph-agent.js')], {
         stdio: 'inherit',
