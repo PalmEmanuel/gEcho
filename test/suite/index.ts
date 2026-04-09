@@ -7,7 +7,8 @@ export function run(): Promise<void> {
   const testsRoot = path.resolve(__dirname, '.');
 
   return new Promise((resolve, reject) => {
-    glob('**/**.test.js', { cwd: testsRoot }).then((files) => {
+    // Match all *.test.js files including those in subdirectories (e.g. integration/).
+    glob('**/*.test.js', { cwd: testsRoot }).then((files) => {
       files.forEach((f) => mocha.addFile(path.resolve(testsRoot, f)));
 
       try {

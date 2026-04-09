@@ -103,6 +103,9 @@ export class ScreenCapture {
   async stop(): Promise<string> {
     const proc = this.ffmpegProcess;
     if (!proc) {
+      if (!this.outputPath) {
+        throw new Error('ScreenCapture: no output was written');
+      }
       return this.outputPath;
     }
 
