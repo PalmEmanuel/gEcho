@@ -1,7 +1,7 @@
 # 🦎 gEcho
 
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/gecho.gecho?label=VS%20Code%20Marketplace&logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=gecho.gecho)
-[![Downloads](https://img.shields.io/visual-studio-marketplace/d/gecho.gecho)](https://marketplace.visualstudio.com/items?itemName=gecho.gecho)
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/PalmEmanuel.gEcho?label=VS%20Code%20Marketplace&logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=PalmEmanuel.gEcho)
+[![Downloads](https://img.shields.io/visual-studio-marketplace/d/PalmEmanuel.gEcho)](https://marketplace.visualstudio.com/items?itemName=PalmEmanuel.gEcho)
 
 <img src="images/icon.png" alt="gEcho logo" width="256" />
 
