@@ -398,17 +398,12 @@ function matchTriggerWord(text, triggerWords) {
   return null;
 }
 
-let _botHeuristicWarnShown = false;
 
 function isBotSender(displayName, config) {
   if (!displayName) return false;
   const lower = displayName.toLowerCase();
   if (config && Array.isArray(config.botDisplayNames) && config.botDisplayNames.length > 0) {
     return config.botDisplayNames.some(name => name.toLowerCase() === lower);
-  }
-  if (!_botHeuristicWarnShown) {
-    console.warn('[teams] botDisplayNames not configured — using heuristic bot detection');
-    _botHeuristicWarnShown = true;
   }
   return lower.includes('squad') || lower.includes('bot') || lower.includes('gecho');
 }
