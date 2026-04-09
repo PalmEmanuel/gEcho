@@ -16,7 +16,16 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
-### 2026-04-08 — Integration Test Strategy
+### 2026-04-09 — Wave 2 Integration Tests (Mocha + Extension Host, test/suite/integration/)
+
+- **`Module.prototype.require` works; `Module._resolveFilename` does not** — In Node 18+, `_resolveFilename` is a getter-only property on the `module` object and cannot be overwritten. `Module.prototype.require` IS writable and is the correct hook for intercepting `require('vscode')` in plain Mocha tests. Patch it in a side-effect-only import that must be the first `import` in the file.
+- **`/usr/bin/false` is the thinnest fake ffmpeg** — For testing `ScreenCapture.start()` rejection, `/usr/bin/false` is universally available on Unix, accepts any arguments, and exits immediately with code 1. No shell scripts or executable fixture files needed.
+- **`getConfig()` is called at call-site, not module-load time** — `GifConverter.convert()` and `ScreenCapture.start()` call `getConfig()` internally on every invocation. The vscode stub's `getConfiguration().get()` can therefore read from a mutable `mockConfigValues` object set by each test without any module reload.
+- **`stop()` silent empty-string return was a design gap** — When `stop()` was called without a prior `start()` (i.e. `ffmpegProcess === null` AND `outputPath === ''`), the original code silently returned `''`. A one-line guard (`throw new Error('no output was written')`) was added to make the error explicit. No existing call sites were broken.
+- **VS Code integration tests auto-load from `integration/` subdirectory** — `test/suite/index.ts`'s glob pattern `**/*.test.js` already matches files in any subdirectory. The only required change was renaming the pattern from `**/**.test.js` to the more idiomatic `**/*.test.js`; both work with the `glob` package but the latter is clearer.
+- **`applyEdit` insert fires one `onDidChangeTextDocument` event** — A `WorkspaceEdit` that inserts text at a position fires a single content-change with `rangeLength === 0` and the full inserted string as `text`. `EchoRecorder` captures it as one `TypeStep`. This is important for round-trip tests: the recorder captures the whole string, not individual characters.
+
+
 
 - **All integration tests run in VS Code extension host** — `ScreenCapture`, `EchoRecorder`, and `WorkbookPlayer` all depend on VS Code APIs or `getConfig()` (which reads `vscode.workspace.getConfiguration`). Pure Node.js Mocha can't test them. Separate runner: `test/runIntegrationTest.ts` → `test/integration/suite/index.ts`.
 - **Fake ffmpeg via shell `exec node`** — shell scripts use `exec node script.js "$@"` so the Node.js process inherits the shell PID. `ScreenCapture.stop()` sends SIGINT to that PID; without `exec` the signal hits the shell (which may ignore it) instead of Node.js.
