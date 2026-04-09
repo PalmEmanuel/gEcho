@@ -13,7 +13,7 @@ Ralph agent enables fully automated task processing from Teams chat. Emanuel can
 ## Setup
 
 ```bash
-# From the repository root, install dependencies
+# Install dependencies
 cd .squad/scripts
 npm install
 

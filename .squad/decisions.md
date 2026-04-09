@@ -554,6 +554,7 @@ The schema path in `contributes.jsonValidation` uses a relative `./schemas/gecho
 **By:** Emanuel Palm (via Copilot)
 
 **What:** Squad agents must never consume tokens unless a new task has actually been discovered. The watch loop (`ralph-watch.js`) runs token-free on a schedule. When the Copilot CLI is open and Ralph's monitoring cycle runs, Ralph checks `.squad/teams-inbox/` — if the inbox is empty, NO agents are spawned. Only when task files are present does Ralph route work to agents.
+**What:** Squad agents must never consume tokens unless a new task has actually been discovered. The watch loop (`ralph-watch.js`) runs token-free on a schedule. When the Copilot CLI is open and Ralph's monitoring cycle runs, Ralph checks `~/.squad/teams-inbox/` — if the inbox is empty, NO agents are spawned. Only when task files are present does Ralph route work to agents.
 
 **Why:** User request — cost discipline. Polling should be pure infrastructure (no AI). Intelligence (and token spend) is triggered only by real work.
 

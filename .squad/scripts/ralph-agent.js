@@ -4,7 +4,7 @@
  * ralph-agent.js — Unattended Teams→Agent→Teams processing.
  *
  * Reads task files from .squad/teams-inbox/ (repo-local), routes them to the right agent,
- * uses @github/copilot-sdk (CopilotClient + sendAndWait) to process tasks,
+ * uses @bradygaster/squad-sdk (or demo mode fallback) to process tasks,
  * posts responses to Teams, and archives files to .squad/teams-processed/.
  *
  * Usage:
@@ -12,6 +12,7 @@
  *   require('./ralph-agent').processInbox()  # programmatic
  *
  * Environment:
+ *   GITHUB_TOKEN — required for Copilot (unless SQUAD_DEMO_MODE=true)
  *   SQUAD_DEMO_MODE=true — skip Copilot, simulate responses
  */
 
@@ -24,7 +25,6 @@ const INBOX_DIR = path.join(SQUAD_DIR, 'teams-inbox');
 const PROCESSED_DIR = path.join(SQUAD_DIR, 'teams-processed');
 const SCRIPTS_DIR = __dirname;
 const AGENTS_DIR = path.join(SQUAD_DIR, 'agents');
-const LOCK_FILE = path.join(INBOX_DIR, '.ralph-agent.lock');
 
 const DEMO_MODE = process.env.SQUAD_DEMO_MODE === 'true';
 
@@ -39,53 +39,19 @@ const ROUTING_RULES = [
 ];
 const DEFAULT_AGENT = { agent: 'gecko', role: 'Lead' };
 
-/**
- * Invoke Copilot via @github/copilot-sdk (the proper Squad mechanism).
- *
- * Uses CopilotClient which spawns `copilot --acp --stdio` and communicates
- * via JSON-RPC — the same protocol the Squad shell uses internally.
- */
-async function invokeCopilot(fullPrompt, timeoutMs = 300_000) {
-  const { CopilotClient, approveAll } = await import('@github/copilot-sdk');
-  const client = new CopilotClient();
+// Squad SDK (ESM, loaded dynamically)
+let squadSDK = null;
+
+async function getSquadSDK() {
+  if (squadSDK !== null) return squadSDK;
   try {
-    const session = await client.createSession({ onPermissionRequest: approveAll });
-    const result = await session.sendAndWait({ prompt: fullPrompt }, timeoutMs);
-    await session.destroy().catch(() => {});
-    return result?.data?.content?.trim() || '';
-  } finally {
-    await client.stop().catch(() => {});
+    squadSDK = await import('@bradygaster/squad-sdk/client');
+    return squadSDK;
+  } catch (e) {
+    console.log(`[ralph-agent] squad-sdk unavailable: ${e.message}`);
+    squadSDK = false;
+    return false;
   }
-}
-
-/**
- * Extract a human-readable 1-sentence error summary (no stack trace).
- */
-function briefError(err) {
-  const msg = (err && err.message) ? err.message : String(err);
-  return msg.split('\n')[0].replace(/^Error:\s*/i, '').substring(0, 120);
-}
-
-/**
- * Strip prompt injection openers and truncate to safe length.
- */
-function sanitizePromptInput(text) {
-  const INJECTION_PREFIXES = ['SYSTEM:', '[SYSTEM]', 'Ignore previous', 'You are now', 'Forget your', 'Assistant:', 'Human:'];
-  let injectionFound = false;
-  const cleaned = text.split('\n').filter(line => {
-    const trimmed = line.trimStart();
-    const isInjection = INJECTION_PREFIXES.some(prefix => trimmed.toLowerCase().startsWith(prefix.toLowerCase()));
-    if (isInjection) injectionFound = true;
-    return !isInjection;
-  });
-  if (injectionFound) {
-    console.warn('[ralph] Prompt injection attempt stripped from task content');
-  }
-  let result = cleaned.join('\n');
-  if (result.length > 2000) {
-    result = result.slice(0, 2000) + '[truncated]';
-  }
-  return result;
 }
 
 /**
@@ -123,6 +89,44 @@ function loadCharter(agentName) {
 }
 
 /**
+ * Build system message for the Copilot session.
+ */
+function buildSystemMessage(agentName, agentRole, charter) {
+  return `You are ${agentName.charAt(0).toUpperCase() + agentName.slice(1)}, the ${agentRole} on the gEcho project.
+
+${charter}
+
+You are responding to a task sent via Microsoft Teams. Keep your reply concise and actionable — it will be posted back to the Teams chat. Aim for 2-4 sentences or a short bullet list. If you need to reference code, use a small inline snippet.`;
+}
+
+/**
+ * Ask Copilot via squad-sdk or fallback to demo mode.
+ */
+async function askCopilot(agentName, agentRole, charter, taskText) {
+  const systemMessage = buildSystemMessage(agentName, agentRole, charter);
+
+  if (DEMO_MODE) {
+    console.log('[ralph-agent] [DEMO MODE] Simulating Copilot response');
+    return `[${agentName}] Got it! I'll look into: "${taskText.slice(0, 60)}${taskText.length > 60 ? '...' : ''}" (demo mode — no real work done)`;
+  }
+
+  const sdk = await getSquadSDK();
+  if (!sdk) {
+    console.log('[ralph-agent] Falling back to demo mode (SDK unavailable)');
+    return `[${agentName}] Task received: "${taskText.slice(0, 60)}${taskText.length > 60 ? '...' : ''}" — Squad SDK unavailable, integration pending.`;
+  }
+
+  try {
+    // SDK integration placeholder — refined once SDK dependency issue is resolved
+    console.log('[ralph-agent] SDK loaded but full integration pending');
+    return `[${agentName}] Task queued: "${taskText.slice(0, 60)}${taskText.length > 60 ? '...' : ''}" — SDK integration in progress.`;
+  } catch (err) {
+    console.error(`[ralph-agent] Copilot session error: ${err.message}`);
+    return `[${agentName}] Error processing task — please retry or contact the team.`;
+  }
+}
+
+/**
  * Parse task content from the markdown file.
  */
 function parseTaskContent(fileContent) {
@@ -130,7 +134,6 @@ function parseTaskContent(fileContent) {
   // # Teams Task
   // **From:** Emanuel Palm
   // **Received:** 2026-04-09T14:00:00.000Z
-  // **Message ID:** abc123...
   // **Raw message:** @squad fix the broken test
   //
   // ## Task
@@ -145,33 +148,14 @@ function parseTaskContent(fileContent) {
 }
 
 /**
- * Parse the user's original message ID from the task file.
- */
-function parseMessageId(fileContent) {
-  const msgIdMatch = fileContent.match(/\*\*User Message ID:\*\*\s+(.+)/);
-  return msgIdMatch ? msgIdMatch[1].trim() : null;
-}
-
-/**
  * Post response to Teams using teams-reply.js.
- * Returns { success, messageId } — messageId parsed from stdout MESSAGE_ID line.
  */
 function postToTeams(responseText) {
-  const args = [path.join(SCRIPTS_DIR, 'teams-reply.js'), responseText];
-    
-  const result = spawnSync('node', args, {
-    encoding: 'utf8',
-    env: process.env,
-    stdio: ['ignore', 'pipe', 'inherit']
+  const result = spawnSync('node', [path.join(SCRIPTS_DIR, 'teams-reply.js'), responseText], {
+    stdio: 'inherit',
+    env: process.env
   });
-
-  if (result.status !== 0) {
-    console.error(`[ralph-agent] teams-reply.js exited with code ${result.status}`);
-    return { success: false, messageId: null };
-  }
-
-  const match = (result.stdout || '').match(/^MESSAGE_ID:(.+)$/m);
-  return { success: true, messageId: match ? match[1].trim() : null };
+  return result.status === 0;
 }
 
 /**
@@ -192,25 +176,12 @@ async function processTask(filename) {
   console.log(`[ralph-agent] Processing: ${filename}`);
   
   const filePath = path.join(INBOX_DIR, filename);
-
-  let fileContent;
-  try {
-    fileContent = fs.readFileSync(filePath, 'utf8');
-  } catch (readErr) {
-    console.error(`[ralph-agent] Cannot read task file ${filename}: ${readErr.message}`);
-    try {
-      postToTeams(`⚠️ Couldn't process your request — task file unreadable. Try again?`);
-    } catch { /* Teams unreachable */ }
-    try { archiveTask(filename); } catch { /* file may not exist */ }
-    return { success: false, agent: DEFAULT_AGENT.agent, error: readErr.message };
-  }
-
+  const fileContent = fs.readFileSync(filePath, 'utf8');
   const taskContent = parseTaskContent(fileContent);
-  const userMessageId = parseMessageId(fileContent);
-
+  
   const { agent, role } = routeTask(taskContent);
   console.log(`[ralph-agent] Routed to: ${agent.charAt(0).toUpperCase() + agent.slice(1)} (${role})`);
-
+  
   // Auth check
   if (!process.env.GITHUB_TOKEN) {
     console.error('[ralph-agent] GITHUB_TOKEN not set');
@@ -218,7 +189,7 @@ async function processTask(filename) {
     archiveTask(filename);
     return { success: false, agent, error: 'GITHUB_TOKEN not set' };
   }
-
+  
   // Demo mode fallback
   if (process.env.SQUAD_DEMO_MODE === 'true') {
     console.log('[ralph-agent] DEMO MODE — simulating response');
@@ -227,68 +198,86 @@ async function processTask(filename) {
     archiveTask(filename);
     return { success: true, agent, demo: true };
   }
-
-  const charter = loadCharter(agent);
-  const agentName = agent.charAt(0).toUpperCase() + agent.slice(1);
-  const sanitizedTask = sanitizePromptInput(taskContent);
-  const systemContext = `You are ${agentName}, the ${role} on the gEcho project.\n\n${charter ? `YOUR CHARTER:\n${charter}\n\n` : ''}This task came via Teams chat - respond in 2-4 sentences.`;
-  const fullPrompt = `${systemContext}\n\nTASK:\n${sanitizedTask}`;
-
-  console.log('[ralph-agent] Invoking Copilot SDK...');
-
-  let responseText;
-  let sdkError = null;
-
+  
   try {
-    const raw = await invokeCopilot(fullPrompt, 300_000);
-    if (!raw) throw new Error('Got empty response from Copilot SDK');
-    responseText = raw;
-  } catch (err) {
-    sdkError = err;
-  }
-
-  // Retry once for transient network errors
-  if (sdkError && (sdkError.code === 'ENOTFOUND' || sdkError.code === 'ETIMEDOUT' || sdkError.code === 'ECONNRESET')) {
-    console.log('[ralph-agent] Network error, retrying in 5s...');
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    try {
-      return await processTask(filename);
-    } catch (retryErr) {
-      console.error(`[ralph-agent] Retry failed: ${retryErr.message}`);
-      sdkError = retryErr;
+    // Load agent charter
+    const charter = loadCharter(agent);
+    const agentName = agent.charAt(0).toUpperCase() + agent.slice(1);
+    
+    // Build a concise summary prompt for the agent
+    const prompt = `You are ${agentName}, the ${role} on the gEcho project. This task came via Teams chat - respond in 2-4 sentences:\n\n${taskContent}`;
+    
+    console.log('[ralph-agent] Invoking GitHub Copilot CLI...');
+    
+    // Use gh copilot -p for non-interactive mode
+    const result = spawnSync('gh', ['copilot', '-p', prompt], {
+      env: { ...process.env },
+      encoding: 'utf8',
+      maxBuffer: 10 * 1024 * 1024, // 10MB
+      timeout: 120_000 // 2 minute timeout
+    });
+    
+    if (result.error) {
+      throw new Error(`Failed to spawn GitHub Copilot CLI: ${result.error.message}`);
     }
-  }
-
-  if (sdkError) {
-    console.error(`[ralph-agent] SDK error processing ${filename}: ${sdkError.message}`);
-    try {
-      const isTimeout = sdkError.message && sdkError.message.toLowerCase().includes('timeout');
-      const userMsg = isTimeout
-        ? `Ran out of time on that one — the task was too complex for one round. Try breaking it into smaller steps.`
-        : `Couldn't process your request — ${briefError(sdkError)}. Try again?`;
-      postToTeams(userMsg);
-    } catch (postErr) {
-      console.error('[ralph] Final Teams post failed:', postErr.message);
+    
+    if (result.status !== 0) {
+      throw new Error(`GitHub Copilot CLI exited with code ${result.status}: ${result.stderr || result.stdout}`);
     }
+    
+    let responseText = result.stdout.trim();
+    if (!responseText) {
+      throw new Error('Got empty response from GitHub Copilot CLI');
+    }
+    
+    // Clean up the response (gh copilot adds formatting we don't want)
+    // Extract the actual response, removing any CLI noise
+    const lines = responseText.split('\n');
+    const contentLines = lines.filter(line => 
+      !line.startsWith('Explanation:') && 
+      !line.includes('GitHub Copilot') &&
+      line.trim().length > 0
+    );
+    responseText = contentLines.join('\n').trim();
+    
+    console.log(`[ralph-agent] Got response (${responseText.length} chars)`);
+    
+    // Post to Teams
+    const posted = postToTeams(`${agentName}: ${responseText}`);
+    if (posted) {
+      console.log('[ralph-agent] Posted to Teams');
+    } else {
+      console.warn('[ralph-agent] Failed to post to Teams');
+    }
+    
+    // Archive
     archiveTask(filename);
-    return { success: false, agent, error: sdkError.message };
+    
+    return { success: true, agent, responseLength: responseText.length };
+    
+  } catch (err) {
+    console.error(`[ralph-agent] Error processing ${filename}: ${err.message}`);
+    
+    // Retry once after 5s for network errors
+    if (err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET') {
+      console.log('[ralph-agent] Network error, retrying in 5s...');
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      try {
+        return await processTask(filename);
+      } catch (retryErr) {
+        console.error(`[ralph-agent] Retry failed: ${retryErr.message}`);
+      }
+    }
+    
+    // Post error to Teams
+    const errorMsg = `❌ Ralph agent encountered an error processing your task: ${err.message}`;
+    postToTeams(errorMsg);
+    
+    // Archive anyway
+    archiveTask(filename);
+    
+    return { success: false, agent, error: err.message };
   }
-
-  console.log(`[ralph-agent] Got response (${responseText.length} chars)`);
-  if (userMessageId) {
-    console.log(`[ralph-agent] Replying in context of user message: ${userMessageId}`);
-  }
-
-  // Post result as a new message (Teams 1:1 chats don't support threaded replies)
-  const posted = postToTeams(`${agentName}: ${responseText}`);
-  if (!posted.success) {
-    console.error('[ralph-agent] Failed to post result to Teams — Teams may be unreachable');
-  } else {
-    console.log('[ralph-agent] Posted response to Teams');
-  }
-
-  archiveTask(filename);
-  return { success: true, agent, responseLength: responseText.length };
 }
 
 /**
@@ -331,6 +320,8 @@ async function processInbox() {
     failed: results.filter(r => !r.success).length
   };
   
+  console.log(`[ralph-agent] Done. Processed ${summary.processed} task(s).`);
+  
   return summary;
 }
 
@@ -339,13 +330,6 @@ module.exports = { processInbox };
 
 // CLI mode
 if (require.main === module) {
-  // Concurrency guard: write lockfile so teams-watch.js can detect a running agent
-  fs.mkdirSync(INBOX_DIR, { recursive: true });
-  fs.writeFileSync(LOCK_FILE, String(process.pid), 'utf8');
-  process.on('exit', () => {
-    try { fs.unlinkSync(LOCK_FILE); } catch { /* already gone */ }
-  });
-
   processInbox()
     .then(({ processed }) => {
       console.log(`[ralph-agent] Done. Processed ${processed} task(s).`);

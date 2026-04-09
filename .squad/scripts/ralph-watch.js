@@ -4,7 +4,7 @@
  * ralph-watch.js — Ralph's persistent Teams watch loop.
  *
  * Polls the Teams chat on an interval, auto-acknowledges new tasks,
- * and writes them to .squad/teams-inbox/ for the squad to process.
+ * and writes them to ~/.squad/teams-inbox/ for the squad to process.
  *
  * Usage:
  *   node .squad/scripts/ralph-watch.js              # polls every 30s (default)
@@ -13,29 +13,22 @@
  * Stop with Ctrl+C.
  */
 
+const { poll } = require('./teams-monitor');
+const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
 
-// MUST be pushed before requiring teams-monitor — autoReply is evaluated at require time.
-process.argv.push('--reply');
-
-const { poll } = require('./teams-monitor');
-
-const SQUAD_DIR = path.join(__dirname, '..');
-const INBOX_DIR = path.join(SQUAD_DIR, 'teams-inbox');
+const SQUAD_DIR = path.join(os.homedir(), '.squad');
 const PID_FILE = path.join(SQUAD_DIR, 'ralph-watch.pid');
-
-// Prevent macOS idle sleep while the watch loop runs (display can still lock freely).
-// caffeinate -i: inhibit idle system sleep only. No-op on non-macOS.
-if (process.platform === 'darwin') {
-  spawn('caffeinate', ['-i', '-w', String(process.pid)], { detached: true, stdio: 'ignore' }).unref();
-}
 
 // Parse --interval N (seconds), default 30
 const intervalArg = process.argv.indexOf('--interval');
 const INTERVAL_SECONDS = intervalArg !== -1 ? parseInt(process.argv[intervalArg + 1], 10) || 30 : 30;
 const INTERVAL_MS = INTERVAL_SECONDS * 1000;
+
+// Force auto-reply on (ralph always acks)
+process.argv.push('--reply');
 
 let round = 0;
 let totalFound = 0;
@@ -45,7 +38,7 @@ function banner() {
   console.log('🔄 Ralph — Teams Watch');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(`   Polling every ${INTERVAL_SECONDS}s`);
-  console.log(`   Inbox: ${INBOX_DIR}`);
+  console.log(`   Inbox: ${SQUAD_DIR}/teams-inbox/`);
   console.log('   Press Ctrl+C to stop');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('');
@@ -71,16 +64,13 @@ async function tick() {
       });
     }
   } catch (err) {
-    const errorCode = typeof err === 'object' && err !== null && 'code' in err ? String(err.code) : undefined;
-    const errorMessage = typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : String(err);
-
-    if (errorCode === 'AUTH_REQUIRED') {
+    if (err.code === 'AUTH_REQUIRED') {
       console.error('❌ AUTH_REQUIRED — run: node .squad/scripts/teams-setup.js');
       cleanup();
       process.exit(1);
     }
     // Network blip — log and continue
-    console.log(`[${new Date().toISOString()}] Error: ${errorMessage} — will retry`);
+    console.log(`[${new Date().toISOString()}] Error: ${err.message} — will retry`);
   }
 }
 
