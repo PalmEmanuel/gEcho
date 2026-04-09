@@ -1,0 +1,5 @@
+{
+  "_comment": "Run .squad/scripts/teams-setup.js to configure. Secrets go in ~/.squad/teams-config.json",
+  "triggerWords": ["/task", "@squad", "@gecho"],
+  "chatType": "group"
+}

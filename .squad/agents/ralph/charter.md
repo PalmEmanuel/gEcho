@@ -31,6 +31,17 @@
 
 **I never:** Write code. Make architectural decisions. Stop without explicit instruction when work exists.
 
+## Teams Inbox Integration
+
+On each monitoring cycle, after checking GitHub:
+1. Run `node .squad/scripts/teams-monitor.js` (if the file exists)
+2. Check `~/.squad/teams-inbox/` for `.md` files
+3. For each file: read the task, execute it (route to appropriate agent), post result to Teams webhook
+4. Delete processed task files from inbox
+5. If teams-monitor.js outputs `AUTH_REQUIRED` on stderr: send a Teams notification to Emanuel asking him to re-run `node .squad/scripts/teams-setup.js`, then skip Teams check for this cycle
+
+Never process the same task file twice. Check modification time if needed.
+
 ## Model
 
 - **Preferred:** claude-haiku-4.5
