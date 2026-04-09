@@ -15,7 +15,8 @@ const os = require('os');
 const SQUAD_DIR = path.join(os.homedir(), '.squad');
 const CONFIG_PATH = path.join(SQUAD_DIR, 'teams-config.json');
 const AUTH_PATH = path.join(SQUAD_DIR, 'teams-auth.json');
-const LAST_READ_PATH = path.join(SQUAD_DIR, 'teams-last-read.json');
+// Cursor is repo-local (gitignored) — must match the path teams-monitor.js writes to.
+const LAST_READ_PATH = path.join(__dirname, '..', 'teams-last-read.json');
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 
 const FALLBACK_LOOKBACK_MINUTES = 30;
