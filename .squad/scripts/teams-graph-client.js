@@ -177,15 +177,15 @@ function stripHtml(html) {
 // Convert plain text to simple Teams-renderable HTML
 // ---------------------------------------------------------------------------
 
-// Teams renders its own Fluent-style emoji via <emoji id="CODEPOINT" alt="CHAR" />.
-// Map the unicode chars we use to their hex code point IDs.
+// Teams Fluent emoji tags: <emoji id="SHORTNAME" alt="ASCII_LABEL"></emoji>
+// alt must be ASCII — raw Unicode in alt causes Graph API 400 errors.
 const TEAMS_EMOJI = {
-  '👋': '1f44b',
-  '✅': '2705',
-  '⚡': '26a1',
-  '⏳': '23f3',
-  '❌': '274c',
-  '⚠️': '26a0',
+  '👋': { id: 'wavinghand',      label: 'wave'     },
+  '✅': { id: 'checkmarkbutton', label: 'check'    },
+  '⚡': { id: 'highvoltage',     label: 'zap'      },
+  '⏳': { id: 'hourglassnotdone',label: 'hourglass'},
+  '❌': { id: 'crossmark',       label: 'x'        },
+  '⚠️': { id: 'warning',         label: 'warning'  },
 };
 
 function textToHtml(text) {
@@ -195,9 +195,10 @@ function textToHtml(text) {
     .replace(/>/g, '&gt;')
     .replace(/\n/g, '<br/>');
 
-  // Replace unicode emoji with Teams emoji tags (unicode chars survive HTML escaping unchanged)
-  for (const [char, id] of Object.entries(TEAMS_EMOJI)) {
-    html = html.split(char).join(`<emoji id="${id}" alt="${char}"></emoji>`);
+  // Replace unicode emoji with Teams Fluent emoji tags.
+  // unicode chars survive HTML escaping unchanged, so we replace after escaping.
+  for (const [char, { id, label }] of Object.entries(TEAMS_EMOJI)) {
+    html = html.split(char).join(`<emoji id="${id}" alt="${label}"></emoji>`);
   }
 
   return html;

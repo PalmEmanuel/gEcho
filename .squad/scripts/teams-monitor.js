@@ -97,8 +97,7 @@ async function poll() {
     if (autoReply) {
       try {
         const firstName = task.senderName ? task.senderName.split(' ')[0] : task.senderName;
-        const preview = task.text.length > 80 ? task.text.slice(0, 77) + '…' : task.text;
-        const ackResult = await sendChatMessage(`👋 Got it, ${firstName}! On it:\n> ${preview}`);
+        const ackResult = await sendChatMessage(`👋 Got it, ${firstName}! On it...`);
         if (ackResult?.id) {
           fs.appendFileSync(filePath, `\n**Ack Message ID:** ${ackResult.id}\n`, 'utf8');
         }
