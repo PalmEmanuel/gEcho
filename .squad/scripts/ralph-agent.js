@@ -134,6 +134,7 @@ function parseTaskContent(fileContent) {
   // # Teams Task
   // **From:** Emanuel Palm
   // **Received:** 2026-04-09T14:00:00.000Z
+  // **Message ID:** abc123...
   // **Raw message:** @squad fix the broken test
   //
   // ## Task
@@ -148,10 +149,22 @@ function parseTaskContent(fileContent) {
 }
 
 /**
+ * Parse the original message ID from the task file.
+ */
+function parseMessageId(fileContent) {
+  const msgIdMatch = fileContent.match(/\*\*Message ID:\*\*\s+(.+)/);
+  return msgIdMatch ? msgIdMatch[1].trim() : null;
+}
+
+/**
  * Post response to Teams using teams-reply.js.
  */
-function postToTeams(responseText) {
-  const result = spawnSync('node', [path.join(SCRIPTS_DIR, 'teams-reply.js'), responseText], {
+function postToTeams(responseText, replyToMessageId = null) {
+  const args = replyToMessageId 
+    ? [path.join(SCRIPTS_DIR, 'teams-reply.js'), '--reply-to', replyToMessageId, responseText]
+    : [path.join(SCRIPTS_DIR, 'teams-reply.js'), responseText];
+    
+  const result = spawnSync('node', args, {
     stdio: 'inherit',
     env: process.env
   });
@@ -178,6 +191,7 @@ async function processTask(filename) {
   const filePath = path.join(INBOX_DIR, filename);
   const fileContent = fs.readFileSync(filePath, 'utf8');
   const taskContent = parseTaskContent(fileContent);
+  const originalMessageId = parseMessageId(fileContent);
   
   const { agent, role } = routeTask(taskContent);
   console.log(`[ralph-agent] Routed to: ${agent.charAt(0).toUpperCase() + agent.slice(1)} (${role})`);
@@ -185,7 +199,7 @@ async function processTask(filename) {
   // Auth check
   if (!process.env.GITHUB_TOKEN) {
     console.error('[ralph-agent] GITHUB_TOKEN not set');
-    postToTeams('⚠️ Ralph agent can\'t process this task — GITHUB_TOKEN not set on the Mac. Please set it in your shell environment.');
+    postToTeams('⚠️ Ralph agent can\'t process this task — GITHUB_TOKEN not set on the Mac. Please set it in your shell environment.', originalMessageId);
     archiveTask(filename);
     return { success: false, agent, error: 'GITHUB_TOKEN not set' };
   }
@@ -194,7 +208,7 @@ async function processTask(filename) {
   if (process.env.SQUAD_DEMO_MODE === 'true') {
     console.log('[ralph-agent] DEMO MODE — simulating response');
     const demoResponse = `[DEMO] ${agent.charAt(0).toUpperCase() + agent.slice(1)} would process: "${taskContent.substring(0, 50)}${taskContent.length > 50 ? '...' : ''}"`;
-    postToTeams(demoResponse);
+    postToTeams(demoResponse, originalMessageId);
     archiveTask(filename);
     return { success: true, agent, demo: true };
   }
@@ -242,8 +256,8 @@ async function processTask(filename) {
     
     console.log(`[ralph-agent] Got response (${responseText.length} chars)`);
     
-    // Post to Teams
-    const posted = postToTeams(`${agentName}: ${responseText}`);
+    // Post to Teams as a reply to the original message
+    const posted = postToTeams(`${agentName}: ${responseText}`, originalMessageId);
     if (posted) {
       console.log('[ralph-agent] Posted to Teams');
     } else {
@@ -271,7 +285,7 @@ async function processTask(filename) {
     
     // Post error to Teams
     const errorMsg = `❌ Ralph agent encountered an error processing your task: ${err.message}`;
-    postToTeams(errorMsg);
+    postToTeams(errorMsg, originalMessageId);
     
     // Archive anyway
     archiveTask(filename);
@@ -319,8 +333,6 @@ async function processInbox() {
     success: results.filter(r => r.success).length,
     failed: results.filter(r => !r.success).length
   };
-  
-  console.log(`[ralph-agent] Done. Processed ${summary.processed} task(s).`);
   
   return summary;
 }
