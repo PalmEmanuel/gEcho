@@ -50,6 +50,7 @@ function loadTokenCache() {
 
 function saveTokenCache(serialized) {
   fs.writeFileSync(AUTH_PATH, serialized, 'utf8');
+  fs.chmodSync(AUTH_PATH, 0o600);
 }
 
 // ---------------------------------------------------------------------------
