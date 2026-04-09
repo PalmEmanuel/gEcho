@@ -281,12 +281,36 @@ async function sendChatMessage(text, replyToMessageId = null) {
     ? `/chats/${config.chatId}/messages/${replyToMessageId}/replies`
     : `/chats/${config.chatId}/messages`;
 
-  await graphRequest(
+  const result = await graphRequest(
     'POST',
     apiPath,
     accessToken,
     { body: { contentType: 'html', content: html } }
   );
+  return { id: result?.id || null };
+}
+
+/**
+ * Edit an existing message in the configured chat.
+ * @param {string} text - New plain text content.
+ * @param {string} messageId - ID of the message to edit.
+ * @param {string|null} parentMessageId - If the message is a reply, provide its parent ID.
+ */
+async function editChatMessage(text, messageId, parentMessageId = null) {
+  const config = loadConfig();
+  if (!config || !config.chatId) {
+    const err = new Error('Missing chatId in teams-config.json.');
+    err.code = 'AUTH_REQUIRED';
+    throw err;
+  }
+  const accessToken = await acquireToken();
+  const html = textToHtml(text);
+  const apiPath = parentMessageId
+    ? `/chats/${config.chatId}/messages/${parentMessageId}/replies/${messageId}`
+    : `/chats/${config.chatId}/messages/${messageId}`;
+  await graphRequest('PATCH', apiPath, accessToken, {
+    body: { contentType: 'html', content: html }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -307,4 +331,4 @@ function isBotSender(displayName) {
   return lower.includes('squad') || lower.includes('bot') || lower.includes('gecho');
 }
 
-module.exports = { acquireToken, getNewMessages, sendChatMessage };
+module.exports = { acquireToken, getNewMessages, sendChatMessage, editChatMessage };

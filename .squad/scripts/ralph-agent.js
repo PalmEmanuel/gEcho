@@ -158,6 +158,7 @@ function parseMessageId(fileContent) {
 
 /**
  * Post response to Teams using teams-reply.js.
+ * Returns { success, messageId } — messageId parsed from stdout MESSAGE_ID line.
  */
 function postToTeams(responseText, replyToMessageId = null) {
   const args = replyToMessageId 
@@ -165,7 +166,28 @@ function postToTeams(responseText, replyToMessageId = null) {
     : [path.join(SCRIPTS_DIR, 'teams-reply.js'), responseText];
     
   const result = spawnSync('node', args, {
-    stdio: 'inherit',
+    encoding: 'utf8',
+    env: process.env
+  });
+
+  if (result.status !== 0) return { success: false, messageId: null };
+
+  const match = (result.stdout || '').match(/^MESSAGE_ID:(.+)$/m);
+  return { success: true, messageId: match ? match[1].trim() : null };
+}
+
+/**
+ * Edit an existing Teams message using teams-reply.js --edit.
+ */
+function editTeamsMessage(text, editMessageId, replyToMessageId = null) {
+  const args = [path.join(SCRIPTS_DIR, 'teams-reply.js'), '--edit', editMessageId];
+  if (replyToMessageId) {
+    args.push('--reply-to', replyToMessageId);
+  }
+  args.push(text);
+
+  const result = spawnSync('node', args, {
+    encoding: 'utf8',
     env: process.env
   });
   return result.status === 0;
@@ -217,6 +239,12 @@ async function processTask(filename) {
     // Load agent charter
     const charter = loadCharter(agent);
     const agentName = agent.charAt(0).toUpperCase() + agent.slice(1);
+
+    // Phase 1 — post ack immediately so user knows it's being worked on
+    const ackText = `⏳ ${agentName} is working on it…`;
+    const ackResult = postToTeams(ackText, originalMessageId);
+    const ackMessageId = ackResult.messageId;
+    console.log(`[ralph-agent] Posted ack (${ackMessageId || 'no id'})`);
     
     // Build a concise summary prompt for the agent
     const prompt = `You are ${agentName}, the ${role} on the gEcho project. This task came via Teams chat - respond in 2-4 sentences:\n\n${taskContent}`;
@@ -256,12 +284,17 @@ async function processTask(filename) {
     
     console.log(`[ralph-agent] Got response (${responseText.length} chars)`);
     
-    // Post to Teams as a reply to the original message
-    const posted = postToTeams(`${agentName}: ${responseText}`, originalMessageId);
-    if (posted) {
-      console.log('[ralph-agent] Posted to Teams');
+    // Phase 2 — edit the ack with the real response, or fall back to new reply
+    if (ackMessageId) {
+      const edited = editTeamsMessage(`${agentName}: ${responseText}`, ackMessageId, originalMessageId);
+      if (edited) {
+        console.log('[ralph-agent] Edited ack with response');
+      } else {
+        console.warn('[ralph-agent] Edit failed — falling back to new reply');
+        postToTeams(`${agentName}: ${responseText}`, originalMessageId);
+      }
     } else {
-      console.warn('[ralph-agent] Failed to post to Teams');
+      postToTeams(`${agentName}: ${responseText}`, originalMessageId);
     }
     
     // Archive
@@ -283,9 +316,14 @@ async function processTask(filename) {
       }
     }
     
-    // Post error to Teams
-    const errorMsg = `❌ Ralph agent encountered an error processing your task: ${err.message}`;
-    postToTeams(errorMsg, originalMessageId);
+    // Post error to Teams — edit ack if available, else new reply
+    const agentName = agent.charAt(0).toUpperCase() + agent.slice(1);
+    const errorMsg = `❌ ${agentName} hit an error: ${err.message}`;
+    if (typeof ackMessageId !== 'undefined' && ackMessageId) {
+      editTeamsMessage(errorMsg, ackMessageId, originalMessageId) || postToTeams(errorMsg, originalMessageId);
+    } else {
+      postToTeams(errorMsg, originalMessageId);
+    }
     
     // Archive anyway
     archiveTask(filename);
