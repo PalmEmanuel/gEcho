@@ -55,10 +55,40 @@ const vscodeStub = {
 // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
 const NodeCjs = require('module') as { prototype: { require: (id: string) => unknown } };
 const origRequire = NodeCjs.prototype.require;
-NodeCjs.prototype.require = function mockedRequire(id: string) {
-  if (id === 'vscode') {
-    return vscodeStub;
+
+let isPatched = false;
+
+function hasRealVscodeModule(): boolean {
+  try {
+    origRequire.call(module, 'vscode');
+    return true;
+  } catch {
+    return false;
   }
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return, prefer-rest-params
-  return origRequire.apply(this, arguments as unknown as [string]);
-};
+}
+
+export function installVscodeMock(): void {
+  if (isPatched || hasRealVscodeModule()) {
+    return;
+  }
+
+  NodeCjs.prototype.require = function mockedRequire(id: string) {
+    if (id === 'vscode') {
+      return vscodeStub;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, prefer-rest-params
+    return origRequire.apply(this, arguments as unknown as [string]);
+  };
+  isPatched = true;
+}
+
+export function restoreVscodeMock(): void {
+  if (!isPatched) {
+    return;
+  }
+
+  NodeCjs.prototype.require = origRequire;
+  isPatched = false;
+}
+
+installVscodeMock();

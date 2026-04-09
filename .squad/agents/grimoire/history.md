@@ -27,7 +27,7 @@
 
 
 
-- **All integration tests run in VS Code extension host** — `ScreenCapture`, `EchoRecorder`, and `WorkbookPlayer` all depend on VS Code APIs or `getConfig()` (which reads `vscode.workspace.getConfiguration`). Pure Node.js Mocha can't test them. Separate runner: `test/runIntegrationTest.ts` → `test/integration/suite/index.ts`.
+- **Integration tests split across two runners** — Extension-host integration tests (via `npm test`) run under VS Code's test electron and have access to the real `vscode` API. Plain Mocha integration tests (`test/suite/integration/*.integration.test.ts`, run via `npm run test:integration`) use `vscodeMock` to stub the `vscode` module and execute in a plain Node.js process. The extension-host glob (`**/*.test.js`) explicitly excludes `*.integration.test.js` to prevent cross-contamination. Both runners require ffmpeg to be in PATH; CI installs it via `setup-ffmpeg` / `apt-get`.
 - **Fake ffmpeg via shell `exec node`** — shell scripts use `exec node script.js "$@"` so the Node.js process inherits the shell PID. `ScreenCapture.stop()` sends SIGINT to that PID; without `exec` the signal hits the shell (which may ignore it) instead of Node.js.
 - **`ScreenCapture` has no `isRunning()` public method** — the `ffmpegProcess` field is private. Tests cannot inspect running state; they verify behaviour only through `start()`/`stop()` return values and file existence.
 - **macOS TCC blocks real `avfoundation` capture in CI** — fake-ffmpeg tests work on all platforms (no TCC needed). Real `GifConverter` tests use `ffmpeg -f lavfi` (synthetic source, no capture) and skip via `this.skip()` if ffmpeg is absent.

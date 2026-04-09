@@ -107,7 +107,7 @@ describe('ScreenCapture.stop() — no active process', function () {
     );
   });
 
-  it('returns the output path on a second stop() call after a completed recording', async function () {
+  it('rejects when stop() is called without a prior start() (second guard path)', async function () {
     // We cannot run a real recording here, but we can verify the shape of the
     // error thrown on a fresh instance — tests the guard added in stop().
     const capture = new ScreenCapture();

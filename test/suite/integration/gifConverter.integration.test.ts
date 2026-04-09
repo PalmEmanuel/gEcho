@@ -14,11 +14,10 @@ import { GifConverter } from '../../../src/converter/index.js';
 // ---------------------------------------------------------------------------
 let ffmpegBin: string | undefined;
 try {
-  ffmpegBin =
-    process.env['FFMPEG_PATH'] ??
-    execSync('which ffmpeg', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+  ffmpegBin = process.env['FFMPEG_PATH'] ?? 'ffmpeg';
+  execSync(`"${ffmpegBin}" -version`, { stdio: 'pipe' });
 } catch {
-  /* skip entire suite below */
+  ffmpegBin = undefined;
 }
 
 // ---------------------------------------------------------------------------
