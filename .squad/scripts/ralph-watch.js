@@ -13,11 +13,15 @@
  * Stop with Ctrl+C.
  */
 
-const { poll } = require('./teams-monitor');
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
+
+// MUST be pushed before requiring teams-monitor — autoReply is evaluated at require time.
+process.argv.push('--reply');
+
+const { poll } = require('./teams-monitor');
 
 const SQUAD_DIR = path.join(os.homedir(), '.squad');
 const PID_FILE = path.join(SQUAD_DIR, 'ralph-watch.pid');
@@ -32,9 +36,6 @@ if (process.platform === 'darwin') {
 const intervalArg = process.argv.indexOf('--interval');
 const INTERVAL_SECONDS = intervalArg !== -1 ? parseInt(process.argv[intervalArg + 1], 10) || 30 : 30;
 const INTERVAL_MS = INTERVAL_SECONDS * 1000;
-
-// Force auto-reply on (ralph always acks)
-process.argv.push('--reply');
 
 let round = 0;
 let totalFound = 0;
