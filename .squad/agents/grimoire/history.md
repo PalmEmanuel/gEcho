@@ -16,6 +16,15 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-04-08 — Integration Test Strategy
+
+- **All integration tests run in VS Code extension host** — `ScreenCapture`, `EchoRecorder`, and `WorkbookPlayer` all depend on VS Code APIs or `getConfig()` (which reads `vscode.workspace.getConfiguration`). Pure Node.js Mocha can't test them. Separate runner: `test/runIntegrationTest.ts` → `test/integration/suite/index.ts`.
+- **Fake ffmpeg via shell `exec node`** — shell scripts use `exec node script.js "$@"` so the Node.js process inherits the shell PID. `ScreenCapture.stop()` sends SIGINT to that PID; without `exec` the signal hits the shell (which may ignore it) instead of Node.js.
+- **`ScreenCapture` has no `isRunning()` public method** — the `ffmpegProcess` field is private. Tests cannot inspect running state; they verify behaviour only through `start()`/`stop()` return values and file existence.
+- **macOS TCC blocks real `avfoundation` capture in CI** — fake-ffmpeg tests work on all platforms (no TCC needed). Real `GifConverter` tests use `ffmpeg -f lavfi` (synthetic source, no capture) and skip via `this.skip()` if ffmpeg is absent.
+- **SIGINT skip on Windows** — `proc.kill('SIGINT')` targeting a `.bat` wrapper is unreliable on Windows. The SIGINT integration test is skipped on `process.platform === 'win32'`.
+- **`vscode.ConfigurationTarget.Global` is safe in `@vscode/test-electron`** — the test runner launches VS Code in a temporary profile directory; global config changes do not affect the developer's real VS Code settings. Always restore in `afterEach`.
+
 ### 2026-04-08 — Wave 1 Test Scaffolding
 
 - **Import paths need `.js` extensions** — Node16 module resolution requires explicit `.js` extensions in all imports, even when importing `.ts` source files. TypeScript resolves them correctly at compile time.

@@ -54,13 +54,15 @@ jobs:
       - if: runner.os != 'Linux'
         run: npm test
 
-      - name: Integration tests (Mocha)
+      # Integration tests run in the VS Code extension host — same environment as unit tests
+      # but with longer timeout and real ffmpeg-lifecycle verification via fake binaries.
+      - name: Integration tests
         if: runner.os == 'Linux'
-        run: xvfb-run -a npx mocha --config .mocharc.json --grep "integration" --timeout 60000
+        run: xvfb-run -a npm run test:integration
 
-      - name: Integration tests (Mocha)
+      - name: Integration tests
         if: runner.os != 'Linux'
-        run: npx mocha --config .mocharc.json --grep "integration" --timeout 60000
+        run: npm run test:integration
 
       - if: runner.os == 'Linux'
         run: npm run package
@@ -71,23 +73,3 @@ jobs:
           name: vsix-artifact
           path: '*.vsix'
           retention-days: 30
-
-  integration-gif:
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-
-      - run: npm ci
-
-      - run: npm run compile
-
-      - uses: AnimMouse/setup-ffmpeg@v1
-
-      - run: xvfb-run -a npx mocha --config .mocharc.json --grep "GIF|screen capture" --timeout 60000
