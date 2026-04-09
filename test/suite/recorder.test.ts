@@ -90,12 +90,15 @@ describe('EchoRecorder', () => {
     await vscode.commands.executeCommand('type', { text: 'c' });
     await vscode.commands.executeCommand('type', { text: 'd' });
 
+    // Give the document-change handler a tick to record all queued events before stopping.
+    await new Promise(resolve => setTimeout(resolve, 0));
+
     const steps = recorder.stop();
     await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
 
     const typeSteps = steps.filter(s => s.type === 'type');
     const combined = typeSteps.map(s => (s as any).text).join('');
-    assert.ok(combined.includes('a') && combined.includes('b'), `All chars should be captured, got: "${combined}"`);
-    assert.ok(typeSteps.length <= 4, `Rapid typing should produce at most 4 steps (one per char), got ${typeSteps.length}`);
+    assert.strictEqual(combined, 'abcd', `All 4 chars should be captured in order, got: "${combined}"`);
+    assert.ok(typeSteps.length <= 2, `Rapid typing should coalesce into ≤2 steps, got ${typeSteps.length}`);
   });
 });
