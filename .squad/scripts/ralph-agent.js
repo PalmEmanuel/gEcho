@@ -4,7 +4,7 @@
  * ralph-agent.js — Unattended Teams→Agent→Teams processing.
  *
  * Reads task files from .squad/teams-inbox/ (repo-local), routes them to the right agent,
- * uses @bradygaster/squad-sdk (or demo mode fallback) to process tasks,
+ * uses @github/copilot-sdk (CopilotClient + sendAndWait) to process tasks,
  * posts responses to Teams, and archives files to .squad/teams-processed/.
  *
  * Usage:
@@ -12,13 +12,11 @@
  *   require('./ralph-agent').processInbox()  # programmatic
  *
  * Environment:
- *   GITHUB_TOKEN — required for Copilot (unless SQUAD_DEMO_MODE=true)
  *   SQUAD_DEMO_MODE=true — skip Copilot, simulate responses
  */
 
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
 
 const SQUAD_DIR = path.join(__dirname, '..');
 const INBOX_DIR = path.join(SQUAD_DIR, 'teams-inbox');
@@ -39,18 +37,22 @@ const ROUTING_RULES = [
 ];
 const DEFAULT_AGENT = { agent: 'gecko', role: 'Lead' };
 
-// Squad SDK (ESM, loaded dynamically)
-let squadSDK = null;
-
-async function getSquadSDK() {
-  if (squadSDK !== null) return squadSDK;
+/**
+ * Invoke Copilot via @github/copilot-sdk (the proper Squad mechanism).
+ *
+ * Uses CopilotClient which spawns `copilot --acp --stdio` and communicates
+ * via JSON-RPC — the same protocol the Squad shell uses internally.
+ */
+async function invokeCopilot(fullPrompt, timeoutMs = 180_000) {
+  const { CopilotClient, approveAll } = await import('@github/copilot-sdk');
+  const client = new CopilotClient();
   try {
-    squadSDK = await import('@bradygaster/squad-sdk/client');
-    return squadSDK;
-  } catch (e) {
-    console.log(`[ralph-agent] squad-sdk unavailable: ${e.message}`);
-    squadSDK = false;
-    return false;
+    const session = await client.createSession({ onPermissionRequest: approveAll });
+    const result = await session.sendAndWait({ prompt: fullPrompt }, timeoutMs);
+    await session.destroy().catch(() => {});
+    return result?.data?.content?.trim() || '';
+  } finally {
+    await client.stop().catch(() => {});
   }
 }
 
@@ -248,46 +250,22 @@ async function processTask(filename) {
     const ackMessageId = ackResult.messageId;
     console.log(`[ralph-agent] Posted ack (${ackMessageId || 'no id'})`);
     
-    // Build a concise summary prompt for the agent
-    const prompt = `You are ${agentName}, the ${role} on the gEcho project. This task came via Teams chat - respond in 2-4 sentences:\n\n${taskContent}`;
+    // Build prompt: system context (charter + persona) + task
+    const systemContext = `You are ${agentName}, the ${role} on the gEcho project.\n\n${charter ? `YOUR CHARTER:\n${charter}\n\n` : ''}This task came via Teams chat - respond in 2-4 sentences.`;
+    const fullPrompt = `${systemContext}\n\nTASK:\n${taskContent}`;
     
-    console.log('[ralph-agent] Invoking GitHub Copilot CLI...');
+    console.log('[ralph-agent] Invoking Copilot SDK...');
     
-    // Use gh copilot -p for non-interactive mode.
-    // stdin must be 'ignore' — if it's a pipe (default), gh copilot blocks waiting
-    // for interactive input and the process never exits, triggering ETIMEDOUT.
-    const result = spawnSync('gh', ['copilot', '-p', prompt], {
-      env: { ...process.env },
-      encoding: 'utf8',
-      maxBuffer: 10 * 1024 * 1024, // 10MB
-      timeout: 180_000, // 3 minute timeout
-      stdio: ['ignore', 'pipe', 'pipe'] // ignore stdin; capture stdout+stderr
-    });
-    
-    if (result.error) {
-      const hint = result.error.code === 'ETIMEDOUT' ? ' (timed out — gh copilot may be unresponsive)' : '';
-      throw new Error(`Failed to spawn GitHub Copilot CLI: ${result.error.message}${hint}`);
+    let responseText;
+    try {
+      responseText = await invokeCopilot(fullPrompt, 180_000);
+    } catch (sdkErr) {
+      throw new Error(`Copilot SDK error: ${sdkErr.message}`);
     }
     
-    if (result.status !== 0) {
-      const output = (result.stderr || result.stdout || '').trim();
-      throw new Error(`GitHub Copilot CLI exited with code ${result.status}: ${output}`);
-    }
-    
-    let responseText = result.stdout.trim();
     if (!responseText) {
-      throw new Error('Got empty response from GitHub Copilot CLI');
+      throw new Error('Got empty response from Copilot SDK');
     }
-    
-    // Clean up the response (gh copilot adds formatting we don't want)
-    // Extract the actual response, removing any CLI noise
-    const lines = responseText.split('\n');
-    const contentLines = lines.filter(line => 
-      !line.startsWith('Explanation:') && 
-      !line.includes('GitHub Copilot') &&
-      line.trim().length > 0
-    );
-    responseText = contentLines.join('\n').trim();
     
     console.log(`[ralph-agent] Got response (${responseText.length} chars)`);
     
