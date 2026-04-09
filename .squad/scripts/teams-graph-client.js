@@ -209,6 +209,39 @@ function textToHtml(text) {
 }
 
 // ---------------------------------------------------------------------------
+// Emoji-strip helpers
+// ---------------------------------------------------------------------------
+
+function stripAllEmoji(html) {
+  return html
+    .replace(/<emoji\b[^>]*><\/emoji>/gi, '')
+    .replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\uFE00-\uFE0F]/gu, '');
+}
+
+async function sendWithEmojiRetry(chatId, html, accessToken) {
+  try {
+    return await graphRequest(
+      'POST',
+      `/chats/${chatId}/messages`,
+      accessToken,
+      { body: { contentType: 'html', content: html } }
+    );
+  } catch (err) {
+    if (err.message && err.message.includes('Unicode')) {
+      console.warn('[teams] emoji stripped and retrying post after Unicode error');
+      const stripped = stripAllEmoji(html);
+      return await graphRequest(
+        'POST',
+        `/chats/${chatId}/messages`,
+        accessToken,
+        { body: { contentType: 'html', content: stripped } }
+      );
+    }
+    throw err;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -304,12 +337,7 @@ async function sendChatMessage(text) {
 
   // Always post as a new top-level chat message.
   // The /replies sub-path returns 405 on group chats via Graph API.
-  const result = await graphRequest(
-    'POST',
-    `/chats/${config.chatId}/messages`,
-    accessToken,
-    { body: { contentType: 'html', content: html } }
-  );
+  const result = await sendWithEmojiRetry(config.chatId, html, accessToken);
 
   let id = result?.id || null;
 
