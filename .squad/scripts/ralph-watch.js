@@ -13,7 +13,6 @@
  * Stop with Ctrl+C.
  */
 
-const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
@@ -23,7 +22,8 @@ process.argv.push('--reply');
 
 const { poll } = require('./teams-monitor');
 
-const SQUAD_DIR = path.join(os.homedir(), '.squad');
+const SQUAD_DIR = path.join(__dirname, '..');
+const INBOX_DIR = path.join(SQUAD_DIR, 'teams-inbox');
 const PID_FILE = path.join(SQUAD_DIR, 'ralph-watch.pid');
 
 // Prevent macOS idle sleep while the watch loop runs (display can still lock freely).
@@ -45,7 +45,7 @@ function banner() {
   console.log('🔄 Ralph — Teams Watch');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(`   Polling every ${INTERVAL_SECONDS}s`);
-  console.log(`   Inbox: ${SQUAD_DIR}/teams-inbox/`);
+  console.log(`   Inbox: ${INBOX_DIR}`);
   console.log('   Press Ctrl+C to stop');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('');

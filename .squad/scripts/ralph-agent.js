@@ -253,20 +253,25 @@ async function processTask(filename) {
     
     console.log('[ralph-agent] Invoking GitHub Copilot CLI...');
     
-    // Use gh copilot -p for non-interactive mode
+    // Use gh copilot -p for non-interactive mode.
+    // stdin must be 'ignore' — if it's a pipe (default), gh copilot blocks waiting
+    // for interactive input and the process never exits, triggering ETIMEDOUT.
     const result = spawnSync('gh', ['copilot', '-p', prompt], {
       env: { ...process.env },
       encoding: 'utf8',
       maxBuffer: 10 * 1024 * 1024, // 10MB
-      timeout: 120_000 // 2 minute timeout
+      timeout: 180_000, // 3 minute timeout
+      stdio: ['ignore', 'pipe', 'pipe'] // ignore stdin; capture stdout+stderr
     });
     
     if (result.error) {
-      throw new Error(`Failed to spawn GitHub Copilot CLI: ${result.error.message}`);
+      const hint = result.error.code === 'ETIMEDOUT' ? ' (timed out — gh copilot may be unresponsive)' : '';
+      throw new Error(`Failed to spawn GitHub Copilot CLI: ${result.error.message}${hint}`);
     }
     
     if (result.status !== 0) {
-      throw new Error(`GitHub Copilot CLI exited with code ${result.status}: ${result.stderr || result.stdout}`);
+      const output = (result.stderr || result.stdout || '').trim();
+      throw new Error(`GitHub Copilot CLI exited with code ${result.status}: ${output}`);
     }
     
     let responseText = result.stdout.trim();
