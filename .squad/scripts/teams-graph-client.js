@@ -234,10 +234,9 @@ async function getNewMessages() {
     ? new Date(lastRead.lastReadAt)
     : new Date(Date.now() - FALLBACK_LOOKBACK_MINUTES * 60 * 1000);
 
-  // Filter server-side so we only receive messages newer than the last poll.
-  // This avoids the "hit the page limit" problem entirely for normal usage.
-  const isoFilter = cutoffDate.toISOString();
-  let url = `/chats/${config.chatId}/messages?$top=${MAX_MESSAGES_PER_PAGE}&$filter=createdDateTime gt ${isoFilter}`;
+  // Graph API does not support $filter on createdDateTime for chat messages.
+  // Fetch the 50 most recent messages and filter client-side.
+  let url = `/chats/${config.chatId}/messages?$top=${MAX_MESSAGES_PER_PAGE}`;
   const messages = [];
   while (url) {
     const page = await graphRequest('GET', url, accessToken);
@@ -250,6 +249,7 @@ async function getNewMessages() {
 
   const newMessages = messages.filter((msg) => {
     if (!msg.createdDateTime) return false;
+    if (new Date(msg.createdDateTime) <= cutoffDate) return false;
     const senderName = msg.from?.user?.displayName || msg.from?.application?.displayName || '';
     if (isBotSender(senderName, config)) return false;
     const rawBody = msg.body?.content || '';
@@ -259,7 +259,12 @@ async function getNewMessages() {
 
   newMessages.reverse(); // oldest first
 
-  const latestMsg = messages[0] || null;
+  // Find the most recent message by timestamp (API order is not guaranteed without $orderby).
+  const latestMsg = messages.reduce((latest, m) => {
+    if (!latest || !latest.createdDateTime) return m;
+    if (!m.createdDateTime) return latest;
+    return new Date(m.createdDateTime) > new Date(latest.createdDateTime) ? m : latest;
+  }, null);
   const latestProcessed = newMessages.length > 0 ? newMessages[newMessages.length - 1] : null;
 
   const tasks = newMessages.map((msg) => {
