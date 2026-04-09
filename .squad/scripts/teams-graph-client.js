@@ -351,7 +351,7 @@ async function editChatMessage(text, messageId) {
  * Returns true on success, false on all-failing.
  * @param {string} chatId
  * @param {string} messageId
- * @param {string} reactionType - e.g. "🙏"
+ * @param {string} reactionType - e.g. "🫡"
  */
 async function addReaction(chatId, messageId, reactionType) {
   let accessToken;

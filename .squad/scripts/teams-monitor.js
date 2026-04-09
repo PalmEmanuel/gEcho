@@ -100,7 +100,7 @@ async function poll({ autoReply: autoReplyArg = false } = {}) {
 
     // React to the user's original message instead of posting an ack
     if (effectiveAutoReply && chatId && task.msgId) {
-      const reacted = await addReaction(chatId, task.msgId, '🙏');
+      const reacted = await addReaction(chatId, task.msgId, '🫡');
       if (reacted) {
         console.log(`[${new Date().toISOString()}] Reacted to message in Teams`);
       } else {
