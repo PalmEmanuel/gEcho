@@ -196,10 +196,13 @@ describe('WorkbookPlayer', () => {
     it('paste step writes to clipboard then calls clipboardPasteAction', async () => {
       const calls: Array<{ cmd: string; args: any }> = [];
       const origExec = (vscode.commands as any).executeCommand;
-      // vscode.env.clipboard is a read-only getter — mock writeText on the object itself
+      // vscode.env.clipboard.writeText is non-writable in the VS Code test host — use Object.defineProperty
       const origWriteText = vscode.env.clipboard.writeText.bind(vscode.env.clipboard);
       let clipboardText = '';
-      (vscode.env.clipboard as any).writeText = async (t: string) => { clipboardText = t; };
+      Object.defineProperty(vscode.env.clipboard, 'writeText', {
+        configurable: true, writable: true,
+        value: async (t: string) => { clipboardText = t; },
+      });
       (vscode.commands as any).executeCommand = async (cmd: string, args: any) => { calls.push({ cmd, args }); };
       try {
         const player = new WorkbookPlayer();
@@ -211,7 +214,10 @@ describe('WorkbookPlayer', () => {
         assert.strictEqual(calls.length, 1);
         assert.strictEqual(calls[0].cmd, 'editor.action.clipboardPasteAction');
       } finally {
-        (vscode.env.clipboard as any).writeText = origWriteText;
+        Object.defineProperty(vscode.env.clipboard, 'writeText', {
+          configurable: true, writable: true,
+          value: origWriteText,
+        });
         (vscode.commands as any).executeCommand = origExec;
       }
     });
