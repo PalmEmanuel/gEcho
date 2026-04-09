@@ -13,7 +13,7 @@
 
 In the app registration:
 1. Click "API permissions" → "Add a permission" → Microsoft Graph → Delegated
-2. Add: `Chat.ReadWrite` and `User.Read`
+2. Add: `Chat.Read` and `User.Read`
 3. Click "Grant admin consent" if your org requires it (or ask your IT admin)
 
 ## 3. Enable public client flow
@@ -35,10 +35,9 @@ cat > ~/.squad/teams-config.json << 'EOF'
 }
 EOF
 
-# Install dependencies and run setup (from the repository root)
-cd .squad/scripts
+# Install dependencies and run setup
+cd /Users/emanuel/Code/gEcho
 npm install
-cd ../..
 node .squad/scripts/teams-setup.js
 ```
 
@@ -59,7 +58,7 @@ Send a message starting with `/task` in the configured group chat, then run agai
 ```bash
 node .squad/scripts/teams-monitor.js
 # Expected output: "Found 1 new task"
-# Task file will appear in .squad/teams-inbox/
+# Task file will appear in ~/.squad/teams-inbox/
 ```
 
 ## Re-authentication
@@ -76,4 +75,4 @@ The setup script will re-authenticate and update `~/.squad/teams-auth.json`. You
 
 - `~/.squad/teams-config.json` and `~/.squad/teams-auth.json` live in your home directory — **never commit these**
 - The repo's `~/.squad/teams-config.json` template contains no secrets
-- The MSAL token cache uses delegated permissions only — it cannot act on your behalf beyond `Chat.ReadWrite` and `User.Read`
+- The MSAL token cache uses delegated permissions only — it cannot act on your behalf beyond `Chat.Read` and `User.Read`
