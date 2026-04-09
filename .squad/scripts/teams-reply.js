@@ -1,33 +1,46 @@
 'use strict';
 
 /**
- * teams-reply.js — Post a message to the configured Teams group chat.
+ * teams-reply.js — Post or edit a message in the configured Teams group chat.
  *
  * Usage:
  *   node .squad/scripts/teams-reply.js "message text"
  *   node .squad/scripts/teams-reply.js --file /path/to/message.md
  *   node .squad/scripts/teams-reply.js --reply-to <messageId> "message text"
+ *   node .squad/scripts/teams-reply.js [--reply-to <parentId>] --edit <messageId> "message text"
  *
  * On failure, falls back to printing the message to stdout so callers
  * (e.g. Ralph) don't crash — just lose the Teams delivery.
  */
 
-const { sendChatMessage } = require('./teams-graph-client');
+const { sendChatMessage, editChatMessage } = require('./teams-graph-client');
 const fs = require('fs');
 
 const args = process.argv.slice(2);
 let text;
 let replyToMessageId = null;
+let editMessageId = null;
 
-// Parse --reply-to option
+// Parse flags: --reply-to and --edit (order-independent)
 let startIdx = 0;
-if (args[0] === '--reply-to') {
-  replyToMessageId = args[1];
-  if (!replyToMessageId) {
-    console.error('Usage: teams-reply.js --reply-to <messageId> "message text"');
-    process.exit(1);
+while (startIdx < args.length) {
+  if (args[startIdx] === '--reply-to') {
+    replyToMessageId = args[startIdx + 1];
+    if (!replyToMessageId) {
+      console.error('Usage: teams-reply.js --reply-to <messageId> "message text"');
+      process.exit(1);
+    }
+    startIdx += 2;
+  } else if (args[startIdx] === '--edit') {
+    editMessageId = args[startIdx + 1];
+    if (!editMessageId) {
+      console.error('Usage: teams-reply.js --edit <messageId> "message text"');
+      process.exit(1);
+    }
+    startIdx += 2;
+  } else {
+    break;
   }
-  startIdx = 2;
 }
 
 if (args[startIdx] === '--file') {
@@ -51,13 +64,26 @@ if (!text || !text.trim()) {
   process.exit(1);
 }
 
-sendChatMessage(text, replyToMessageId)
-  .then(() => {
-    console.log('Sent');
-  })
-  .catch((err) => {
-    // Fall back to stdout — don't crash the caller
-    console.error(`Failed to send to Teams: ${err.message}`);
-    console.log(`[Teams reply fallback] ${text}`);
-    process.exit(1);
-  });
+if (editMessageId) {
+  editChatMessage(text, editMessageId, replyToMessageId)
+    .then(() => {
+      console.log('Edited');
+    })
+    .catch((err) => {
+      console.error(`Failed to edit Teams message: ${err.message}`);
+      console.log(`[Teams edit fallback] ${text}`);
+      process.exit(1);
+    });
+} else {
+  sendChatMessage(text, replyToMessageId)
+    .then(({ id }) => {
+      if (id) process.stdout.write(`MESSAGE_ID:${id}\n`);
+      console.log('Sent');
+    })
+    .catch((err) => {
+      // Fall back to stdout — don't crash the caller
+      console.error(`Failed to send to Teams: ${err.message}`);
+      console.log(`[Teams reply fallback] ${text}`);
+      process.exit(1);
+    });
+}
