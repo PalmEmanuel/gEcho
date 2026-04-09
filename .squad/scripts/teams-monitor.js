@@ -18,7 +18,7 @@
  *   1 — AUTH_REQUIRED printed to stderr (user must re-run teams-setup.js)
  */
 
-const { getNewMessages, sendChatMessage } = require('./teams-graph-client');
+const { getNewMessages, addReaction, loadConfig } = require('./teams-graph-client');
 const fs = require('fs');
 const path = require('path');
 
@@ -41,16 +41,17 @@ function slugify(text) {
 }
 
 // ---------------------------------------------------------------------------
-// Core poll — exported for ralph-watch.js to call in a loop
+// Core poll — exported for teams-watch.js to call in a loop
 // ---------------------------------------------------------------------------
 
-async function poll() {
+async function poll({ autoReply: autoReplyArg = false } = {}) {
+  const effectiveAutoReply = autoReplyArg || autoReply;
   let result;
   try {
     result = await getNewMessages();
   } catch (err) {
     if (err.code === 'AUTH_REQUIRED') throw err;
-    console.log(`[${new Date().toISOString()}] Network error — skipping Teams check`);
+    console.log(`[${new Date().toISOString()}] Network error — skipping Teams check: ${err.message}`);
     return { found: 0 };
   }
 
@@ -72,6 +73,10 @@ async function poll() {
     fs.mkdirSync(INBOX_DIR, { recursive: true });
   }
 
+  // Load chatId once for reactions
+  const config = effectiveAutoReply ? loadConfig() : null;
+  const chatId = config?.chatId || null;
+
   for (const task of tasks) {
     const firstLine = task.text.split('\n')[0].trim();
     const slug = slugify(firstLine) || 'task';
@@ -83,7 +88,7 @@ async function poll() {
       `# Teams Task`,
       `**From:** ${task.senderName}`,
       `**Received:** ${task.receivedAt}`,
-      `**Message ID:** ${task.msgId}`,
+      `**User Message ID:** ${task.msgId}`,
       `**Raw message:** ${task.rawText}`,
       ``,
       `## Task`,
@@ -93,14 +98,13 @@ async function poll() {
     fs.writeFileSync(filePath, content, 'utf8');
     console.log(`[${new Date().toISOString()}] Task queued: ${filename}`);
 
-    // Auto-acknowledge in Teams if --reply flag is set
-    if (autoReply) {
-      try {
-        const preview = task.text.length > 80 ? task.text.slice(0, 77) + '…' : task.text;
-        await sendChatMessage(`👋 Got it, ${task.senderName}! I've queued your task:\n> ${preview}\n\nThe squad will pick this up shortly.`);
-        console.log(`[${new Date().toISOString()}] Acknowledged in Teams`);
-      } catch {
-        console.log(`[${new Date().toISOString()}] Could not send Teams ack (non-fatal)`);
+    // React to the user's original message instead of posting an ack
+    if (effectiveAutoReply && chatId && task.msgId) {
+      const reacted = await addReaction(chatId, task.msgId, '🫡');
+      if (reacted) {
+        console.log(`[${new Date().toISOString()}] Reacted to message in Teams`);
+      } else {
+        console.log(`[${new Date().toISOString()}] Could not react to Teams message (non-fatal)`);
       }
     }
   }
@@ -124,7 +128,7 @@ module.exports = { poll };
 
 if (require.main === module) {
   poll()
-    .then(({ found }) => process.exit(found >= 0 ? 0 : 0))
+    .then(({ found }) => process.exit(0))
     .catch((err) => {
       if (err.code === 'AUTH_REQUIRED') {
         process.stderr.write('AUTH_REQUIRED\n');

@@ -16,6 +16,16 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### Issue #1 Audit — 2026-04-08
+
+- Issue #1 (extension scaffold) was fully implemented except for two missing npm scripts: `build` and `check-types`.
+- Added `build` as an alias for `compile`, and `check-types` as `tsc --noEmit`. Both pushed to main, issue closed.
+- `esbuild.js` was intentionally absent — project uses `tsc` directly (no bundler decision recorded; this is acceptable at current scale).
+- `activationEvents` uses `onStartupFinished` (eager activation) instead of per-command as Gecko's decision prescribes. This is a live deviation — noted but not changed here as it affects runtime behavior.
+- **Team note (2026-04-08)**: Extension ID is now authoritative as `PalmEmanuel.gEcho` (Coordinator update). All references normalized in package.json, README, test files.
+- **Team note (2026-04-08)**: Epoch fixed 3 GIF recording race condition bugs on feat/status-bar-recorder-player (see Epoch history). Monitor `stop()` file-existence check, exit code 254 acceptance, state handling in next code reviews.
+
+
 ### Wave 3 — Confirmation dialog, deactivate cleanup
 
 - `WorkbookPlayer` exposes `stop()` (sets `cancelled = true`), NOT `cancel()`. Always use `stop()` to halt an in-progress replay.

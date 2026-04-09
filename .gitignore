@@ -11,5 +11,8 @@ out/
 .squad/sessions/
 # Squad: SubSquad activation file (local to this machine)
 .squad-workstream
-# Local squad state (outside repo already, but guard just in case)
+
+# Teams pipeline runtime state (contains user messages / PII)
+.squad/teams-last-read.json
 .squad/teams-inbox/
+.squad/teams-processed/

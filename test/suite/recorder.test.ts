@@ -74,4 +74,31 @@ describe('EchoRecorder', () => {
     );
     assert.strictEqual(hasUnexpected, false, 'Recorder should never produce unexpected step types');
   });
+
+  it('coalesces rapid successive single-char type events into one step', async function () {
+    this.timeout(8000);
+
+    const doc = await vscode.workspace.openTextDocument({ content: '', language: 'plaintext' });
+    await vscode.window.showTextDocument(doc);
+
+    const recorder = new EchoRecorder();
+    recorder.start();
+
+    // Type 4 chars in rapid succession — should coalesce into ≤ 2 type steps
+    await vscode.commands.executeCommand('type', { text: 'a' });
+    await vscode.commands.executeCommand('type', { text: 'b' });
+    await vscode.commands.executeCommand('type', { text: 'c' });
+    await vscode.commands.executeCommand('type', { text: 'd' });
+
+    // Give the document-change handler a tick to record all queued events before stopping.
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    const steps = recorder.stop();
+    await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+
+    const typeSteps = steps.filter(s => s.type === 'type');
+    const combined = typeSteps.map(s => (s as any).text).join('');
+    assert.strictEqual(combined, 'abcd', `All 4 chars should be captured in order, got: "${combined}"`);
+    assert.ok(typeSteps.length <= 2, `Rapid typing should coalesce into ≤2 steps, got ${typeSteps.length}`);
+  });
 });
