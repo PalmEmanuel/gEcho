@@ -20,7 +20,7 @@ const LAST_READ_PATH = path.join(__dirname, '..', 'teams-last-read.json');
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 
 const FALLBACK_LOOKBACK_MINUTES = 30;
-const MAX_MESSAGES = 20;
+const MAX_MESSAGES_PER_PAGE = 50;
 
 // ---------------------------------------------------------------------------
 // Config / cache helpers
@@ -232,25 +232,24 @@ async function getNewMessages() {
     ? new Date(lastRead.lastReadAt)
     : new Date(Date.now() - FALLBACK_LOOKBACK_MINUTES * 60 * 1000);
 
-  const messagesData = await graphRequest(
-    'GET',
-    `/chats/${config.chatId}/messages?$top=${MAX_MESSAGES}`,
-    accessToken
-  );
-
-  const messages = messagesData?.value || [];
-
-  if (messages.length >= MAX_MESSAGES) {
-    process.stderr.write(`Warning: received ${MAX_MESSAGES} messages (the maximum). Some messages may have been missed.\n`);
+  // Filter server-side so we only receive messages newer than the last poll.
+  // This avoids the "hit the page limit" problem entirely for normal usage.
+  const isoFilter = cutoffDate.toISOString();
+  let url = `/chats/${config.chatId}/messages?$top=${MAX_MESSAGES_PER_PAGE}&$filter=createdDateTime gt ${isoFilter}`;
+  const messages = [];
+  while (url) {
+    const page = await graphRequest('GET', url, accessToken);
+    const items = page?.value || [];
+    messages.push(...items);
+    // Follow @odata.nextLink if the page was full (strip the base URL prefix)
+    const next = page?.['@odata.nextLink'];
+    url = next ? next.replace(/^https:\/\/graph\.microsoft\.com\/v1\.0/, '') : null;
   }
 
   const newMessages = messages.filter((msg) => {
     if (!msg.createdDateTime) return false;
-    if (new Date(msg.createdDateTime) <= cutoffDate) return false;
-
     const senderName = msg.from?.user?.displayName || msg.from?.application?.displayName || '';
     if (isBotSender(senderName)) return false;
-
     const rawBody = msg.body?.content || '';
     const text = msg.body?.contentType === 'html' ? stripHtml(rawBody) : rawBody;
     return matchTriggerWord(text, triggerWords) !== null;
