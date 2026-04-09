@@ -187,7 +187,6 @@ const TEAMS_EMOJI = {
   '⚡': { id: 'highvoltage',     label: 'zap'      },
   '⏳': { id: 'hourglassnotdone',label: 'hourglass'},
   '❌': { id: 'crossmark',       label: 'x'        },
-  '⚠️': { id: 'warning',         label: 'warning'  },
 };
 
 function textToHtml(text) {
@@ -202,6 +201,9 @@ function textToHtml(text) {
   for (const [char, { id, label }] of Object.entries(TEAMS_EMOJI)) {
     html = html.split(char).join(`<emoji id="${id}" alt="${label}"></emoji>`);
   }
+
+  // Strip any remaining emoji / pictographic Unicode that Teams can't render
+  html = html.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\uFE00-\uFE0F]/gu, '');
 
   return html;
 }

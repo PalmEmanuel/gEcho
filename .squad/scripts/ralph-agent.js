@@ -45,7 +45,7 @@ const DEFAULT_AGENT = { agent: 'gecko', role: 'Lead' };
  * Uses CopilotClient which spawns `copilot --acp --stdio` and communicates
  * via JSON-RPC — the same protocol the Squad shell uses internally.
  */
-async function invokeCopilot(fullPrompt, timeoutMs = 180_000) {
+async function invokeCopilot(fullPrompt, timeoutMs = 300_000) {
   const { CopilotClient, approveAll } = await import('@github/copilot-sdk');
   const client = new CopilotClient();
   try {
@@ -240,7 +240,7 @@ async function processTask(filename) {
   let sdkError = null;
 
   try {
-    const raw = await invokeCopilot(fullPrompt, 180_000);
+    const raw = await invokeCopilot(fullPrompt, 300_000);
     if (!raw) throw new Error('Got empty response from Copilot SDK');
     responseText = raw;
   } catch (err) {
@@ -262,7 +262,11 @@ async function processTask(filename) {
   if (sdkError) {
     console.error(`[ralph-agent] SDK error processing ${filename}: ${sdkError.message}`);
     try {
-      postToTeams(`⚠️ Couldn't process your request — ${briefError(sdkError)}. Try again?`);
+      const isTimeout = sdkError.message && sdkError.message.toLowerCase().includes('timeout');
+      const userMsg = isTimeout
+        ? `Ran out of time on that one — the task was too complex for one round. Try breaking it into smaller steps.`
+        : `Couldn't process your request — ${briefError(sdkError)}. Try again?`;
+      postToTeams(userMsg);
     } catch (postErr) {
       console.error('[ralph] Final Teams post failed:', postErr.message);
     }
