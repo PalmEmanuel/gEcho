@@ -582,3 +582,162 @@ The timer is purely a deadline, not a polling sleep. This keeps the check event-
 - **Fixed `setTimeout(500)` poll**: Sleep-based; fragile on slow machines. The event-driven `once('close')` + timeout deadline is strictly better.
 - **Retry on stop()**: Detecting failure at stop-time (the old behavior) gives the user no actionable information at the right moment.
 
+
+---
+
+## 2026-04-09: Chronos — Teams Security Hygiene Decision
+
+**Date:** 2026-04-09  
+**Author:** Chronos (DevOps/CI)  
+**Status:** Implemented and committed
+
+Fixed two critical security/hygiene issues:
+
+1. **PII committed to git** — Teams runtime state (messages, sender names, message IDs) now gitignored and removed from index
+2. **Weak auth file permissions** — Auth files now hardened to chmod 600 after write
+
+### Decision: Gitignore Teams Runtime State (CRITICAL)
+
+**Problem:** `.squad/teams-last-read.json`, `.squad/teams-inbox/`, `.squad/teams-processed/` were tracked in git and contained real Teams message content, sender display names, and message IDs — user PII and operational state.
+
+**Solution:** 
+- Added to `.gitignore`: Teams runtime dirs
+- Removed from git index: `git rm --cached` without deleting from disk (files needed at runtime)
+
+### Decision: Hardened Auth File Permissions (CRITICAL)
+
+**Problem:** `~/.squad/teams-auth.json` and `~/.squad/teams-config.json` were created with `644` permissions (world-readable).
+
+**Solutions:**
+- Added `fs.chmodSync(AUTH_PATH, 0o600)` in `teams-graph-client.js` after token cache write
+- Created `teams-setup.js` interactive setup script that applies `chmod 600` to both files on creation
+
+---
+
+## 2026-04-09: Epoch — Decision Record — Teams Script Fixes
+
+**Author:** Epoch  
+**Date:** 2026-04-09  
+**Status:** Applied
+
+### Decisions Made
+
+**Lockfile location:** `.squad/teams-inbox/.ralph-agent.lock` — co-located with inbox so directory exists when ralph-agent starts. PID written as plain text; cleaned on `process.on('exit')`.
+
+**poll() parameter strategy:** `poll({ autoReply: autoReplyArg = false } = {})` with `effectiveAutoReply = autoReplyArg || autoReply` — module-level `autoReply` preserved for CLI invocation; parameter takes precedence when set by teams-watch.
+
+**isBotSender fallback:** One-time warn via module-level `_botHeuristicWarnShown` flag rather than warning on every message. Prevents log spam.
+
+**sanitizePromptInput placement:** Applied to `taskContent` before building `fullPrompt` in `processTask()`. System context (charter, persona) is trusted internal content — only inbound Teams message text is sanitized.
+
+**Error code propagation:** Wrapped SDK errors copy `.code` from original error so network-retry block works as intended.
+
+---
+
+## 2026-04-09: Gecko — Decision: poll() must accept an explicit autoReply parameter
+
+**Context:** `teams-watch.js` mutated `process.argv` before requiring `teams-monitor` to inject `--reply` because `autoReply` is evaluated at module load time. This breaks module encapsulation.
+
+**Decision:** `poll()` must accept `{ autoReply: boolean }` parameter (defaulting to `false`). Module-level `autoReply` is only used for CLI mode. `teams-watch.js` calls `poll({ autoReply: true })` directly and removes the `process.argv.push('--reply')` hack.
+
+---
+
+## 2026-04-09: Gecko — Decision: ackMessageId must be hoisted out of the try block
+
+**Context:** `const ackMessageId` declared inside try block in `ralph-agent.js::processTask`, but catch block references it — variable out of scope, condition always falsy, edit path is dead.
+
+**Decision:** Declare `let ackMessageId = null` before try block so catch handler can correctly branch on whether an ack was posted.
+
+---
+
+## 2026-04-09: Gecko — Decision: Remove askCopilot() / buildSystemMessage() dead code
+
+**Context:** `askCopilot()` and `buildSystemMessage()` are defined but never called. `askCopilot()` calls undefined `getSquadSDK()` — latent `ReferenceError`.
+
+**Decision:** Delete `askCopilot()`, `buildSystemMessage()`, and `getSquadSDK()` reference. If a helper is needed, inline it in `processTask()` or extract a named `buildPrompt()` function.
+
+---
+
+## 2026-04-09: Gecko — Decision: Add a concurrency guard for ralph-agent.js
+
+**Context:** `teams-watch.js` spawns new `ralph-agent.js` process on every poll cycle with no check if previous run has completed. Two processes can race on `readdirSync` + `renameSync`.
+
+**Decision:** Write `.ralph-agent.lock` file before spawning. `teams-watch.js` checks for lock before spawning; if locked, skip and log that previous run is still in progress.
+
+---
+
+## 2026-04-09: Gecko — Decision: isBotSender must use a configured identity list
+
+**Context:** `isBotSender()` uses `displayName.includes('squad')`, `includes('bot')`, `includes('gecho')` — fragile, real users with those substrings would be silently dropped.
+
+**Decision:** `teams-config.json` must include `botDisplayNames: string[]` field. `isBotSender()` does exact match against list. Fallback to substring matching only if field absent (with warning).
+
+---
+
+## 2026-04-09: Grimoire — Decision Proposal: Teams Monitor Pipeline — Testability Improvements
+
+**From:** Grimoire (Tester)  
+**Date:** 2026-04-09  
+**Trigger:** Testability review of Teams monitor pipeline
+
+### Problem
+
+Teams monitor pipeline contains ~15 pure helper functions that are deterministic but not exported — impossible to unit test without module introspection hacks.
+
+### Proposed Decisions
+
+**1. Export pure helpers for testing:**
+Each module should add conditional test-export block:
+```js
+if (process.env.NODE_ENV === 'test') {
+  Object.assign(module.exports, { slugify, stripHtml, textToHtml, ... });
+}
+```
+
+**2. Add test runner to `.squad/scripts/`:**
+Add `mocha` as devDependency with `.mocharc.json` pointing at `test/` subdirectory.
+
+**3. Wrap `https.request` in adapter:**
+Extract `graphRequest` into injectable dependency or export for mocking.
+
+**4. Extract `invokeCopilot` as injectable:**
+`processTask` accepts optional `copilotFn` parameter (defaults to `invokeCopilot`). Tests pass a stub.
+
+### Impact
+
+- No breaking changes to runtime
+- Unlocks entire pure-function test tier
+- Enables full error-path coverage for `graphRequest` and `poll()`
+
+---
+
+## 2026-04-09: Warden — Teams Pipeline Security Review Decision
+
+**Date:** 2026-04-09  
+**Author:** Warden (Security/Auth)  
+**Status:** Decisions pending action → Most applied; testability pending Grimoire
+
+### Decision 1 — CRITICAL: gitignore the Teams runtime state directories
+
+**Finding:** Teams runtime dirs tracked by git, already contain committed files with real Teams message content.
+
+**Decision:** Add to `.gitignore` and remove from git index (applied ✓).
+
+### Decision 2 — Fix file permissions on ~/.squad auth files
+
+**Finding:** Auth files world-readable (`644`).
+
+**Decision:** Set permissions to `600`; add chmod call in setup script (applied ✓).
+
+### Decision 3 — Prompt injection mitigation for Teams→Copilot pipeline
+
+**Finding:** Raw Teams message text interpolated into Copilot prompt with no sanitization.
+
+**Decision:** Sanitize `taskContent` before building prompt: hard length cap (2000 chars), strip patterns (`SYSTEM:`, `[SYSTEM]`, `You are`, etc.) (applied ✓).
+
+### Decision 4 — Clean up dead/broken `getSquadSDK` reference
+
+**Finding:** `getSquadSDK()` called in dead code, never defined.
+
+**Decision:** Remove `askCopilot()` or fix reference (applied ✓ — removed dead code).
+
