@@ -265,7 +265,7 @@ async function getNewMessages() {
  * @param {string} text - Plain text or HTML content to send.
  * @param {string} replyToMessageId - Optional message ID to reply to (creates threaded reply).
  */
-async function sendChatMessage(text, replyToMessageId = null) {
+async function sendChatMessage(text) {
   const config = loadConfig();
   if (!config || !config.chatId) {
     const err = new Error('Missing chatId in teams-config.json. Run teams-setup.js.');
@@ -276,36 +276,32 @@ async function sendChatMessage(text, replyToMessageId = null) {
   const accessToken = await acquireToken();
   const html = textToHtml(text);
 
-  // If replyToMessageId is provided, use the replies endpoint for threaded replies
-  const apiPath = replyToMessageId
-    ? `/chats/${config.chatId}/messages/${replyToMessageId}/replies`
-    : `/chats/${config.chatId}/messages`;
-
+  // Always post as a new top-level chat message.
+  // The /replies sub-path returns 405 on group chats via Graph API.
   const result = await graphRequest(
     'POST',
-    apiPath,
+    `/chats/${config.chatId}/messages`,
     accessToken,
     { body: { contentType: 'html', content: html } }
   );
 
   let id = result?.id || null;
 
-  // Some Teams plans return 201 Created with an empty body, so `result` is null.
-  // Fall back: wait briefly then GET the latest replies to find our message's ID.
-  if (!id && replyToMessageId) {
+  // Fallback: if POST didn't return a body, GET the latest message in the chat.
+  if (!id) {
     await new Promise((r) => setTimeout(r, 800));
     try {
-      const replies = await graphRequest(
+      const latest = await graphRequest(
         'GET',
-        `/chats/${config.chatId}/messages/${replyToMessageId}/replies`,
+        `/chats/${config.chatId}/messages?$top=5`,
         accessToken
       );
-      const msgs = (replies?.value || []).sort(
+      const msgs = (latest?.value || []).sort(
         (a, b) => new Date(b.createdDateTime) - new Date(a.createdDateTime)
       );
       id = msgs[0]?.id || null;
     } catch {
-      // GET failed — id stays null; caller must handle gracefully
+      // GET failed — id stays null
     }
   }
 
@@ -313,12 +309,11 @@ async function sendChatMessage(text, replyToMessageId = null) {
 }
 
 /**
- * Edit an existing message in the configured chat.
+ * Edit an existing top-level message in the configured chat.
  * @param {string} text - New plain text content.
  * @param {string} messageId - ID of the message to edit.
- * @param {string|null} parentMessageId - If the message is a reply, provide its parent ID.
  */
-async function editChatMessage(text, messageId, parentMessageId = null) {
+async function editChatMessage(text, messageId) {
   const config = loadConfig();
   if (!config || !config.chatId) {
     const err = new Error('Missing chatId in teams-config.json.');
@@ -327,10 +322,7 @@ async function editChatMessage(text, messageId, parentMessageId = null) {
   }
   const accessToken = await acquireToken();
   const html = textToHtml(text);
-  const apiPath = parentMessageId
-    ? `/chats/${config.chatId}/messages/${parentMessageId}/replies/${messageId}`
-    : `/chats/${config.chatId}/messages/${messageId}`;
-  await graphRequest('PATCH', apiPath, accessToken, {
+  await graphRequest('PATCH', `/chats/${config.chatId}/messages/${messageId}`, accessToken, {
     body: { contentType: 'html', content: html }
   });
 }

@@ -6,8 +6,7 @@
  * Usage:
  *   node .squad/scripts/teams-reply.js "message text"
  *   node .squad/scripts/teams-reply.js --file /path/to/message.md
- *   node .squad/scripts/teams-reply.js --reply-to <messageId> "message text"
- *   node .squad/scripts/teams-reply.js [--reply-to <parentId>] --edit <messageId> "message text"
+ *   node .squad/scripts/teams-reply.js --edit <messageId> "message text"
  *
  * On failure, falls back to printing the message to stdout so callers
  * (e.g. Ralph) don't crash — just lose the Teams delivery.
@@ -18,20 +17,12 @@ const fs = require('fs');
 
 const args = process.argv.slice(2);
 let text;
-let replyToMessageId = null;
 let editMessageId = null;
 
-// Parse flags: --reply-to and --edit (order-independent)
+// Parse flags: --edit only
 let startIdx = 0;
 while (startIdx < args.length) {
-  if (args[startIdx] === '--reply-to') {
-    replyToMessageId = args[startIdx + 1];
-    if (!replyToMessageId) {
-      console.error('Usage: teams-reply.js --reply-to <messageId> "message text"');
-      process.exit(1);
-    }
-    startIdx += 2;
-  } else if (args[startIdx] === '--edit') {
+  if (args[startIdx] === '--edit') {
     editMessageId = args[startIdx + 1];
     if (!editMessageId) {
       console.error('Usage: teams-reply.js --edit <messageId> "message text"');
@@ -65,7 +56,7 @@ if (!text || !text.trim()) {
 }
 
 if (editMessageId) {
-  editChatMessage(text, editMessageId, replyToMessageId)
+  editChatMessage(text, editMessageId)
     .then(() => {
       console.log('Edited');
     })
@@ -75,7 +66,7 @@ if (editMessageId) {
       process.exit(1);
     });
 } else {
-  sendChatMessage(text, replyToMessageId)
+  sendChatMessage(text)
     .then(({ id }) => {
       if (id) process.stdout.write(`MESSAGE_ID:${id}\n`);
       console.log('Sent');

@@ -160,15 +160,13 @@ function parseMessageId(fileContent) {
  * Post response to Teams using teams-reply.js.
  * Returns { success, messageId } — messageId parsed from stdout MESSAGE_ID line.
  */
-function postToTeams(responseText, replyToMessageId = null) {
-  const args = replyToMessageId 
-    ? [path.join(SCRIPTS_DIR, 'teams-reply.js'), '--reply-to', replyToMessageId, responseText]
-    : [path.join(SCRIPTS_DIR, 'teams-reply.js'), responseText];
+function postToTeams(responseText) {
+  const args = [path.join(SCRIPTS_DIR, 'teams-reply.js'), responseText];
     
   const result = spawnSync('node', args, {
     encoding: 'utf8',
     env: process.env,
-    stdio: ['ignore', 'pipe', 'inherit']  // inherit stderr so Teams errors are visible
+    stdio: ['ignore', 'pipe', 'inherit']
   });
 
   if (result.status !== 0) {
@@ -183,12 +181,8 @@ function postToTeams(responseText, replyToMessageId = null) {
 /**
  * Edit an existing Teams message using teams-reply.js --edit.
  */
-function editTeamsMessage(text, editMessageId, replyToMessageId = null) {
-  const args = [path.join(SCRIPTS_DIR, 'teams-reply.js'), '--edit', editMessageId];
-  if (replyToMessageId) {
-    args.push('--reply-to', replyToMessageId);
-  }
-  args.push(text);
+function editTeamsMessage(text, editMessageId) {
+  const args = [path.join(SCRIPTS_DIR, 'teams-reply.js'), '--edit', editMessageId, text];
 
   const result = spawnSync('node', args, {
     encoding: 'utf8',
@@ -250,7 +244,7 @@ async function processTask(filename) {
 
     // Phase 1 — post ack immediately so user knows it's being worked on
     const ackText = `⏳ ${agentName} is working on it…`;
-    const ackResult = postToTeams(ackText, originalMessageId);
+    const ackResult = postToTeams(ackText);
     const ackMessageId = ackResult.messageId;
     console.log(`[ralph-agent] Posted ack (${ackMessageId || 'no id'})`);
     
@@ -292,18 +286,18 @@ async function processTask(filename) {
     
     console.log(`[ralph-agent] Got response (${responseText.length} chars)`);
     
-    // Phase 2 — edit the ack with the real response, or fall back to new reply
+    // Phase 2 — edit the ack with the real response, or fall back to new message
     if (ackMessageId) {
-      const edited = editTeamsMessage(`${agentName}: ${responseText}`, ackMessageId, originalMessageId);
+      const edited = editTeamsMessage(`${agentName}: ${responseText}`, ackMessageId);
       if (edited) {
         console.log('[ralph-agent] Edited ack with response');
       } else {
-        console.warn('[ralph-agent] Edit failed — falling back to new reply');
-        const fallback = postToTeams(`${agentName}: ${responseText}`, originalMessageId);
+        console.warn('[ralph-agent] Edit failed — posting new message');
+        const fallback = postToTeams(`${agentName}: ${responseText}`);
         console.log(`[ralph-agent] Fallback post: ${fallback.success ? 'ok' : 'FAILED'}`);
       }
     } else {
-      const posted = postToTeams(`${agentName}: ${responseText}`, originalMessageId);
+      const posted = postToTeams(`${agentName}: ${responseText}`);
       console.log(`[ralph-agent] Posted response to Teams: ${posted.success ? 'ok' : 'FAILED'}`);
     }
     
