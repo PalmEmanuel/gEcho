@@ -214,7 +214,7 @@ async function getNewMessages() {
 
   const messagesData = await graphRequest(
     'GET',
-    `/chats/${config.chatId}/messages?$top=${MAX_MESSAGES}&$orderby=createdDateTime desc`,
+    `/chats/${config.chatId}/messages?$top=${MAX_MESSAGES}`,
     accessToken
   );
 

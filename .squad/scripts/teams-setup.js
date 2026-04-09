@@ -50,7 +50,6 @@ function saveConfig(data) {
   const merged = { ...existing, ...data };
   // Remove template-only keys
   delete merged._comment;
-  delete merged.chatType;
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(merged, null, 2), 'utf8');
 }
 
@@ -138,48 +137,74 @@ async function main() {
     }
   }
 
-  // Acquire token via device code flow
-  console.log('\nStarting device code authentication…\n');
-  const tokenRequest = {
-    scopes: ['Chat.Read', 'User.Read'],
-    deviceCodeCallback: (response) => {
-      console.log(response.message);
-    },
-  };
+  const scopes = ['Chat.ReadWrite', 'User.Read'];
 
+  // Try silent token acquisition first (uses cached token if available)
   let authResult;
-  try {
-    authResult = await pca.acquireTokenByDeviceCode(tokenRequest);
-  } catch (err) {
-    console.error(`❌ Authentication failed: ${err.message}`);
-    rl.close();
-    process.exit(1);
+  const accounts = await pca.getTokenCache().getAllAccounts();
+  if (accounts.length > 0) {
+    try {
+      authResult = await pca.acquireTokenSilent({ scopes, account: accounts[0] });
+      console.log('\n✅ Using cached credentials.\n');
+    } catch {
+      // Silent failed — fall through to device code
+    }
   }
 
-  // Persist token cache
-  const serialized = pca.getTokenCache().serialize();
-  fs.writeFileSync(AUTH_PATH, serialized, 'utf8');
-  console.log('\n✅ Authenticated. Token cache saved.\n');
+  // Fall back to device code flow if silent auth failed or no cached account
+  if (!authResult) {
+    console.log('\nStarting device code authentication…\n');
+    try {
+      authResult = await pca.acquireTokenByDeviceCode({
+        scopes,
+        deviceCodeCallback: (response) => { console.log(response.message); },
+      });
+    } catch (err) {
+      console.error(`❌ Authentication failed: ${err.message}`);
+      rl.close();
+      process.exit(1);
+    }
+
+    // Persist updated token cache
+    const serialized = pca.getTokenCache().serialize();
+    fs.writeFileSync(AUTH_PATH, serialized, 'utf8');
+    console.log('\n✅ Authenticated. Token cache saved.\n');
+  }
 
   const accessToken = authResult.accessToken;
 
-  // Fetch group chats
-  console.log('Fetching your group chats…');
+  // Fetch 1:1 chats, falling back to all chat types if none found
+  console.log('Fetching your 1:1 chats…');
   let chatsData;
+  let chatTypeLabel = '1:1';
   try {
-    chatsData = await graphGet(accessToken, `/me/chats?$filter=chatType eq 'group'`);
+    chatsData = await graphGet(accessToken, `/me/chats?$filter=chatType eq 'oneOnOne'`);
   } catch (err) {
     console.error(`❌ Failed to fetch chats: ${err.message}`);
     rl.close();
     process.exit(1);
   }
 
-  const chats = chatsData.value || [];
+  let chats = chatsData.value || [];
   if (chats.length === 0) {
-    console.log('No group chats found on this account.');
+    console.log('No 1:1 chats found. Fetching all available chats…');
+    chatTypeLabel = 'all';
+    try {
+      const allChatsData = await graphGet(accessToken, `/me/chats`);
+      chats = allChatsData.value || [];
+    } catch (err) {
+      console.error(`❌ Failed to fetch chats: ${err.message}`);
+      rl.close();
+      process.exit(1);
+    }
+  }
+
+  if (chats.length === 0) {
+    console.log('No chats found on this account. Please start a chat in Teams first, then re-run this script.');
     rl.close();
     process.exit(0);
   }
+  console.log(`Found ${chats.length} ${chatTypeLabel} chat(s).`);
 
   // Fetch member names for each chat
   console.log('Fetching member lists…\n');
@@ -192,7 +217,7 @@ async function main() {
     } catch {
       memberNames = ['(members unavailable)'];
     }
-    chatDetails.push({ id: chat.id, topic: chat.topic || '(no topic)', members: memberNames });
+    chatDetails.push({ id: chat.id, topic: chat.topic || `Chat with ${memberNames.join(', ')}`, members: memberNames });
   }
 
   // Print numbered list
@@ -224,11 +249,12 @@ async function main() {
     clientId: config.clientId,
     tenantId: config.tenantId,
     chatId: selected.id,
+    chatType: 'oneOnOne',
     triggerWords,
   });
 
   console.log(`\n✅ Configured.`);
-  console.log(`   Chat: ${selected.topic}`);
+  console.log(`   Chat: ${selected.topic || '(1:1 chat)'}`);
   console.log(`   Trigger words: ${triggerWords.join(', ')}`);
   console.log(`   Config saved to: ${CONFIG_PATH}`);
   console.log('\nRun `node .squad/scripts/teams-monitor.js` to start monitoring.');

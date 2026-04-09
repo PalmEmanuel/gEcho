@@ -1,12 +1,13 @@
 'use strict';
 
 /**
- * teams-monitor.js — Poll a Teams group chat for squad task messages.
+ * teams-monitor.js — Poll a Teams chat for squad task messages.
  *
- * Usage: node .squad/scripts/teams-monitor.js
+ * Usage (one-shot):  node .squad/scripts/teams-monitor.js
+ * Usage (with ack):  node .squad/scripts/teams-monitor.js --reply
  *
- * Reads:  ~/.squad/teams-config.json   (chatId, clientId, tenantId, triggerWords)
- *         ~/.squad/teams-auth.json     (MSAL token cache)
+ * Reads:  ~/.squad/teams-config.json    (chatId, clientId, tenantId, triggerWords)
+ *         ~/.squad/teams-auth.json      (MSAL token cache)
  *         ~/.squad/teams-last-read.json (dedup cursor)
  *
  * Writes: ~/.squad/teams-inbox/{timestamp}-{slug}.md  (one file per task)
@@ -17,20 +18,20 @@
  *   1 — AUTH_REQUIRED printed to stderr (user must re-run teams-setup.js)
  */
 
-const { getNewMessages } = require('./teams-graph-client');
+const { getNewMessages, sendChatMessage } = require('./teams-graph-client');
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 
-const SQUAD_DIR = path.join(os.homedir(), '.squad');
+const SQUAD_DIR = path.join(__dirname, '..');
 const LAST_READ_PATH = path.join(SQUAD_DIR, 'teams-last-read.json');
 const INBOX_DIR = path.join(SQUAD_DIR, 'teams-inbox');
+
+const autoReply = process.argv.includes('--reply');
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Produce a filesystem-safe slug from the first line of a message. */
 function slugify(text) {
   return text
     .toLowerCase()
@@ -40,20 +41,17 @@ function slugify(text) {
 }
 
 // ---------------------------------------------------------------------------
-// Main
+// Core poll — exported for ralph-watch.js to call in a loop
 // ---------------------------------------------------------------------------
 
-async function main() {
+async function poll() {
   let result;
   try {
     result = await getNewMessages();
   } catch (err) {
-    if (err.code === 'AUTH_REQUIRED') {
-      process.stderr.write('AUTH_REQUIRED\n');
-      process.exit(1);
-    }
-    console.log('Network error — skipping Teams check');
-    process.exit(0);
+    if (err.code === 'AUTH_REQUIRED') throw err;
+    console.log(`[${new Date().toISOString()}] Network error — skipping Teams check`);
+    return { found: 0 };
   }
 
   const { tasks, latestMsgId, latestMsgAt, latestProcessedId, latestProcessedAt } = result;
@@ -66,8 +64,8 @@ async function main() {
         'utf8'
       );
     }
-    console.log('No new tasks');
-    process.exit(0);
+    console.log(`[${new Date().toISOString()}] No new tasks`);
+    return { found: 0 };
   }
 
   if (!fs.existsSync(INBOX_DIR)) {
@@ -92,6 +90,18 @@ async function main() {
     ].join('\n');
 
     fs.writeFileSync(filePath, content, 'utf8');
+    console.log(`[${new Date().toISOString()}] Task queued: ${filename}`);
+
+    // Auto-acknowledge in Teams if --reply flag is set
+    if (autoReply) {
+      try {
+        const preview = task.text.length > 80 ? task.text.slice(0, 77) + '…' : task.text;
+        await sendChatMessage(`👋 Got it, ${task.senderName}! I've queued your task:\n> ${preview}\n\nThe squad will pick this up shortly.`);
+        console.log(`[${new Date().toISOString()}] Acknowledged in Teams`);
+      } catch {
+        console.log(`[${new Date().toISOString()}] Could not send Teams ack (non-fatal)`);
+      }
+    }
   }
 
   fs.writeFileSync(
@@ -101,15 +111,25 @@ async function main() {
   );
 
   const count = tasks.length;
-  console.log(`Found ${count} new task${count === 1 ? '' : 's'}`);
-  process.exit(0);
+  console.log(`[${new Date().toISOString()}] Found ${count} new task${count === 1 ? '' : 's'}`);
+  return { found: count, tasks };
 }
 
-main().catch((err) => {
-  if (err.code === 'AUTH_REQUIRED') {
-    process.stderr.write('AUTH_REQUIRED\n');
-    process.exit(1);
-  }
-  console.log('Network error — skipping Teams check');
-  process.exit(0);
-});
+module.exports = { poll };
+
+// ---------------------------------------------------------------------------
+// CLI entry point (one-shot)
+// ---------------------------------------------------------------------------
+
+if (require.main === module) {
+  poll()
+    .then(({ found }) => process.exit(found >= 0 ? 0 : 0))
+    .catch((err) => {
+      if (err.code === 'AUTH_REQUIRED') {
+        process.stderr.write('AUTH_REQUIRED\n');
+        process.exit(1);
+      }
+      console.error(err.message);
+      process.exit(0);
+    });
+}

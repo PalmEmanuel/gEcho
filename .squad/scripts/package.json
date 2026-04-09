@@ -1,0 +1,13 @@
+{
+  "name": "gecho-squad-scripts",
+  "version": "1.0.0",
+  "description": "gEcho squad automation scripts",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "@azure/msal-node": "^3.0.0",
+    "@bradygaster/squad-sdk": "latest",
+    "node-fetch": "^2.7.0",
+    "vscode-jsonrpc": "^8.2.1"
+  }
+}
