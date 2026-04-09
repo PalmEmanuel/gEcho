@@ -41,7 +41,7 @@ function slugify(text) {
 }
 
 // ---------------------------------------------------------------------------
-// Core poll — exported for ralph-watch.js to call in a loop
+// Core poll — exported for teams-watch.js to call in a loop
 // ---------------------------------------------------------------------------
 
 async function poll() {
