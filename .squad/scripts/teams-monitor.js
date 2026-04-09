@@ -18,7 +18,7 @@
  *   1 — AUTH_REQUIRED printed to stderr (user must re-run teams-setup.js)
  */
 
-const { getNewMessages, sendChatMessage } = require('./teams-graph-client');
+const { getNewMessages, addReaction, loadConfig } = require('./teams-graph-client');
 const fs = require('fs');
 const path = require('path');
 
@@ -73,6 +73,10 @@ async function poll({ autoReply: autoReplyArg = false } = {}) {
     fs.mkdirSync(INBOX_DIR, { recursive: true });
   }
 
+  // Load chatId once for reactions
+  const config = effectiveAutoReply ? loadConfig() : null;
+  const chatId = config?.chatId || null;
+
   for (const task of tasks) {
     const firstLine = task.text.split('\n')[0].trim();
     const slug = slugify(firstLine) || 'task';
@@ -84,7 +88,7 @@ async function poll({ autoReply: autoReplyArg = false } = {}) {
       `# Teams Task`,
       `**From:** ${task.senderName}`,
       `**Received:** ${task.receivedAt}`,
-      `**Message ID:** ${task.msgId}`,
+      `**User Message ID:** ${task.msgId}`,
       `**Raw message:** ${task.rawText}`,
       ``,
       `## Task`,
@@ -94,17 +98,13 @@ async function poll({ autoReply: autoReplyArg = false } = {}) {
     fs.writeFileSync(filePath, content, 'utf8');
     console.log(`[${new Date().toISOString()}] Task queued: ${filename}`);
 
-    // Auto-acknowledge in Teams if --reply flag is set
-    if (effectiveAutoReply) {
-      try {
-        const firstName = task.senderName ? task.senderName.split(' ')[0] : task.senderName;
-        const ackResult = await sendChatMessage(`👋 Got it, ${firstName}! On it...`);
-        if (ackResult?.id) {
-          fs.appendFileSync(filePath, `\n**Ack Message ID:** ${ackResult.id}\n`, 'utf8');
-        }
-        console.log(`[${new Date().toISOString()}] Acknowledged in Teams`);
-      } catch {
-        console.log(`[${new Date().toISOString()}] Could not send Teams ack (non-fatal)`);
+    // React to the user's original message instead of posting an ack
+    if (effectiveAutoReply && chatId && task.msgId) {
+      const reacted = await addReaction(chatId, task.msgId, '🙏');
+      if (reacted) {
+        console.log(`[${new Date().toISOString()}] Reacted to message in Teams`);
+      } else {
+        console.log(`[${new Date().toISOString()}] Could not react to Teams message (non-fatal)`);
       }
     }
   }

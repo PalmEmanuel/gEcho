@@ -18,6 +18,7 @@ const AUTH_PATH = path.join(SQUAD_DIR, 'teams-auth.json');
 // Cursor is repo-local (gitignored) — must match the path teams-monitor.js writes to.
 const LAST_READ_PATH = path.join(__dirname, '..', 'teams-last-read.json');
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
+const GRAPH_BETA = 'https://graph.microsoft.com/beta';
 
 const FALLBACK_LOOKBACK_MINUTES = 30;
 const MAX_MESSAGES_PER_PAGE = 50;
@@ -108,9 +109,9 @@ async function acquireToken() {
 // Graph HTTP helpers
 // ---------------------------------------------------------------------------
 
-function graphRequest(method, apiPath, accessToken, body) {
+function graphRequest(method, apiPath, accessToken, body, baseUrl = GRAPH_BASE) {
   return new Promise((resolve, reject) => {
-    const url = new URL(GRAPH_BASE + apiPath);
+    const url = new URL(baseUrl + apiPath);
     const payload = body ? JSON.stringify(body) : null;
     const options = {
       hostname: url.hostname,
@@ -345,6 +346,41 @@ async function editChatMessage(text, messageId) {
   });
 }
 
+/**
+ * Add a reaction to a message. Falls back to 👍 if the requested reactionType fails.
+ * Returns true on success, false on all-failing.
+ * @param {string} chatId
+ * @param {string} messageId
+ * @param {string} reactionType - e.g. "🙏"
+ */
+async function addReaction(chatId, messageId, reactionType) {
+  let accessToken;
+  try {
+    accessToken = await acquireToken();
+  } catch (err) {
+    console.error(`[teams] addReaction: auth failed — ${err.message}`);
+    return false;
+  }
+
+  const apiPath = `/chats/${chatId}/messages/${messageId}/setReaction`;
+
+  try {
+    await graphRequest('POST', apiPath, accessToken, { reactionType }, GRAPH_BETA);
+    return true;
+  } catch (err) {
+    console.error(`[teams] addReaction(${reactionType}) failed — ${err.message}`);
+    if (reactionType === '👍') return false;
+    // Fallback to 👍
+    try {
+      await graphRequest('POST', apiPath, accessToken, { reactionType: '👍' }, GRAPH_BETA);
+      return true;
+    } catch (fallbackErr) {
+      console.error(`[teams] addReaction fallback(👍) failed — ${fallbackErr.message}`);
+      return false;
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers (also used by getNewMessages)
 // ---------------------------------------------------------------------------
@@ -372,4 +408,4 @@ function isBotSender(displayName, config) {
   return lower.includes('squad') || lower.includes('bot') || lower.includes('gecho');
 }
 
-module.exports = { acquireToken, getNewMessages, sendChatMessage, editChatMessage };
+module.exports = { acquireToken, loadConfig, getNewMessages, sendChatMessage, editChatMessage, addReaction };

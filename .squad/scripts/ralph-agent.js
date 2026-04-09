@@ -59,6 +59,14 @@ async function invokeCopilot(fullPrompt, timeoutMs = 180_000) {
 }
 
 /**
+ * Extract a human-readable 1-sentence error summary (no stack trace).
+ */
+function briefError(err) {
+  const msg = (err && err.message) ? err.message : String(err);
+  return msg.split('\n')[0].replace(/^Error:\s*/i, '').substring(0, 120);
+}
+
+/**
  * Strip prompt injection openers and truncate to safe length.
  */
 function sanitizePromptInput(text) {
@@ -137,10 +145,10 @@ function parseTaskContent(fileContent) {
 }
 
 /**
- * Parse the original message ID from the task file.
+ * Parse the user's original message ID from the task file.
  */
 function parseMessageId(fileContent) {
-  const msgIdMatch = fileContent.match(/\*\*Message ID:\*\*\s+(.+)/);
+  const msgIdMatch = fileContent.match(/\*\*User Message ID:\*\*\s+(.+)/);
   return msgIdMatch ? msgIdMatch[1].trim() : null;
 }
 
@@ -167,23 +175,6 @@ function postToTeams(responseText) {
 }
 
 /**
- * Edit an existing Teams message using teams-reply.js --edit.
- */
-function editTeamsMessage(text, editMessageId) {
-  const args = [path.join(SCRIPTS_DIR, 'teams-reply.js'), '--edit', editMessageId, text];
-
-  const result = spawnSync('node', args, {
-    encoding: 'utf8',
-    env: process.env,
-    stdio: ['ignore', 'pipe', 'inherit']
-  });
-  if (result.status !== 0) {
-    console.error(`[ralph-agent] editTeamsMessage failed with code ${result.status}`);
-  }
-  return result.status === 0;
-}
-
-/**
  * Archive a task file to the processed directory.
  */
 function archiveTask(filename) {
@@ -201,13 +192,25 @@ async function processTask(filename) {
   console.log(`[ralph-agent] Processing: ${filename}`);
   
   const filePath = path.join(INBOX_DIR, filename);
-  const fileContent = fs.readFileSync(filePath, 'utf8');
+
+  let fileContent;
+  try {
+    fileContent = fs.readFileSync(filePath, 'utf8');
+  } catch (readErr) {
+    console.error(`[ralph-agent] Cannot read task file ${filename}: ${readErr.message}`);
+    try {
+      postToTeams(`⚠️ Couldn't process your request — task file unreadable. Try again?`);
+    } catch { /* Teams unreachable */ }
+    try { archiveTask(filename); } catch { /* file may not exist */ }
+    return { success: false, agent: DEFAULT_AGENT.agent, error: readErr.message };
+  }
+
   const taskContent = parseTaskContent(fileContent);
-  const originalMessageId = parseMessageId(fileContent);
-  
+  const userMessageId = parseMessageId(fileContent);
+
   const { agent, role } = routeTask(taskContent);
   console.log(`[ralph-agent] Routed to: ${agent.charAt(0).toUpperCase() + agent.slice(1)} (${role})`);
-  
+
   // Auth check
   if (!process.env.GITHUB_TOKEN) {
     console.error('[ralph-agent] GITHUB_TOKEN not set');
@@ -215,7 +218,7 @@ async function processTask(filename) {
     archiveTask(filename);
     return { success: false, agent, error: 'GITHUB_TOKEN not set' };
   }
-  
+
   // Demo mode fallback
   if (process.env.SQUAD_DEMO_MODE === 'true') {
     console.log('[ralph-agent] DEMO MODE — simulating response');
@@ -224,89 +227,64 @@ async function processTask(filename) {
     archiveTask(filename);
     return { success: true, agent, demo: true };
   }
-  
-  let ackMessageId = null;
-  try {
-    // Load agent charter
-    const charter = loadCharter(agent);
-    const agentName = agent.charAt(0).toUpperCase() + agent.slice(1);
 
-    // Phase 1 — post ack immediately so user knows it's being worked on
-    const ackText = `⏳ ${agentName} is working on it…`;
-    const ackResult = postToTeams(ackText);
-    ackMessageId = ackResult.messageId;
-    console.log(`[ralph-agent] Posted ack (${ackMessageId || 'no id'})`);
-    
-    // Build prompt: system context (charter + persona) + task
-    const sanitizedTask = sanitizePromptInput(taskContent);
-    const systemContext = `You are ${agentName}, the ${role} on the gEcho project.\n\n${charter ? `YOUR CHARTER:\n${charter}\n\n` : ''}This task came via Teams chat - respond in 2-4 sentences.`;
-    const fullPrompt = `${systemContext}\n\nTASK:\n${sanitizedTask}`;
-    
-    console.log('[ralph-agent] Invoking Copilot SDK...');
-    
-    let responseText;
-    try {
-      responseText = await invokeCopilot(fullPrompt, 180_000);
-    } catch (sdkErr) {
-      const wrapErr = new Error(`Copilot SDK error: ${sdkErr.message}`);
-      wrapErr.code = sdkErr.code;
-      throw wrapErr;
-    }
-    
-    if (!responseText) {
-      throw new Error('Got empty response from Copilot SDK');
-    }
-    
-    console.log(`[ralph-agent] Got response (${responseText.length} chars)`);
-    
-    // Phase 2 — edit the ack with the real response, or fall back to new message
-    if (ackMessageId) {
-      const edited = editTeamsMessage(`${agentName}: ${responseText}`, ackMessageId);
-      if (edited) {
-        console.log('[ralph-agent] Edited ack with response');
-      } else {
-        console.warn('[ralph-agent] Edit failed — posting new message');
-        const fallback = postToTeams(`${agentName}: ${responseText}`);
-        console.log(`[ralph-agent] Fallback post: ${fallback.success ? 'ok' : 'FAILED'}`);
-      }
-    } else {
-      const posted = postToTeams(`${agentName}: ${responseText}`);
-      console.log(`[ralph-agent] Posted response to Teams: ${posted.success ? 'ok' : 'FAILED'}`);
-    }
-    
-    // Archive
-    archiveTask(filename);
-    
-    return { success: true, agent, responseLength: responseText.length };
-    
+  const charter = loadCharter(agent);
+  const agentName = agent.charAt(0).toUpperCase() + agent.slice(1);
+  const sanitizedTask = sanitizePromptInput(taskContent);
+  const systemContext = `You are ${agentName}, the ${role} on the gEcho project.\n\n${charter ? `YOUR CHARTER:\n${charter}\n\n` : ''}This task came via Teams chat - respond in 2-4 sentences.`;
+  const fullPrompt = `${systemContext}\n\nTASK:\n${sanitizedTask}`;
+
+  console.log('[ralph-agent] Invoking Copilot SDK...');
+
+  let responseText;
+  let sdkError = null;
+
+  try {
+    const raw = await invokeCopilot(fullPrompt, 180_000);
+    if (!raw) throw new Error('Got empty response from Copilot SDK');
+    responseText = raw;
   } catch (err) {
-    console.error(`[ralph-agent] Error processing ${filename}: ${err.message}`);
-    
-    // Retry once after 5s for network errors
-    if (err.code === 'ENOTFOUND' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET') {
-      console.log('[ralph-agent] Network error, retrying in 5s...');
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      try {
-        return await processTask(filename);
-      } catch (retryErr) {
-        console.error(`[ralph-agent] Retry failed: ${retryErr.message}`);
-      }
-    }
-    
-    // Post error to Teams — edit ack if available, else new reply
-    const agentName = agent.charAt(0).toUpperCase() + agent.slice(1);
-    const errorMsg = `❌ ${agentName} hit an error: ${err.message}`;
-    if (ackMessageId) {
-      editTeamsMessage(errorMsg, ackMessageId) || postToTeams(errorMsg);
-    } else {
-      postToTeams(errorMsg);
-    }
-    
-    // Archive anyway
-    archiveTask(filename);
-    
-    return { success: false, agent, error: err.message };
+    sdkError = err;
   }
+
+  // Retry once for transient network errors
+  if (sdkError && (sdkError.code === 'ENOTFOUND' || sdkError.code === 'ETIMEDOUT' || sdkError.code === 'ECONNRESET')) {
+    console.log('[ralph-agent] Network error, retrying in 5s...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    try {
+      return await processTask(filename);
+    } catch (retryErr) {
+      console.error(`[ralph-agent] Retry failed: ${retryErr.message}`);
+      sdkError = retryErr;
+    }
+  }
+
+  if (sdkError) {
+    console.error(`[ralph-agent] SDK error processing ${filename}: ${sdkError.message}`);
+    try {
+      postToTeams(`⚠️ Couldn't process your request — ${briefError(sdkError)}. Try again?`);
+    } catch (postErr) {
+      console.error('[ralph] Final Teams post failed:', postErr.message);
+    }
+    archiveTask(filename);
+    return { success: false, agent, error: sdkError.message };
+  }
+
+  console.log(`[ralph-agent] Got response (${responseText.length} chars)`);
+  if (userMessageId) {
+    console.log(`[ralph-agent] Replying in context of user message: ${userMessageId}`);
+  }
+
+  // Post result as a new message (Teams 1:1 chats don't support threaded replies)
+  const posted = postToTeams(`${agentName}: ${responseText}`);
+  if (!posted.success) {
+    console.error('[ralph-agent] Failed to post result to Teams — Teams may be unreachable');
+  } else {
+    console.log('[ralph-agent] Posted response to Teams');
+  }
+
+  archiveTask(filename);
+  return { success: true, agent, responseLength: responseText.length };
 }
 
 /**
