@@ -167,10 +167,14 @@ function postToTeams(responseText, replyToMessageId = null) {
     
   const result = spawnSync('node', args, {
     encoding: 'utf8',
-    env: process.env
+    env: process.env,
+    stdio: ['ignore', 'pipe', 'inherit']  // inherit stderr so Teams errors are visible
   });
 
-  if (result.status !== 0) return { success: false, messageId: null };
+  if (result.status !== 0) {
+    console.error(`[ralph-agent] teams-reply.js exited with code ${result.status}`);
+    return { success: false, messageId: null };
+  }
 
   const match = (result.stdout || '').match(/^MESSAGE_ID:(.+)$/m);
   return { success: true, messageId: match ? match[1].trim() : null };
@@ -188,8 +192,12 @@ function editTeamsMessage(text, editMessageId, replyToMessageId = null) {
 
   const result = spawnSync('node', args, {
     encoding: 'utf8',
-    env: process.env
+    env: process.env,
+    stdio: ['ignore', 'pipe', 'inherit']
   });
+  if (result.status !== 0) {
+    console.error(`[ralph-agent] editTeamsMessage failed with code ${result.status}`);
+  }
   return result.status === 0;
 }
 
@@ -291,10 +299,12 @@ async function processTask(filename) {
         console.log('[ralph-agent] Edited ack with response');
       } else {
         console.warn('[ralph-agent] Edit failed — falling back to new reply');
-        postToTeams(`${agentName}: ${responseText}`, originalMessageId);
+        const fallback = postToTeams(`${agentName}: ${responseText}`, originalMessageId);
+        console.log(`[ralph-agent] Fallback post: ${fallback.success ? 'ok' : 'FAILED'}`);
       }
     } else {
-      postToTeams(`${agentName}: ${responseText}`, originalMessageId);
+      const posted = postToTeams(`${agentName}: ${responseText}`, originalMessageId);
+      console.log(`[ralph-agent] Posted response to Teams: ${posted.success ? 'ok' : 'FAILED'}`);
     }
     
     // Archive

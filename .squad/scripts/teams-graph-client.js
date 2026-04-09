@@ -287,7 +287,29 @@ async function sendChatMessage(text, replyToMessageId = null) {
     accessToken,
     { body: { contentType: 'html', content: html } }
   );
-  return { id: result?.id || null };
+
+  let id = result?.id || null;
+
+  // Some Teams plans return 201 Created with an empty body, so `result` is null.
+  // Fall back: wait briefly then GET the latest replies to find our message's ID.
+  if (!id && replyToMessageId) {
+    await new Promise((r) => setTimeout(r, 800));
+    try {
+      const replies = await graphRequest(
+        'GET',
+        `/chats/${config.chatId}/messages/${replyToMessageId}/replies`,
+        accessToken
+      );
+      const msgs = (replies?.value || []).sort(
+        (a, b) => new Date(b.createdDateTime) - new Date(a.createdDateTime)
+      );
+      id = msgs[0]?.id || null;
+    } catch {
+      // GET failed — id stays null; caller must handle gracefully
+    }
+  }
+
+  return { id };
 }
 
 /**
