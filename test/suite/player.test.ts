@@ -196,15 +196,17 @@ describe('WorkbookPlayer', () => {
     it('paste step writes to clipboard then calls clipboardPasteAction', async () => {
       const calls: Array<{ cmd: string; args: any }> = [];
       const origExec = (vscode.commands as any).executeCommand;
-      // Replace the entire clipboard object — writeText is non-configurable on the real
-      // clipboard instance in the VS Code test host, so Object.defineProperty on writeText
-      // directly throws "Cannot redefine property" on Linux CI runners.
+      // vscode.env.clipboard is a getter-only property on Linux, so direct assignment throws.
+      // Use Object.defineProperty to override it, then restore the original descriptor.
+      const origClipboardDescriptor = Object.getOwnPropertyDescriptor(vscode.env, 'clipboard')
+        ?? Object.getOwnPropertyDescriptor(Object.getPrototypeOf(vscode.env), 'clipboard');
       const origClipboard = vscode.env.clipboard;
       let clipboardText = '';
-      (vscode.env as any).clipboard = {
+      const mockClipboard = {
         writeText: async (t: string) => { clipboardText = t; },
         readText: async () => clipboardText,
       };
+      Object.defineProperty(vscode.env, 'clipboard', { value: mockClipboard, configurable: true, writable: true });
       (vscode.commands as any).executeCommand = async (cmd: string, args: any) => { calls.push({ cmd, args }); };
       try {
         const player = new WorkbookPlayer();
@@ -216,7 +218,11 @@ describe('WorkbookPlayer', () => {
         assert.strictEqual(calls.length, 1);
         assert.strictEqual(calls[0].cmd, 'editor.action.clipboardPasteAction');
       } finally {
-        (vscode.env as any).clipboard = origClipboard;
+        if (origClipboardDescriptor) {
+          Object.defineProperty(vscode.env, 'clipboard', origClipboardDescriptor);
+        } else {
+          Object.defineProperty(vscode.env, 'clipboard', { value: origClipboard, configurable: true, writable: true });
+        }
         (vscode.commands as any).executeCommand = origExec;
       }
     });
