@@ -22,6 +22,12 @@ const { spawn } = require('child_process');
 const SQUAD_DIR = path.join(os.homedir(), '.squad');
 const PID_FILE = path.join(SQUAD_DIR, 'ralph-watch.pid');
 
+// Prevent macOS idle sleep while the watch loop runs (display can still lock freely).
+// caffeinate -i: inhibit idle system sleep only. No-op on non-macOS.
+if (process.platform === 'darwin') {
+  spawn('caffeinate', ['-i', '-w', String(process.pid)], { detached: true, stdio: 'ignore' }).unref();
+}
+
 // Parse --interval N (seconds), default 30
 const intervalArg = process.argv.indexOf('--interval');
 const INTERVAL_SECONDS = intervalArg !== -1 ? parseInt(process.argv[intervalArg + 1], 10) || 30 : 30;
