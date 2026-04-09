@@ -6,6 +6,7 @@
  * Usage:
  *   node .squad/scripts/teams-reply.js "message text"
  *   node .squad/scripts/teams-reply.js --file /path/to/message.md
+ *   node .squad/scripts/teams-reply.js --reply-to <messageId> "message text"
  *
  * On failure, falls back to printing the message to stdout so callers
  * (e.g. Ralph) don't crash — just lose the Teams delivery.
@@ -16,9 +17,21 @@ const fs = require('fs');
 
 const args = process.argv.slice(2);
 let text;
+let replyToMessageId = null;
 
-if (args[0] === '--file') {
-  const filePath = args[1];
+// Parse --reply-to option
+let startIdx = 0;
+if (args[0] === '--reply-to') {
+  replyToMessageId = args[1];
+  if (!replyToMessageId) {
+    console.error('Usage: teams-reply.js --reply-to <messageId> "message text"');
+    process.exit(1);
+  }
+  startIdx = 2;
+}
+
+if (args[startIdx] === '--file') {
+  const filePath = args[startIdx + 1];
   if (!filePath) {
     console.error('Usage: teams-reply.js --file /path/to/message.md');
     process.exit(1);
@@ -30,7 +43,7 @@ if (args[0] === '--file') {
     process.exit(1);
   }
 } else {
-  text = args.join(' ');
+  text = args.slice(startIdx).join(' ');
 }
 
 if (!text || !text.trim()) {
@@ -38,7 +51,7 @@ if (!text || !text.trim()) {
   process.exit(1);
 }
 
-sendChatMessage(text)
+sendChatMessage(text, replyToMessageId)
   .then(() => {
     console.log('Sent');
   })

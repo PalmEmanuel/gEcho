@@ -83,6 +83,7 @@ async function poll() {
       `# Teams Task`,
       `**From:** ${task.senderName}`,
       `**Received:** ${task.receivedAt}`,
+      `**Message ID:** ${task.msgId}`,
       `**Raw message:** ${task.rawText}`,
       ``,
       `## Task`,

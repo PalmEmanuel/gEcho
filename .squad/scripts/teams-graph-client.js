@@ -262,8 +262,9 @@ async function getNewMessages() {
 /**
  * Post a message to the configured chat.
  * @param {string} text - Plain text or HTML content to send.
+ * @param {string} replyToMessageId - Optional message ID to reply to (creates threaded reply).
  */
-async function sendChatMessage(text) {
+async function sendChatMessage(text, replyToMessageId = null) {
   const config = loadConfig();
   if (!config || !config.chatId) {
     const err = new Error('Missing chatId in teams-config.json. Run teams-setup.js.');
@@ -274,9 +275,14 @@ async function sendChatMessage(text) {
   const accessToken = await acquireToken();
   const html = textToHtml(text);
 
+  // If replyToMessageId is provided, use the replies endpoint for threaded replies
+  const apiPath = replyToMessageId
+    ? `/chats/${config.chatId}/messages/${replyToMessageId}/replies`
+    : `/chats/${config.chatId}/messages`;
+
   await graphRequest(
     'POST',
-    `/chats/${config.chatId}/messages`,
+    apiPath,
     accessToken,
     { body: { contentType: 'html', content: html } }
   );
