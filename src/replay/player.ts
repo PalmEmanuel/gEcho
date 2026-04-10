@@ -40,10 +40,17 @@ export class EchoPlayer {
 
     if (cancelOnInput) {
       this.inputListeners.push(
-        vscode.workspace.onDidChangeTextDocument(() => {
-          if (!this.isExecutingStep) {
-            this.stop();
+        vscode.workspace.onDidChangeTextDocument(e => {
+          const activeEditor = vscode.window.activeTextEditor;
+          if (
+            this.isExecutingStep ||
+            activeEditor === undefined ||
+            activeEditor.document !== e.document ||
+            e.contentChanges.length === 0
+          ) {
+            return;
           }
+          this.stop();
         }),
         vscode.window.onDidChangeTextEditorSelection(e => {
           const kind = e.kind;
