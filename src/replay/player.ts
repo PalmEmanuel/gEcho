@@ -124,12 +124,11 @@ export class WorkbookPlayer {
         }
 
         case 'paste': {
-          const previousClipboardText = await vscode.env.clipboard.readText();
-          try {
-            await vscode.env.clipboard.writeText(step.text);
-            await vscode.commands.executeCommand('editor.action.clipboardPasteAction');
-          } finally {
-            await vscode.env.clipboard.writeText(previousClipboardText);
+          const editor = vscode.window.activeTextEditor;
+          if (editor) {
+            await editor.edit(editBuilder => {
+              editBuilder.replace(editor.selection, step.text);
+            });
           }
           break;
         }
