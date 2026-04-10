@@ -16,8 +16,8 @@ The extension has zero runtime dependencies. All platform integrations are invok
 
 ```
 src/types/        — Echo + recording types (discriminated unions on `type` field)
-src/recording/    — EchoRecorder (VS Code event capture → WorkbookStep[])
-src/replay/       — WorkbookPlayer (WorkbookStep[] → VS Code commands)
+src/recording/    — EchoRecorder (VS Code event capture → StepType[])
+src/replay/       — WorkbookPlayer (StepType[] → VS Code commands)
 src/screen/       — ScreenCapture (ffmpeg wrapper)
 src/converter/    — GifConverter (mp4 → gif via ffmpeg)
 src/platform/     — OS detection + window bounds (macOS/Linux/Windows)
@@ -79,10 +79,10 @@ Echoes are `.gecho.json` files validated against `schemas/gecho-v1.schema.json` 
 
 ## Testing
 
-- Tests run inside the VS Code Extension Host (`@vscode/test-electron`).
-- ffmpeg is always mocked in tests — never spawn a real ffmpeg process.
+- CI runs both VS Code Extension Host tests (`npm test`, via `@vscode/test-electron`) and separate plain-Mocha integration tests (`npx mocha --config .mocharc.json --grep integration`).
+- Do not assume `ffmpeg` is always mocked: unit-style tests may stub process spawning, but some integration tests invoke real `ffmpeg` when it is installed and skip when it is unavailable.
 - Use `os.tmpdir()` subdirectories for filesystem I/O; clean up in `afterEach`.
-- 80% line coverage floor. Priority: `types/` → `workbook/` → `platform/` → `replay/` → `recording/` → `screen/`.
+- Aim for at least 80% line coverage. Priority: `types/` → `workbook/` → `platform/` → `replay/` → `recording/` → `screen/`.
 
 ## PR Titles — Conventional Commits
 
@@ -112,7 +112,9 @@ All PR titles are validated by CI (`validate-pr-title.yml`) and **must** follow 
 
 **Architecture scopes** (pair with any type):
 
-`recording`, `replay`, `capture`, `workbook`, `platform`, `config`, `security`, `ci`, `release`
+`recording`, `replay`, `capture`, `echo`, `platform`, `config`, `security`, `ci`, `release`
+
+> **Note:** Internal class names (`WorkbookPlayer`, `src/workbook/`) are legacy codebase naming. The user-facing concept and file format is called an **echo**. Use the `echo` scope for PR titles targeting the echo format or the workbook read/write module.
 
 **Dependency scopes** (pair with `deps` type):
 
