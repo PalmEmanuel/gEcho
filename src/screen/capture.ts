@@ -7,31 +7,40 @@ import { sanitizeFfmpegPath } from '../security/index.js';
 import { getConfig } from '../config.js';
 
 const cachedDeviceIndices: Map<number, string> = new Map();
-let cachedAvfDevices: string[] | null = null;
+let avfDeviceEnumeration: Promise<string[]> | null = null;
 
 /**
  * Run `ffmpeg -list_devices` once and return the indices of all "Capture screen" devices.
- * Result is cached for the lifetime of the process to avoid redundant ffmpeg invocations.
+ * Result is cached as an in-flight Promise so concurrent callers share the same invocation.
+ * Spawn errors (ENOENT, EACCES) are not cached — callers may retry after fixing the path.
  */
-async function enumerateAvfDevices(ffmpegPath: string): Promise<string[]> {
-  if (cachedAvfDevices !== null) {
-    return cachedAvfDevices;
+function enumerateAvfDevices(ffmpegPath: string): Promise<string[]> {
+  if (avfDeviceEnumeration) {
+    return avfDeviceEnumeration;
   }
-  return new Promise((resolve) => {
+  avfDeviceEnumeration = new Promise((resolve, reject) => {
     execFile(
       ffmpegPath,
       ['-f', 'avfoundation', '-list_devices', 'true', '-i', ''],
-      (_err, _stdout, stderr) => {
+      (err, _stdout, stderr) => {
+        // ENOENT / EACCES mean ffmpeg itself could not be executed — not a permission issue.
+        // Clear the cache so callers can retry once the path is fixed.
+        if (err && (err.code === 'ENOENT' || err.code === 'EACCES')) {
+          avfDeviceEnumeration = null;
+          reject(new Error(`gEcho: Failed to enumerate AVFoundation devices — ${err.message}`));
+          return;
+        }
+        // ffmpeg always exits non-zero when given `-i ""` — that is expected. Parse stderr.
         const matched: string[] = [];
         stderr.replace(/\[(\d+)\]\s+Capture\s+screen/gi, (_all, index: string) => {
           matched.push(index);
           return '';
         });
-        cachedAvfDevices = matched;
         resolve(matched);
       }
     );
   });
+  return avfDeviceEnumeration;
 }
 
 /**
@@ -109,7 +118,7 @@ export class ScreenCapture {
       const perm = await checkScreenRecordingPermission(safeFfmpegPath);
       if (!perm.granted) {
         throw new Error(
-          'Screen Recording permission not granted. ' +
+          'gEcho: Screen Recording permission not granted. ' +
           'Open System Settings → Privacy & Security → Screen Recording and enable VS Code, then restart VS Code.'
         );
       }
