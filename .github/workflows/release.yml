@@ -54,7 +54,7 @@ jobs:
           files: '*.vsix'
 
       - name: Create PR for CHANGELOG update
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ github.token }}
           commit-message: "chore(release): Update CHANGELOG for ${{ github.ref_name }}"
