@@ -3,8 +3,6 @@
 // Used by integration tests to verify ScreenCapture sends SIGINT and awaits clean shutdown.
 const fs = require('fs');
 
-process.stderr.write('fake ffmpeg started\n');
-
 const outputPath = process.argv[process.argv.length - 1];
 
 const header = Buffer.from([
@@ -25,6 +23,12 @@ function writeAndExit() {
   process.exit(0);
 }
 
+// Register signal handlers BEFORE writing to stderr. The stderr write is what
+// tells the parent process we are "ready" — on fast Linux CI runners, the
+// parent can receive that notification and immediately send SIGINT. If the
+// handler were registered after the write, there would be a race where SIGINT
+// arrives before the handler is set, causing Node.js to use the default
+// disposition (signal-kill, code=null) instead of calling writeAndExit.
 process.on('SIGINT', writeAndExit);
 process.on('SIGTERM', writeAndExit);
 
@@ -35,3 +39,6 @@ safetyTimer.unref();
 // Keep event loop alive until signal
 const keepAlive = setInterval(() => {}, 50);
 process.on('exit', () => clearInterval(keepAlive));
+
+// Signal readiness to parent last — SIGINT handler is already armed by now.
+process.stderr.write('fake ffmpeg started\n');
