@@ -73,7 +73,7 @@ describe('Workbook round-trip integration', function () {
     const clearEdit = new vscode.WorkspaceEdit();
     clearEdit.replace(
       doc.uri,
-      new vscode.Range(0, 0, doc.lineCount, 0),
+      new vscode.Range(0, 0, doc.lineCount - 1, doc.lineAt(doc.lineCount - 1).range.end.character),
       '',
     );
     await vscode.workspace.applyEdit(clearEdit);

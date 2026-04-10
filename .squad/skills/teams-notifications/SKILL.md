@@ -165,8 +165,8 @@ Matching is case-insensitive. The trigger word is stripped before writing the ta
 
 On each monitoring cycle, after GitHub checks:
 1. Run `node .squad/scripts/teams-monitor.js` (if file exists)
-2. Read `~/.squad/teams-inbox/*.md` files
-3. For each: parse task, route to agent, post result to Teams webhook
+2. Read `.squad/teams-inbox/*.md` files
+3. For each: parse task, route to agent, post result via `node .squad/scripts/teams-reply.js`
 4. Delete processed file
 
 ### Re-auth when AUTH_REQUIRED

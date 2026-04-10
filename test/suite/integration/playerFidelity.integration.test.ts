@@ -66,17 +66,17 @@ describe('WorkbookPlayer fidelity integration', function () {
     it('pauses execution for approximately the requested duration (±200 ms)', async function () {
       await openFreshDoc();
       const player = new WorkbookPlayer();
-      const waitMs = 200;
+      const waitDurationMs = 200;
       const start = Date.now();
-      await player.play(makeWorkbook([{ type: 'wait', ms: waitMs }]));
+      await player.play(makeWorkbook([{ type: 'wait', ms: waitDurationMs }]));
       const elapsed = Date.now() - start;
       assert.ok(
-        elapsed >= waitMs - 50,
-        `Elapsed ${elapsed} ms is less than expected ${waitMs - 50} ms`,
+        elapsed >= waitDurationMs - 50,
+        `Elapsed ${elapsed} ms is less than expected ${waitDurationMs - 50} ms`,
       );
       assert.ok(
-        elapsed <= waitMs + 200,
-        `Elapsed ${elapsed} ms exceeds tolerance of ${waitMs + 200} ms`,
+        elapsed <= waitDurationMs + 200,
+        `Elapsed ${elapsed} ms exceeds tolerance of ${waitDurationMs + 200} ms`,
       );
       await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
     });

@@ -4,7 +4,7 @@
  * ralph-watch.js — Ralph's persistent Teams watch loop.
  *
  * Polls the Teams chat on an interval, auto-acknowledges new tasks,
- * and writes them to ~/.squad/teams-inbox/ for the squad to process.
+ * and writes them to .squad/teams-inbox/ for the squad to process.
  *
  * Usage:
  *   node .squad/scripts/ralph-watch.js              # polls every 30s (default)
