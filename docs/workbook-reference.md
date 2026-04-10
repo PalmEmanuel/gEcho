@@ -121,10 +121,10 @@ Simulates a keyboard key press or key combination.
 | `Ctrl+Z` / `Cmd+Z` | `undo` |
 | `Ctrl+Shift+Z` / `Cmd+Shift+Z` | `redo` |
 | `Tab` | `tab` |
-| `Enter` | Insert newline |
-| `Escape` | `closeFindWidget` |
+| `Enter` | `acceptSelectedSuggestion` |
+| `Escape` | `cancelSelection` |
 
-For single printable characters, gEcho types the character directly. For unrecognized combinations, gEcho attempts to execute the key string as a VS Code command.
+For single printable characters, gEcho types the character directly. Unrecognized multi-key combinations are skipped.
 
 ---
 
