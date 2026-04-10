@@ -7,7 +7,7 @@ export async function readWorkbook(filePath: string): Promise<Workbook> {
   try {
     data = JSON.parse(raw) as unknown;
   } catch (err) {
-    throw new Error(`Failed to parse workbook at "${filePath}": ${String(err)}`);
+    throw new Error(`Failed to parse workbook at "${filePath}": ${String(err)}`, { cause: err });
   }
   if (!validateWorkbook(data)) {
     throw new Error(

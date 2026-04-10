@@ -140,21 +140,21 @@
     "test": "node ./out/test/runTest.js",
     "pretest:integration": "npm run compile",
     "test:integration": "node ./out/test/runIntegrationTest.js",
-    "lint": "eslint src --ext ts",
+    "lint": "eslint src/",
     "package": "vsce package --no-dependencies",
     "vscode:prepublish": "npm run compile"
   },
   "devDependencies": {
-    "@types/vscode": "^1.101.0",
+    "@eslint/js": "^10.0.1",
+    "@types/vscode": "^1.115.0",
     "@types/mocha": "^10.0.0",
     "@types/node": "25.x",
-    "@typescript-eslint/eslint-plugin": "^7.14.0",
-    "@typescript-eslint/parser": "^7.14.0",
     "@vscode/test-electron": "^2.4.0",
     "@vscode/vsce": "^3.2.0",
-    "eslint": "^8.56.0",
+    "eslint": "^10.2.0",
     "mocha": "^11.7.5",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "typescript-eslint": "^8.58.1"
   },
   "activationEvents": [
     "onStartupFinished"
