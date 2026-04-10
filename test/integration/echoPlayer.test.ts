@@ -1,18 +1,18 @@
 import * as assert from 'assert';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { WorkbookPlayer } from '../../src/replay/player.js';
-import { readWorkbook } from '../../src/workbook/index.js';
-import type { Workbook } from '../../src/types/workbook.js';
+import { EchoPlayer } from '../../src/replay/player.js';
+import { readEcho } from '../../src/echo/index.js';
+import type { Echo } from '../../src/types/echo.js';
 
 /**
- * Integration tests for WorkbookPlayer.
+ * Integration tests for EchoPlayer.
  *
  * Unlike the unit tests in test/suite/player.test.ts (which mock executeCommand and
  * assert the command ID is dispatched), these tests open a real VS Code editor and
  * assert that the DOCUMENT CONTENT actually changes — verifying end-to-end state.
  */
-describe('WorkbookPlayer integration — executes steps against a real editor', function () {
+describe('EchoPlayer integration — executes steps against a real editor', function () {
   this.timeout(20000);
 
   afterEach(async () => {
@@ -23,7 +23,7 @@ describe('WorkbookPlayer integration — executes steps against a real editor', 
     const doc = await vscode.workspace.openTextDocument({ content: '', language: 'plaintext' });
     await vscode.window.showTextDocument(doc);
 
-    const player = new WorkbookPlayer();
+    const player = new EchoPlayer();
     await player.play({
       version: '1.0',
       metadata: { name: 'type-test' },
@@ -40,7 +40,7 @@ describe('WorkbookPlayer integration — executes steps against a real editor', 
     const doc = await vscode.workspace.openTextDocument({ content: '', language: 'plaintext' });
     await vscode.window.showTextDocument(doc);
 
-    const player = new WorkbookPlayer();
+    const player = new EchoPlayer();
     await player.play({
       version: '1.0',
       metadata: { name: 'multi-type-test' },
@@ -60,7 +60,7 @@ describe('WorkbookPlayer integration — executes steps against a real editor', 
     const doc = await vscode.workspace.openTextDocument({ content: '', language: 'plaintext' });
     await vscode.window.showTextDocument(doc);
 
-    const player = new WorkbookPlayer();
+    const player = new EchoPlayer();
 
     // Start a slow playback and stop it shortly after the first step
     const playPromise = player.play({
@@ -83,21 +83,21 @@ describe('WorkbookPlayer integration — executes steps against a real editor', 
     assert.ok(!text.includes('second'), `Expected "second" to be absent (cancelled), got: "${text}"`);
   });
 
-  it('plays a workbook loaded from the sample fixture file', async function () {
+  it('plays an echo loaded from the sample fixture file', async function () {
     // sample.gecho.json types "hello integration world"
     const fixturePath = path.resolve(
       __dirname,
       '../../../test/integration/fixtures/sample.gecho.json',
     );
 
-    const workbook: Workbook = await readWorkbook(fixturePath);
-    assert.ok(workbook.steps.length > 0, 'Fixture workbook must have steps');
+    const echo: Echo = await readEcho(fixturePath);
+    assert.ok(echo.steps.length > 0, 'Fixture echo must have steps');
 
     const doc = await vscode.workspace.openTextDocument({ content: '', language: 'plaintext' });
     await vscode.window.showTextDocument(doc);
 
-    const player = new WorkbookPlayer();
-    await player.play(workbook);
+    const player = new EchoPlayer();
+    await player.play(echo);
 
     const text = doc.getText();
     assert.ok(
@@ -113,7 +113,7 @@ describe('WorkbookPlayer integration — executes steps against a real editor', 
     });
     const editor = await vscode.window.showTextDocument(doc);
 
-    const player = new WorkbookPlayer();
+    const player = new EchoPlayer();
     await player.play({
       version: '1.0',
       metadata: { name: 'select-test' },

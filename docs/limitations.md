@@ -33,7 +33,7 @@ gEcho is built on the VS Code extension API, which provides powerful but bounded
 **Workarounds:**
 - Use X11 instead of Wayland. On GNOME, select "GNOME on Xorg" at the login screen.
 - Set the `GDK_BACKEND=x11` environment variable before launching VS Code to force X11 mode.
-- Use Echo recording (workbook-only) on Wayland — this does not require screen capture.
+- Use Echo recording (echo-only) on Wayland — this does not require screen capture.
 
 ## Window Must Stay Still
 
@@ -43,7 +43,7 @@ gEcho is built on the VS Code extension API, which provides powerful but bounded
 
 **Workarounds:**
 - Position and size your VS Code window before starting a recording.
-- Use `metadata.windowSize` in your workbook to document the expected dimensions.
+- Use `metadata.windowSize` in your echo to document the expected dimensions.
 - Avoid multi-monitor setups where windows might shift unexpectedly.
 - Use the `gecho.gif.width` setting to control the output GIF resolution independently of the window size.
 
@@ -59,9 +59,9 @@ gEcho is built on the VS Code extension API, which provides powerful but bounded
 
 ## No Terminal Output Recording in Echo Mode
 
-**Problem:** Echo mode records keystrokes and editor events via the VS Code API. Terminal output (command results, build output) is not captured as workbook steps.
+**Problem:** Echo mode records keystrokes and editor events via the VS Code API. Terminal output (command results, build output) is not captured as echo steps.
 
-**Impact:** Replaying a workbook that includes terminal commands will execute those commands, but the terminal output will vary between environments.
+**Impact:** Replaying an echo that includes terminal commands will execute those commands, but the terminal output will vary between environments.
 
 **Workarounds:**
 - Use `wait` steps after terminal commands to allow output to render.

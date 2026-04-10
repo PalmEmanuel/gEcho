@@ -16,7 +16,7 @@ describe('Extension Tests', () => {
       'gecho.stopEchoRecording',
       'gecho.startGifRecording',
       'gecho.stopGifRecording',
-      'gecho.replayWorkbook',
+      'gecho.replayEcho',
       'gecho.replayAsGif',
     ];
     for (const cmd of expected) {
@@ -53,13 +53,13 @@ describe('Extension Tests', () => {
       }
     });
 
-    it('replayWorkbook with dialog cancelled does not throw', async () => {
+    it('replayEcho with dialog cancelled does not throw', async () => {
       const origDialog = (vscode.window as any).showOpenDialog;
       (vscode.window as any).showOpenDialog = async () => undefined;
       try {
         await assert.doesNotReject(
-          () => Promise.resolve(vscode.commands.executeCommand('gecho.replayWorkbook')),
-          'replayWorkbook should handle cancelled dialog gracefully'
+          () => Promise.resolve(vscode.commands.executeCommand('gecho.replayEcho')),
+          'replayEcho should handle cancelled dialog gracefully'
         );
       } finally {
         (vscode.window as any).showOpenDialog = origDialog;

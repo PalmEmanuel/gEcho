@@ -2,11 +2,11 @@ import * as assert from 'assert';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
-import { validateWorkbook, readWorkbook, writeWorkbook } from '../../src/workbook/index.js';
-import type { Workbook, StepType } from '../../src/types/workbook.js';
-import { WORKBOOK_VERSION } from '../../src/types/workbook.js';
+import { validateEcho, readEcho, writeEcho } from '../../src/echo/index.js';
+import type { Echo, StepType } from '../../src/types/echo.js';
+import { ECHO_VERSION } from '../../src/types/echo.js';
 
-function makeWorkbook(): Workbook {
+function makeEcho(): Echo {
   return {
     version: '1.0',
     metadata: { name: 'test' },
@@ -14,7 +14,7 @@ function makeWorkbook(): Workbook {
   };
 }
 
-function makeFullWorkbook(): Workbook {
+function makeFullEcho(): Echo {
   const steps: StepType[] = [
     { type: 'type', text: 'hello world' },
     { type: 'command', id: 'editor.action.formatDocument' },
@@ -27,46 +27,46 @@ function makeFullWorkbook(): Workbook {
   ];
   return {
     version: '1.0',
-    metadata: { name: 'full-workbook', description: 'All step types' },
+    metadata: { name: 'full-echo', description: 'All step types' },
     steps,
   };
 }
 
-describe('validateWorkbook', () => {
+describe('validateEcho', () => {
   it('returns false for null', () => {
-    assert.strictEqual(validateWorkbook(null), false);
+    assert.strictEqual(validateEcho(null), false);
   });
 
   it('returns false for empty object', () => {
-    assert.strictEqual(validateWorkbook({}), false);
+    assert.strictEqual(validateEcho({}), false);
   });
 
   it('returns false when missing version', () => {
-    assert.strictEqual(validateWorkbook({ metadata: { name: 'x' }, steps: [] }), false);
+    assert.strictEqual(validateEcho({ metadata: { name: 'x' }, steps: [] }), false);
   });
 
   it('returns false when version is not 1.0', () => {
-    assert.strictEqual(validateWorkbook({ version: '2.0', metadata: { name: 'x' }, steps: [] }), false);
+    assert.strictEqual(validateEcho({ version: '2.0', metadata: { name: 'x' }, steps: [] }), false);
   });
 
   it('returns false when missing metadata', () => {
-    assert.strictEqual(validateWorkbook({ version: '1.0', steps: [] }), false);
+    assert.strictEqual(validateEcho({ version: '1.0', steps: [] }), false);
   });
 
   it('returns false when metadata.name is not a string', () => {
-    assert.strictEqual(validateWorkbook({ version: '1.0', metadata: { name: 42 }, steps: [] }), false);
+    assert.strictEqual(validateEcho({ version: '1.0', metadata: { name: 42 }, steps: [] }), false);
   });
 
   it('returns false when steps is not an array', () => {
-    assert.strictEqual(validateWorkbook({ version: '1.0', metadata: { name: 'x' }, steps: 'bad' }), false);
+    assert.strictEqual(validateEcho({ version: '1.0', metadata: { name: 'x' }, steps: 'bad' }), false);
   });
 
-  it('returns true for minimal valid workbook', () => {
-    assert.strictEqual(validateWorkbook(makeWorkbook()), true);
+  it('returns true for minimal valid echo', () => {
+    assert.strictEqual(validateEcho(makeEcho()), true);
   });
 
-  it('returns true for workbook with all step types', () => {
-    assert.strictEqual(validateWorkbook(makeFullWorkbook()), true);
+  it('returns true for echo with all step types', () => {
+    assert.strictEqual(validateEcho(makeFullEcho()), true);
   });
 
   it('returns false for scroll step missing direction', () => {
@@ -75,7 +75,7 @@ describe('validateWorkbook', () => {
       metadata: { name: 'x' },
       steps: [{ type: 'scroll', lines: 3 }],
     };
-    assert.strictEqual(validateWorkbook(bad), false);
+    assert.strictEqual(validateEcho(bad), false);
   });
 
   it('returns false for scroll step with invalid direction', () => {
@@ -84,11 +84,11 @@ describe('validateWorkbook', () => {
       metadata: { name: 'x' },
       steps: [{ type: 'scroll', lines: 3, direction: 'sideways' }],
     };
-    assert.strictEqual(validateWorkbook(bad), false);
+    assert.strictEqual(validateEcho(bad), false);
   });
 });
 
-describe('workbook roundtrip', () => {
+describe('echo roundtrip', () => {
   let tmpDir: string;
 
   beforeEach(async () => {
@@ -99,31 +99,32 @@ describe('workbook roundtrip', () => {
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
-  it('writes and reads back a workbook', async () => {
-    const wb = makeWorkbook();
+  it('writes and reads back an echo', async () => {
+    const echo = makeEcho();
     const filePath = path.join(tmpDir, 'test.gecho.json');
-    await writeWorkbook(wb, filePath);
-    const result = await readWorkbook(filePath);
-    assert.deepStrictEqual(result, wb);
+    await writeEcho(echo, filePath);
+    const result = await readEcho(filePath);
+    assert.deepStrictEqual(result, echo);
   });
 
   it('preserves all step types through roundtrip', async () => {
-    const wb = makeFullWorkbook();
+    const echo = makeFullEcho();
     const filePath = path.join(tmpDir, 'full.gecho.json');
-    await writeWorkbook(wb, filePath);
-    const result = await readWorkbook(filePath);
-    assert.deepStrictEqual(result, wb);
+    await writeEcho(echo, filePath);
+    const result = await readEcho(filePath);
+    assert.deepStrictEqual(result, echo);
   });
 
   it('throws on reading invalid JSON file', async () => {
     const filePath = path.join(tmpDir, 'bad.gecho.json');
     await fs.writeFile(filePath, 'this is not json', 'utf8');
-    await assert.rejects(() => readWorkbook(filePath));
+    await assert.rejects(() => readEcho(filePath));
   });
 
   it('throws on reading valid JSON that fails validation', async () => {
     const filePath = path.join(tmpDir, 'invalid.gecho.json');
-    await fs.writeFile(filePath, JSON.stringify({ not: 'a workbook' }), 'utf8');
-    await assert.rejects(() => readWorkbook(filePath));
+    await fs.writeFile(filePath, JSON.stringify({ not: 'an echo' }), 'utf8');
+    await assert.rejects(() => readEcho(filePath));
   });
 });
+

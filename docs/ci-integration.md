@@ -1,16 +1,16 @@
 # CI Integration
 
-gEcho workbooks can be replayed in CI/CD pipelines to generate GIFs automatically. This ensures your demo GIFs stay up-to-date with every code change.
+gEcho echoes can be replayed in CI/CD pipelines to generate GIFs automatically. This ensures your demo GIFs stay up-to-date with every code change.
 
 ## Current Limitation: Interactive Dialogs
 
-> **Important:** `gecho.replayAsGif` currently opens file-picker dialogs (Open Workbook, Save GIF) during replay. It does not accept a workbook path or output path via command-line arguments, which means it cannot run unattended in headless CI.
+> **Important:** `gecho.replayAsGif` currently opens file-picker dialogs (Open Echo, Save GIF) during replay. It does not accept an echo path or output path via command-line arguments, which means it cannot run unattended in headless CI.
 
 **Recommended workflow until non-interactive support is added:**
 
-1. Record a workbook locally with gEcho.
-2. Run **gEcho: Replay Workbook as GIF** locally to produce the GIF.
-3. Commit both the `.gecho.json` workbook and the generated `.gif` to your repository.
+1. Record an echo locally with gEcho.
+2. Run **gEcho: Replay Echo as GIF** locally to produce the GIF.
+3. Commit both the `.gecho.json` echo and the generated `.gif` to your repository.
 4. Reference the committed GIF in your README or docs — no CI execution step is needed.
 
 This is the reliable path for keeping demo GIFs in sync with your codebase today.
@@ -19,9 +19,9 @@ This is the reliable path for keeping demo GIFs in sync with your codebase today
 
 When a non-interactive replay command is implemented, the workflow will be:
 
-1. Record a workbook locally (once)
+1. Record an echo locally (once)
 2. Commit the `.gecho.json` file to your repository
-3. In CI, install the gEcho extension and replay the workbook as a GIF
+3. In CI, install the gEcho extension and replay the echo as a GIF
 4. Use the generated GIF in your README, docs, or release notes
 
 The sections below document the CI infrastructure that will support this workflow. They are provided for reference and for teams that implement their own replay automation.
@@ -35,7 +35,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'workbooks/**'
+      - 'echoes/**'
       - 'src/**'
 
 jobs:
@@ -195,12 +195,12 @@ Override gEcho settings via VS Code's user settings file. The path is platform-s
 
 ## Authentication Considerations
 
-Some workbooks may involve authenticated features (e.g., Copilot Chat, GitHub integrations). These require valid credentials at replay time.
+Some echoes may involve authenticated features (e.g., Copilot Chat, GitHub integrations). These require valid credentials at replay time.
 
 **Options:**
 - **Run locally:** For auth-dependent demos, run gEcho on a developer machine where credentials are available, then commit the generated GIFs.
 - **Service accounts:** Use CI secrets to provide authentication tokens where applicable.
-- **Mock the interaction:** Design workbooks to show only the typing portion without waiting for authenticated responses.
+- **Mock the interaction:** Design echoes to show only the typing portion without waiting for authenticated responses.
 
 ## Committing Generated GIFs
 

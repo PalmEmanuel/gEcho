@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { Workbook, ReplayConfig } from '../types/index.js';
+import type { Echo, ReplayConfig } from '../types/index.js';
 import { sanitizeCommandId, sanitizeFilePath } from '../security/index.js';
 
 const DEFAULT_CHAR_DELAY_MS = 55;
@@ -27,15 +27,15 @@ const KEY_COMMAND_MAP: Record<string, string> = {
   'enter': 'acceptSelectedSuggestion',
 };
 
-export class WorkbookPlayer {
+export class EchoPlayer {
   private cancelled = false;
 
-  async play(workbook: Workbook, config?: ReplayConfig): Promise<void> {
+  async play(echo: Echo, config?: ReplayConfig): Promise<void> {
     if (this.cancelled) { return; }
     this.cancelled = false;
     const speed = Math.max(config?.speed ?? 1.0, 0.1);
 
-    for (const step of workbook.steps) {
+    for (const step of echo.steps) {
       if (this.cancelled) {
         break;
       }
@@ -60,7 +60,7 @@ export class WorkbookPlayer {
           try {
             safeId = sanitizeCommandId(step.id);
           } catch {
-            vscode.window.showWarningMessage(`gEcho: Blocked unsafe command ID in workbook: "${step.id}"`);
+            vscode.window.showWarningMessage(`gEcho: Blocked unsafe command ID in echo: "${step.id}"`);
             return;
           }
           if (step.args !== undefined) {
@@ -120,7 +120,7 @@ export class WorkbookPlayer {
             const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
             safePath = sanitizeFilePath(step.path, workspaceRoot);
           } catch {
-            vscode.window.showWarningMessage(`gEcho: Blocked unsafe file path in workbook: "${step.path}"`);
+            vscode.window.showWarningMessage(`gEcho: Blocked unsafe file path in echo: "${step.path}"`);
             return;
           }
           const uris = await vscode.workspace.findFiles(safePath, undefined, 1);

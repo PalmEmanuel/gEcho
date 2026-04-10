@@ -1,5 +1,5 @@
 /**
- * Workbook types — discriminated union steps and workbook schema.
+ * Echo types — discriminated union steps and echo schema.
  */
 
 export interface TypeStep {
@@ -55,7 +55,7 @@ export type StepType =
   | PasteStep
   | ScrollStep;
 
-export interface WorkbookMetadata {
+export interface EchoMetadata {
   name: string;
   description?: string;
   windowSize?: { width: number; height: number };
@@ -63,11 +63,11 @@ export interface WorkbookMetadata {
   version?: string;
 }
 
-export interface Workbook {
+export interface Echo {
   version: string;
-  metadata: WorkbookMetadata;
+  metadata: EchoMetadata;
   steps: StepType[];
 }
 
-export const WORKBOOK_VERSION = '1.0';
-export const WORKBOOK_FILE_EXTENSION = '.gecho.json';
+export const ECHO_VERSION = '1.0';
+export const ECHO_FILE_EXTENSION = '.gecho.json';

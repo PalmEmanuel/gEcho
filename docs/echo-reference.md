@@ -1,6 +1,6 @@
-# Workbook Format Reference
+# Echo Format Reference
 
-gEcho workbooks are human-readable JSON files with a `.gecho.json` extension. They describe a sequence of VS Code interactions that can be replayed deterministically.
+gEcho echoes are human-readable JSON files with a `.gecho.json` extension. They describe a sequence of VS Code interactions that can be replayed deterministically.
 
 ## File Structure
 
@@ -25,17 +25,17 @@ gEcho workbooks are human-readable JSON files with a `.gecho.json` extension. Th
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `version` | `string` | ✅ | Schema version. Must be `"1.0"`. |
-| `metadata` | `object` | ✅ | Descriptive information about the workbook. |
+| `metadata` | `object` | ✅ | Descriptive information about the echo. |
 | `steps` | `array` | ✅ | Ordered list of steps to execute during replay. |
 
 ### Metadata Fields
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `name` | `string` | ✅ | Display name for the workbook. |
-| `description` | `string` | | What the workbook demonstrates. |
+| `name` | `string` | ✅ | Display name for the echo. |
+| `description` | `string` | | What the echo demonstrates. |
 | `windowSize` | `object` | | Target VS Code window dimensions (`width` and `height` in pixels). |
-| `created` | `string` | | ISO 8601 timestamp of when the workbook was created. |
+| `created` | `string` | | ISO 8601 timestamp of when the echo was created. |
 | `version` | `string` | | User-defined version string (e.g., `"1.0.0"`). |
 
 ## Step Types
@@ -161,12 +161,12 @@ Pauses replay for a specified duration, optionally waiting for VS Code to become
 |-------|------|----------|-------------|
 | `type` | `"wait"` | ✅ | Step type identifier. |
 | `ms` | `number` | ✅ | Duration to wait in milliseconds. |
-| `until` | `"idle"` | | Reserved for future use. Currently accepted by the schema but ignored — the step always sleeps for `ms`. |
+| `until` | `"idle"` | | Optional condition to wait for before continuing. Currently the step sleeps for `ms` when set to `"idle"`. |
 
 **Notes:**
 - The `ms` value is adjusted by the `gecho.replay.speed` setting.
 - To account for async operations (e.g., IntelliSense, file loading), use a generous `ms` value rather than relying on `until`.
-- A `wait` step at the end of your workbook gives the viewer time to see the final result in the GIF.
+- A `wait` step at the end of your echo gives the viewer time to see the final result in the GIF.
 
 ---
 
@@ -228,17 +228,17 @@ Scrolls the active editor up or down by a specified number of lines.
 
 ## JSON Schema
 
-gEcho ships with a JSON Schema at `schemas/gecho-v1.schema.json`. VS Code automatically validates `.gecho.json` files against this schema, providing IntelliSense, auto-completion, and error highlighting as you edit workbooks.
+gEcho ships with a JSON Schema at `schemas/gecho-v1.schema.json`. VS Code automatically validates `.gecho.json` files against this schema, providing IntelliSense, auto-completion, and error highlighting as you edit echoes.
 
-## Example Workbook
+## Example Echo
 
-A complete example workbook demonstrating all step types is available at [`workbooks/example.gecho.json`](../workbooks/example.gecho.json).
+A complete example echo demonstrating all step types is available at [`echoes/example.gecho.json`](../echoes/example.gecho.json).
 
 ```jsonc
 {
   "version": "1.0",
   "metadata": {
-    "name": "Example Workbook",
+    "name": "Example Echo",
     "description": "Demonstrates all gEcho step types",
     "created": "2026-04-08T00:00:00.000Z"
   },
@@ -256,7 +256,7 @@ A complete example workbook demonstrating all step types is available at [`workb
 }
 ```
 
-## Tips for Authoring Workbooks
+## Tips for Authoring Echoes
 
 - **Start with a recording**, then clean up the JSON. The echo recorder captures your natural timing, which you can adjust in the JSON.
 - **Add `wait` steps** after commands that trigger async operations (IntelliSense, file loading, formatting).
