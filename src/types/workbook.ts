@@ -19,12 +19,9 @@ export interface KeyStep {
   key: string;
 }
 
-export interface SelectStep {
-  type: 'select';
-  anchor?: [number, number];
-  active?: [number, number];
-  selections?: Array<{ anchor: [number, number]; active: [number, number] }>;
-}
+export type SelectStep =
+  | { type: 'select'; anchor: [number, number]; active: [number, number]; selections?: never }
+  | { type: 'select'; selections: Array<{ anchor: [number, number]; active: [number, number] }>; anchor?: never; active?: never };
 
 export interface WaitStep {
   type: 'wait';

@@ -170,6 +170,7 @@
         },
         "selections": {
           "type": "array",
+          "minItems": 1,
           "items": {
             "type": "object",
             "required": ["anchor", "active"],

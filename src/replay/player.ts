@@ -90,13 +90,13 @@ export class WorkbookPlayer {
         case 'select': {
           const editor = vscode.window.activeTextEditor;
           if (editor) {
-            if (step.selections && step.selections.length > 0) {
+            if (step.selections !== undefined) {
               editor.selections = step.selections.map(s => {
                 const anchor = new vscode.Position(s.anchor[0], s.anchor[1]);
                 const active = new vscode.Position(s.active[0], s.active[1]);
                 return new vscode.Selection(anchor, active);
               });
-            } else if (step.anchor && step.active) {
+            } else {
               const anchor = new vscode.Position(step.anchor[0], step.anchor[1]);
               const active = new vscode.Position(step.active[0], step.active[1]);
               editor.selection = new vscode.Selection(anchor, active);
@@ -138,9 +138,18 @@ export class WorkbookPlayer {
         case 'paste': {
           const editor = vscode.window.activeTextEditor;
           if (editor) {
-            await editor.edit(editBuilder => {
-              editBuilder.insert(editor.selection.active, step.text);
+            const success = await editor.edit(editBuilder => {
+              for (const sel of editor.selections) {
+                if (sel.isEmpty) {
+                  editBuilder.insert(sel.active, step.text);
+                } else {
+                  editBuilder.replace(sel, step.text);
+                }
+              }
             });
+            if (!success) {
+              vscode.window.showWarningMessage('gEcho: paste step could not be applied (document may be read-only).');
+            }
           }
           break;
         }
