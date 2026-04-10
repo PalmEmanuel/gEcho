@@ -242,9 +242,24 @@ export class ScreenCapture {
     return this.ffmpegProcess !== null;
   }
 
-  async waitForReady(timeoutMs = 800): Promise<void> {
+  /**
+   * Wait until ffmpeg has opened the output file and is ready to encode frames.
+   *
+   * We watch stderr for "Output #0" — the line ffmpeg emits when it has opened
+   * the muxer and is about to start writing. This is more reliable than a fixed
+   * timeout because AVFoundation device initialisation can take 2-5 seconds on
+   * some machines regardless of CPU speed.
+   *
+   * Falls back to `timeoutMs` (default 8 s) if the signal never arrives.
+   */
+  async waitForReady(timeoutMs = 8_000): Promise<void> {
     if (!this.ffmpegProcess) {
       throw new Error(`ffmpeg is not running — it may have failed to start. ${this.startupStderr.slice(-500)}`);
+    }
+
+    // "Output #0" may already be in the buffer if stderr arrived fast.
+    if (this.startupStderr.includes('Output #0')) {
+      return;
     }
 
     return new Promise((resolve, reject) => {
@@ -254,7 +269,16 @@ export class ScreenCapture {
         if (settled) { return; }
         settled = true;
         clearTimeout(timer);
+        this.ffmpegProcess?.stderr?.off('data', onData);
+        this.ffmpegProcess?.off('close', onClose);
         if (err) { reject(err); } else { resolve(); }
+      };
+
+      // Watch for the encoding-ready signal in the continuously accumulated stderr.
+      const onData = (_chunk: Buffer) => {
+        if (this.startupStderr.includes('Output #0')) {
+          settle();
+        }
       };
 
       const onClose = (code: number | null) => {
@@ -264,16 +288,20 @@ export class ScreenCapture {
         ));
       };
 
+      // Fallback: if "Output #0" never appears within the window, proceed anyway
+      // (some ffmpeg builds may phrase this line differently).
       const timer = setTimeout(() => {
+        this.ffmpegProcess?.stderr?.off('data', onData);
         this.ffmpegProcess?.off('close', onClose);
         settle();
       }, timeoutMs);
 
+      this.ffmpegProcess!.stderr?.on('data', onData);
       this.ffmpegProcess!.once('close', onClose);
     });
   }
 
-  async stop(): Promise<string> {
+  async stop(stopTimeoutMs = 15_000): Promise<string> {
     // If start() is still in the pre-spawn phase (e.g. awaiting swiftc compilation or
     // device enumeration), signal cancellation and wait for it to finish before proceeding.
     if (this._startPromise !== null) {
@@ -335,8 +363,10 @@ export class ScreenCapture {
       proc.stdin?.end('q');
 
       // Escalation ladder if stdin signal is ignored.
-      sigtermTimer = setTimeout(() => { if (this.ffmpegProcess) { proc.kill('SIGTERM'); } }, 3_000);
-      sigkillTimer = setTimeout(() => { if (this.ffmpegProcess) { proc.kill('SIGKILL'); } }, 5_000);
+      // AVFoundation capture sessions can take several seconds to tear down after
+      // receiving the quit signal, so we give generous grace periods before escalating.
+      sigtermTimer = setTimeout(() => { if (this.ffmpegProcess) { proc.kill('SIGTERM'); } }, Math.floor(stopTimeoutMs * 0.5));
+      sigkillTimer = setTimeout(() => { if (this.ffmpegProcess) { proc.kill('SIGKILL'); } }, stopTimeoutMs);
     });
   }
 

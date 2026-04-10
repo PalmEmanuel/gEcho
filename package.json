@@ -110,6 +110,13 @@
           "type": "number",
           "default": 1.0,
           "description": "Replay speed multiplier."
+        },
+        "gecho.recording.stopTimeoutMs": {
+          "type": "number",
+          "default": 15000,
+          "minimum": 5000,
+          "maximum": 60000,
+          "description": "How long (ms) to wait for ffmpeg to stop gracefully before sending SIGKILL. Increase this if recordings fail to save on slow machines — AVFoundation on macOS can take several seconds to tear down the capture session."
         }
       }
     },

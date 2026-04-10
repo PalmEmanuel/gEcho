@@ -7,6 +7,7 @@ import { ScreenCapture, checkScreenRecordingPermission } from './screen/index.js
 import { GifConverter } from './converter/index.js';
 import { readEcho, writeEcho } from './echo/index.js';
 import { createStatusBar, updateStatusBar } from './ui/index.js';
+import { getConfig } from './config.js';
 import type { RecordingState, Echo } from './types/index.js';
 import { ECHO_VERSION } from './types/index.js';
 import { checkDependencies } from './dependencies.js';
@@ -68,7 +69,7 @@ export function activate(context: vscode.ExtensionContext): void {
         activePlayer.stop();
       }
       if (activeCapture) {
-        activeCapture.stop().catch(() => undefined);
+        activeCapture.stop(getConfig().recording.stopTimeoutMs).catch(() => undefined);
         activeCapture = undefined;
       }
       setState('idle');
@@ -155,8 +156,7 @@ export function activate(context: vscode.ExtensionContext): void {
         await vscode.workspace.fs.createDirectory(context.globalStorageUri);
         const tmpMp4Path = path.join(context.globalStorageUri.fsPath, `gecho-${Date.now()}.mp4`);
         await activeCapture.start(tmpMp4Path);
-        await activeCapture.waitForReady(800);
-        setState('recording-gif');
+        await activeCapture.waitForReady();
         vscode.window.showInformationMessage('gEcho: GIF recording started.');
       } catch (err) {
         setState('idle');
@@ -184,7 +184,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
       let mp4Path: string;
       try {
-        mp4Path = await activeCapture.stop();
+        mp4Path = await activeCapture.stop(getConfig().recording.stopTimeoutMs);
         activeCapture = undefined;
         setState('idle');
       } catch (err) {
@@ -294,9 +294,9 @@ export function activate(context: vscode.ExtensionContext): void {
         await vscode.workspace.fs.createDirectory(context.globalStorageUri);
         tmpMp4Path = path.join(context.globalStorageUri.fsPath, `gecho-replay-${Date.now()}.mp4`);
         await activeCapture.start(tmpMp4Path);
-        await activeCapture.waitForReady(800);
+        await activeCapture.waitForReady();
         await activePlayer.play(echo);
-        const mp4Path = await activeCapture?.stop();
+        const mp4Path = await activeCapture?.stop(getConfig().recording.stopTimeoutMs);
 
         activePlayer = undefined;
         activeCapture = undefined;
@@ -313,7 +313,7 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.window.showInformationMessage(`gEcho: GIF saved to ${saveUri.fsPath}`);
       } catch (err) {
         if (activeCapture) {
-          try { await activeCapture?.stop(); } catch { /* ignore */ }
+          try { await activeCapture?.stop(getConfig().recording.stopTimeoutMs); } catch { /* ignore */ }
         }
         if (tmpMp4Path) {
           await unlink(tmpMp4Path).catch(() => undefined);
@@ -334,7 +334,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
 export function deactivate(): void {
   if (activeCapture) {
-    activeCapture.stop().catch(() => undefined);
+    activeCapture.stop(getConfig().recording.stopTimeoutMs).catch(() => undefined);
     activeCapture = undefined;
   }
   if (activeRecorder) {

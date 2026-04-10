@@ -15,5 +15,8 @@ export function getConfig() {
       speed: cfg.get<number>('replay.speed', 1.0),
       captureGif: false,
     } satisfies ReplayConfig,
+    recording: {
+      stopTimeoutMs: cfg.get<number>('recording.stopTimeoutMs', 15_000),
+    },
   };
 }
