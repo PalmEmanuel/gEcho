@@ -90,15 +90,27 @@ export class WorkbookPlayer {
         case 'select': {
           const editor = vscode.window.activeTextEditor;
           if (editor) {
-            const anchor = new vscode.Position(step.anchor[0], step.anchor[1]);
-            const active = new vscode.Position(step.active[0], step.active[1]);
-            editor.selection = new vscode.Selection(anchor, active);
+            if (step.selections && step.selections.length > 0) {
+              editor.selections = step.selections.map(s => {
+                const anchor = new vscode.Position(s.anchor[0], s.anchor[1]);
+                const active = new vscode.Position(s.active[0], s.active[1]);
+                return new vscode.Selection(anchor, active);
+              });
+            } else if (step.anchor && step.active) {
+              const anchor = new vscode.Position(step.anchor[0], step.anchor[1]);
+              const active = new vscode.Position(step.active[0], step.active[1]);
+              editor.selection = new vscode.Selection(anchor, active);
+            }
           }
           break;
         }
 
         case 'wait': {
-          await this.sleep(step.ms / speed);
+          if (step.until === 'idle') {
+            await this.waitForIdle(step.ms / speed);
+          } else {
+            await this.sleep(step.ms / speed);
+          }
           break;
         }
 
@@ -124,15 +136,8 @@ export class WorkbookPlayer {
         }
 
         case 'paste': {
-          const editor = vscode.window.activeTextEditor;
-          if (editor) {
-            const applied = await editor.edit(editBuilder => {
-              editBuilder.replace(editor.selection, step.text);
-            });
-            if (!applied) {
-              vscode.window.showWarningMessage('gEcho: Paste step could not be applied — edit was rejected (document may be read-only).');
-            }
-          }
+          await vscode.env.clipboard.writeText(step.text);
+          await vscode.commands.executeCommand('editor.action.clipboardPasteAction');
           break;
         }
 
@@ -158,5 +163,33 @@ export class WorkbookPlayer {
 
   private sleep(ms: number): Promise<void> {
     return new Promise<void>(r => setTimeout(r, ms));
+  }
+
+  /**
+   * Wait until VS Code is "idle" — no document changes for `quietMs` milliseconds.
+   * Uses a hard cap of 30 seconds to prevent infinite waits.
+   */
+  private waitForIdle(quietMs: number): Promise<void> {
+    const maxWaitMs = 30_000;
+    return new Promise<void>(resolve => {
+      let timer: ReturnType<typeof setTimeout>;
+      const startIdle = () => {
+        timer = setTimeout(() => {
+          disposable.dispose();
+          clearTimeout(hardCap);
+          resolve();
+        }, quietMs);
+      };
+      const disposable = vscode.workspace.onDidChangeTextDocument(() => {
+        clearTimeout(timer);
+        startIdle();
+      });
+      const hardCap = setTimeout(() => {
+        clearTimeout(timer);
+        disposable.dispose();
+        resolve();
+      }, maxWaitMs);
+      startIdle();
+    });
   }
 }

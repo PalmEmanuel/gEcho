@@ -193,15 +193,39 @@ describe('WorkbookPlayer', () => {
       );
     });
 
-    it('paste step does not throw when no active editor', async () => {
-      // activeTextEditor is undefined in plain test host — step is silently skipped
+    it('wait step with until:"idle" completes without error', async () => {
       const player = new WorkbookPlayer();
       await assert.doesNotReject(() =>
         player.play({
           version: '1.0', metadata: { name: 't' },
-          steps: [{ type: 'paste', text: 'clipboard content' }],
+          steps: [{ type: 'wait', ms: 50, until: 'idle' }],
         })
       );
+    });
+
+    it('paste step writes to clipboard and calls clipboardPasteAction', async () => {
+      const calls: Array<{ cmd: string; args: any }> = [];
+      const origExec = (vscode.commands as any).executeCommand;
+      const origClipboard = (vscode.env as any).clipboard;
+      let clipboardText = '';
+      (vscode.env as any).clipboard = {
+        writeText: async (text: string) => { clipboardText = text; },
+        readText: async () => clipboardText,
+      };
+      (vscode.commands as any).executeCommand = async (cmd: string, ...args: any[]) => { calls.push({ cmd, args }); };
+      try {
+        const player = new WorkbookPlayer();
+        await player.play({
+          version: '1.0', metadata: { name: 't' },
+          steps: [{ type: 'paste', text: 'clipboard content' }],
+        });
+        assert.strictEqual(clipboardText, 'clipboard content', 'Text should be written to clipboard');
+        assert.strictEqual(calls.length, 1, 'Should call one command');
+        assert.strictEqual(calls[0].cmd, 'editor.action.clipboardPasteAction', 'Should call clipboardPasteAction');
+      } finally {
+        (vscode.commands as any).executeCommand = origExec;
+        (vscode.env as any).clipboard = origClipboard;
+      }
     });
 
     it('scroll step calls editorScroll with correct direction and lines', async () => {
@@ -229,6 +253,22 @@ describe('WorkbookPlayer', () => {
         player.play({
           version: '1.0', metadata: { name: 't' },
           steps: [{ type: 'select', anchor: [0, 0], active: [1, 5] }],
+        })
+      );
+    });
+
+    it('select step with selections array does not throw when no active editor', async () => {
+      const player = new WorkbookPlayer();
+      await assert.doesNotReject(() =>
+        player.play({
+          version: '1.0', metadata: { name: 't' },
+          steps: [{
+            type: 'select',
+            selections: [
+              { anchor: [0, 0], active: [0, 5] },
+              { anchor: [1, 0], active: [1, 3] },
+            ],
+          }],
         })
       );
     });
