@@ -133,7 +133,7 @@
   },
   "scripts": {
     "compile": "tsc -p ./",
-    "build": "npm run compile",
+    "build": "npm run build:native && npm run compile",
     "watch": "tsc -watch -p ./",
     "check-types": "tsc --noEmit",
     "build:native": "bash scripts/build-native.sh",
@@ -143,7 +143,7 @@
     "test:integration": "node ./out/test/runIntegrationTest.js",
     "lint": "eslint src/",
     "package": "vsce package --no-dependencies",
-    "vscode:prepublish": "npm run compile"
+    "vscode:prepublish": "npm run build"
   },
   "devDependencies": {
     "@azure/msal-node": "^2.0.0",
