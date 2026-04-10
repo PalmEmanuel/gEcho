@@ -9,13 +9,11 @@ describe('isFfmpegAvailable', () => {
     assert.strictEqual(result, false);
   });
 
-  it('returns true for node (always available)', async () => {
-    // node -version exits with an error, but node --version succeeds;
-    // isFfmpegAvailable calls execFile(bin, ['-version']), and `node -version`
-    // is not a valid flag. Use process.execPath as a sanity stand-in only when
-    // we know the binary exists — we test the "not found" path above.
-    // Instead, just verify the promise resolves to a boolean.
-    const result = await isFfmpegAvailable('node');
-    assert.strictEqual(typeof result, 'boolean');
+  it('returns true for a binary that succeeds with -version', async () => {
+    // "echo" ignores its arguments and always exits 0, so execFile('echo', ['-version'])
+    // succeeds — simulating a reachable ffmpeg.
+    const result = await isFfmpegAvailable('echo');
+    assert.strictEqual(result, true);
   });
 });
+
