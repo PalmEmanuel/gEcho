@@ -90,15 +90,27 @@ export class WorkbookPlayer {
         case 'select': {
           const editor = vscode.window.activeTextEditor;
           if (editor) {
-            const anchor = new vscode.Position(step.anchor[0], step.anchor[1]);
-            const active = new vscode.Position(step.active[0], step.active[1]);
-            editor.selection = new vscode.Selection(anchor, active);
+            if (step.selections !== undefined) {
+              editor.selections = step.selections.map(s => {
+                const anchor = new vscode.Position(s.anchor[0], s.anchor[1]);
+                const active = new vscode.Position(s.active[0], s.active[1]);
+                return new vscode.Selection(anchor, active);
+              });
+            } else {
+              const anchor = new vscode.Position(step.anchor[0], step.anchor[1]);
+              const active = new vscode.Position(step.active[0], step.active[1]);
+              editor.selection = new vscode.Selection(anchor, active);
+            }
           }
           break;
         }
 
         case 'wait': {
-          await this.sleep(step.ms / speed);
+          if (step.until === 'idle') {
+            await this.waitForIdle(step.ms / speed);
+          } else {
+            await this.sleep(step.ms / speed);
+          }
           break;
         }
 
@@ -126,11 +138,17 @@ export class WorkbookPlayer {
         case 'paste': {
           const editor = vscode.window.activeTextEditor;
           if (editor) {
-            const applied = await editor.edit(editBuilder => {
-              editBuilder.replace(editor.selection, step.text);
+            const success = await editor.edit(editBuilder => {
+              for (const sel of editor.selections) {
+                if (sel.isEmpty) {
+                  editBuilder.insert(sel.active, step.text);
+                } else {
+                  editBuilder.replace(sel, step.text);
+                }
+              }
             });
-            if (!applied) {
-              vscode.window.showWarningMessage('gEcho: Paste step could not be applied — edit was rejected (document may be read-only).');
+            if (!success) {
+              vscode.window.showWarningMessage('gEcho: paste step could not be applied (document may be read-only).');
             }
           }
           break;
@@ -158,5 +176,33 @@ export class WorkbookPlayer {
 
   private sleep(ms: number): Promise<void> {
     return new Promise<void>(r => setTimeout(r, ms));
+  }
+
+  /**
+   * Wait until VS Code is "idle" — no document changes for `quietMs` milliseconds.
+   * Uses a hard cap of 30 seconds to prevent infinite waits.
+   */
+  private waitForIdle(quietMs: number): Promise<void> {
+    const maxWaitMs = 30_000;
+    return new Promise<void>(resolve => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const startIdle = () => {
+        timer = setTimeout(() => {
+          disposable.dispose();
+          clearTimeout(hardCap);
+          resolve();
+        }, quietMs);
+      };
+      const disposable = vscode.workspace.onDidChangeTextDocument(() => {
+        if (timer !== undefined) { clearTimeout(timer); }
+        startIdle();
+      });
+      const hardCap = setTimeout(() => {
+        if (timer !== undefined) { clearTimeout(timer); }
+        disposable.dispose();
+        resolve();
+      }, maxWaitMs);
+      startIdle();
+    });
   }
 }

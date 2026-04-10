@@ -43,7 +43,7 @@ export class EchoRecorder {
         // Skip empty collapsed cursors that match an earlier position (no real intent)
         if (selection.isEmpty) {
           const prev = this.lastStep();
-          if (prev?.type === 'select') {
+          if (prev?.type === 'select' && prev.active) {
             const [al, ac] = prev.active;
             if (al === selection.active.line && ac === selection.active.character) {
               return;
@@ -78,21 +78,34 @@ export class EchoRecorder {
   private pushTypeStep(text: string, now: number): void {
     const delay = this.lastTypeAt > 0 ? now - this.lastTypeAt : undefined;
     this.lastTypeAt = now;
-    const prev = this.lastStep();
+    const prev = this.lastTypeStep();
 
     if (
-      prev?.type === 'type' &&
+      prev &&
       text.length === 1 &&
       prev.text.length < 80 &&
       prev.delay !== undefined &&
       (delay ?? 0) < COALESCE_WINDOW_MS
     ) {
-      (prev as TypeStep).text += text;
+      prev.text += text;
       // Update delay to reflect the most-recent keystroke interval
-      (prev as TypeStep).delay = delay ?? prev.delay;
+      prev.delay = delay ?? prev.delay;
     } else {
       this.steps.push({ type: 'type', text, delay });
     }
+  }
+
+  /**
+   * Find the most recent type step, skipping intervening select steps
+   * (which are cursor-position noise emitted by VS Code after text changes).
+   */
+  private lastTypeStep(): TypeStep | undefined {
+    for (let i = this.steps.length - 1; i >= 0; i--) {
+      const step = this.steps[i];
+      if (step.type === 'type') { return step as TypeStep; }
+      if (step.type !== 'select') { break; }
+    }
+    return undefined;
   }
 
   private lastStep(): StepType | undefined {

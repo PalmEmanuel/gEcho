@@ -193,15 +193,32 @@ describe('WorkbookPlayer', () => {
       );
     });
 
-    it('paste step does not throw when no active editor', async () => {
-      // activeTextEditor is undefined in plain test host — step is silently skipped
+    it('wait step with until:"idle" completes without error', async () => {
       const player = new WorkbookPlayer();
       await assert.doesNotReject(() =>
         player.play({
           version: '1.0', metadata: { name: 't' },
-          steps: [{ type: 'paste', text: 'clipboard content' }],
+          steps: [{ type: 'wait', ms: 50, until: 'idle' }],
         })
       );
+    });
+
+    it('paste step inserts text at cursor position via editor.edit', async () => {
+      const doc = await vscode.workspace.openTextDocument({ content: '', language: 'plaintext' });
+      await vscode.window.showTextDocument(doc);
+      try {
+        const player = new WorkbookPlayer();
+        await player.play({
+          version: '1.0', metadata: { name: 't' },
+          steps: [{ type: 'paste', text: 'clipboard content' }],
+        });
+        assert.ok(
+          doc.getText().includes('clipboard content'),
+          `Expected pasted text in document, got: ${JSON.stringify(doc.getText())}`,
+        );
+      } finally {
+        await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+      }
     });
 
     it('scroll step calls editorScroll with correct direction and lines', async () => {
@@ -231,6 +248,73 @@ describe('WorkbookPlayer', () => {
           steps: [{ type: 'select', anchor: [0, 0], active: [1, 5] }],
         })
       );
+    });
+
+    it('select step with selections array does not throw when no active editor', async () => {
+      const player = new WorkbookPlayer();
+      await assert.doesNotReject(() =>
+        player.play({
+          version: '1.0', metadata: { name: 't' },
+          steps: [{
+            type: 'select',
+            selections: [
+              { anchor: [0, 0], active: [0, 5] },
+              { anchor: [1, 0], active: [1, 3] },
+            ],
+          }],
+        })
+      );
+    });
+
+    it('select step with anchor/active updates editor selection when editor is open', async () => {
+      const doc = await vscode.workspace.openTextDocument({ content: 'hello\nworld', language: 'plaintext' });
+      const editor = await vscode.window.showTextDocument(doc);
+      try {
+        const player = new WorkbookPlayer();
+        await player.play({
+          version: '1.0', metadata: { name: 't' },
+          steps: [{ type: 'select', anchor: [0, 0], active: [0, 5] }],
+        });
+        const sel = editor.selection;
+        assert.deepStrictEqual(
+          [sel.anchor.line, sel.anchor.character, sel.active.line, sel.active.character],
+          [0, 0, 0, 5],
+          'Selection should match the step anchor/active positions',
+        );
+      } finally {
+        await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+      }
+    });
+
+    it('select step with selections array updates multi-cursor when editor is open', async () => {
+      const doc = await vscode.workspace.openTextDocument({ content: 'hello\nworld', language: 'plaintext' });
+      const editor = await vscode.window.showTextDocument(doc);
+      try {
+        const player = new WorkbookPlayer();
+        await player.play({
+          version: '1.0', metadata: { name: 't' },
+          steps: [{
+            type: 'select',
+            selections: [
+              { anchor: [0, 0], active: [0, 5] },
+              { anchor: [1, 0], active: [1, 3] },
+            ],
+          }],
+        });
+        assert.strictEqual(editor.selections.length, 2, 'Expected two cursors after multi-cursor select step');
+        assert.deepStrictEqual(
+          [editor.selections[0].anchor.line, editor.selections[0].anchor.character,
+           editor.selections[0].active.line, editor.selections[0].active.character],
+          [0, 0, 0, 5],
+        );
+        assert.deepStrictEqual(
+          [editor.selections[1].anchor.line, editor.selections[1].anchor.character,
+           editor.selections[1].active.line, editor.selections[1].active.character],
+          [1, 0, 1, 3],
+        );
+      } finally {
+        await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+      }
     });
 
     it('stop() before play() cancels all step execution', async () => {
