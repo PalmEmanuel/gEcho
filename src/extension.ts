@@ -6,7 +6,7 @@ import { EchoPlayer } from './replay/index.js';
 import { ScreenCapture, checkScreenRecordingPermission } from './screen/index.js';
 import { GifConverter } from './converter/index.js';
 import { readEcho, writeEcho } from './echo/index.js';
-import { createStatusBar, updateStatusBar } from './ui/index.js';
+import { createStatusBar, updateStatusBar, runCountdown } from './ui/index.js';
 import { getConfig } from './config.js';
 import type { RecordingState, Echo } from './types/index.js';
 import { ECHO_VERSION } from './types/index.js';
@@ -152,6 +152,12 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       try {
+        setState('countdown');
+        const proceeded = await runCountdown(getConfig().countdown.seconds, statusBar);
+        if (!proceeded) {
+          setState('idle');
+          return;
+        }
         setState('starting-gif');
         activeCapture = new ScreenCapture();
         await vscode.workspace.fs.createDirectory(context.globalStorageUri);
@@ -289,6 +295,14 @@ export function activate(context: vscode.ExtensionContext): void {
         if (!saveUri) { return; }
 
         const echo = await readEcho(uris[0].fsPath);
+
+        setState('countdown');
+        const proceeded = await runCountdown(getConfig().countdown.seconds, statusBar);
+        if (!proceeded) {
+          setState('idle');
+          return;
+        }
+
         setState('replaying-gif');
         activePlayer = new EchoPlayer();
         activeCapture = new ScreenCapture();
