@@ -2,16 +2,31 @@
 
 gEcho workbooks can be replayed in CI/CD pipelines to generate GIFs automatically. This ensures your demo GIFs stay up-to-date with every code change.
 
-## Overview
+## Current Limitation: Interactive Dialogs
 
-The workflow is:
+> **Important:** `gecho.replayAsGif` currently opens file-picker dialogs (Open Workbook, Save GIF) during replay. It does not accept a workbook path or output path via command-line arguments, which means it cannot run unattended in headless CI.
+
+**Recommended workflow until non-interactive support is added:**
+
+1. Record a workbook locally with gEcho.
+2. Run **gEcho: Replay Workbook as GIF** locally to produce the GIF.
+3. Commit both the `.gecho.json` workbook and the generated `.gif` to your repository.
+4. Reference the committed GIF in your README or docs — no CI execution step is needed.
+
+This is the reliable path for keeping demo GIFs in sync with your codebase today.
+
+## Overview (Future: When Non-Interactive Mode Is Available)
+
+When a non-interactive replay command is implemented, the workflow will be:
 
 1. Record a workbook locally (once)
 2. Commit the `.gecho.json` file to your repository
 3. In CI, install the gEcho extension and replay the workbook as a GIF
 4. Use the generated GIF in your README, docs, or release notes
 
-## GitHub Actions Example
+The sections below document the CI infrastructure that will support this workflow. They are provided for reference and for teams that implement their own replay automation.
+
+## GitHub Actions Infrastructure
 
 ```yaml
 name: Generate Demo GIFs
@@ -42,11 +57,11 @@ jobs:
       - name: Install gEcho extension
         run: code --install-extension PalmEmanuel.gEcho
 
+      # NOTE: gecho.replayAsGif currently requires interactive dialogs.
+      # A non-interactive command is needed for this step to work in CI.
       - name: Generate demo GIF
         run: |
-          xvfb-run -a code \
-            --command gecho.replayAsGif \
-            workbooks/demo.gecho.json
+          xvfb-run -a code --command gecho.replayAsGif
 
       - name: Upload GIF artifacts
         uses: actions/upload-artifact@v4
@@ -62,7 +77,7 @@ jobs:
 - **ffmpeg:** Must be installed. On Ubuntu, use `apt-get`. On macOS/Windows runners, use [AnimMouse/setup-ffmpeg](https://github.com/AnimMouse/setup-ffmpeg).
 - **X11 tools:** `xdotool` is needed for window detection on Linux.
 
-## Cross-Platform CI
+## Cross-Platform CI Infrastructure
 
 ```yaml
 jobs:
@@ -88,12 +103,13 @@ jobs:
       - name: Install gEcho
         run: code --install-extension PalmEmanuel.gEcho
 
-      # Replay - platform specific
+      # NOTE: gecho.replayAsGif currently requires interactive dialogs.
+      # Platform-specific steps below are for future non-interactive support.
       - if: runner.os == 'Linux'
-        run: xvfb-run -a code --command gecho.replayAsGif workbooks/demo.gecho.json
+        run: xvfb-run -a code --command gecho.replayAsGif
 
       - if: runner.os != 'Linux'
-        run: code --command gecho.replayAsGif workbooks/demo.gecho.json
+        run: code --command gecho.replayAsGif
 ```
 
 ## Installing from VSIX

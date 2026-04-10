@@ -157,21 +157,15 @@ Pauses replay for a specified duration, optionally waiting for VS Code to become
 { "type": "wait", "ms": 2000 }
 ```
 
-With idle condition:
-
-```json
-{ "type": "wait", "ms": 1000, "until": "idle" }
-```
-
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `type` | `"wait"` | ✅ | Step type identifier. |
 | `ms` | `number` | ✅ | Duration to wait in milliseconds. |
-| `until` | `"idle"` | | Wait for VS Code to become idle before continuing. |
+| `until` | `"idle"` | | Reserved for future use. Currently accepted by the schema but ignored — the step always sleeps for `ms`. |
 
 **Notes:**
 - The `ms` value is adjusted by the `gecho.replay.speed` setting.
-- Use `"until": "idle"` after commands that trigger async operations (e.g., IntelliSense, file loading).
+- To account for async operations (e.g., IntelliSense, file loading), use a generous `ms` value rather than relying on `until`.
 - A `wait` step at the end of your workbook gives the viewer time to see the final result in the GIF.
 
 ---

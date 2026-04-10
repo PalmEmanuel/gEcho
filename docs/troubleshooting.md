@@ -165,7 +165,7 @@ See the [Workbook Format Reference](workbook-reference.md) for the complete sche
 **Fix:**
 - Use `xvfb-run` to provide a virtual framebuffer:
   ```bash
-  xvfb-run -a code --command gecho.replayAsGif workbooks/demo.gecho.json
+  xvfb-run -a code --command gecho.replayAsGif
   ```
 - Or start Xvfb manually:
   ```bash
