@@ -30,6 +30,12 @@ const CROP_PRESETS: Record<CropPreset, CropConfig> = {
 /**
  * Resolve crop values from preset + per-side overrides.
  * Explicit per-side values (including from config) override the preset.
+ *
+ * Priority: optionsCrop > configCrop > preset defaults.
+ * `||` is used for configCrop because 0 is the VS Code config default,
+ * meaning "not overridden — use the preset value". For optionsCrop,
+ * `??` is used because undefined means "not specified" while 0 is a valid
+ * explicit override.
  */
 export function resolveCrop(
   preset: CropPreset,
