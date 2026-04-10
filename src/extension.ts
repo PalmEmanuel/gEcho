@@ -179,6 +179,9 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
+      // Immediately reflect the finalisation phase in the UI — stop() takes ~1-2s.
+      setState('saving-gif');
+
       let mp4Path: string;
       try {
         mp4Path = await activeCapture.stop();

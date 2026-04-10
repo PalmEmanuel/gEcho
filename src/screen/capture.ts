@@ -1,6 +1,6 @@
 import { spawn, execFile } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
-import { access } from 'node:fs/promises';
+import { access, stat } from 'node:fs/promises';
 import { getWindowBounds, detectPlatform, getWindowDisplayIndex, clearWindowInfoCache } from '../platform/index.js';
 import type { GifConfig } from '../types/index.js';
 import { sanitizeFfmpegPath } from '../security/index.js';
@@ -157,6 +157,11 @@ export class ScreenCapture {
         '-vf', `fps=${fps},crop=${width}:${height}:${x}:${y}`,
         '-vcodec', 'libx264',
         '-preset', 'ultrafast',
+        // Force a keyframe every second so fragments flush quickly.
+        '-g', String(AVFOUNDATION_NATIVE_FRAMERATE),
+        // Write self-contained fragments progressively — the file is valid even if
+        // recording is interrupted, avoiding "No such file" errors on quick stops.
+        '-movflags', '+frag_keyframe+empty_moov',
         '-y', outputPath,
       ];
     } else if (platform === 'linux') {
@@ -167,6 +172,8 @@ export class ScreenCapture {
         '-i', `:0.0+${x},${y}`,
         '-vcodec', 'libx264',
         '-preset', 'ultrafast',
+        '-g', String(fps),
+        '-movflags', '+frag_keyframe+empty_moov',
         '-y', outputPath,
       ];
     } else {
@@ -180,6 +187,8 @@ export class ScreenCapture {
         '-i', 'desktop',
         '-vcodec', 'libx264',
         '-preset', 'ultrafast',
+        '-g', String(fps),
+        '-movflags', '+frag_keyframe+empty_moov',
         '-y', outputPath,
       ];
     }
@@ -292,20 +301,40 @@ export class ScreenCapture {
       let sigtermTimer: ReturnType<typeof setTimeout>;
       let sigkillTimer: ReturnType<typeof setTimeout>;
 
-      proc.on('close', (code, signal) => {
+      proc.on('close', async (code, signal) => {
         clearTimeout(sigtermTimer);
         clearTimeout(sigkillTimer);
         this.ffmpegProcess = null;
-        // When WE initiated the stop, resolve regardless of exit code — ffmpeg exits
-        // non-zero on interrupt, which is expected. Reject only for unexpected pre-stop crashes.
+
+        // Verify the output file was actually written before resolving.
+        // If ffmpeg was killed before flushing (or never opened the file), provide
+        // a clear error rather than letting the GIF converter fail silently.
+        try {
+          const fileStat = await stat(this.outputPath);
+          if (fileStat.size === 0) {
+            reject(new Error(
+              'Recording produced an empty file — no frames were captured. ' +
+              'Try recording for a longer duration before stopping.'
+            ));
+            return;
+          }
+        } catch {
+          reject(new Error(
+            `Recording file not found after stop — ffmpeg exited (code ${code}, signal ${signal}) ` +
+            `before writing data. Diagnostics: ${this.startupStderr.slice(-300)}`
+          ));
+          return;
+        }
+
         resolve(this.outputPath);
       });
 
-      // Chronicler pattern: write 'q' to ffmpeg stdin for graceful shutdown.
-      // ffmpeg reads 'q' and finalises the output file cleanly without needing a TTY.
-      proc.stdin?.write('q');
+      // Chronicler pattern: write 'q' and close stdin.
+      // ffmpeg treats 'q' on stdin as a graceful quit, and the stdin EOF is an
+      // additional fallback so ffmpeg exits even if it's not polling stdin.
+      proc.stdin?.end('q');
 
-      // Fallback escalation if stdin 'q' is ignored (e.g. stdin not connected)
+      // Escalation ladder if stdin signal is ignored.
       sigtermTimer = setTimeout(() => { if (this.ffmpegProcess) { proc.kill('SIGTERM'); } }, 3_000);
       sigkillTimer = setTimeout(() => { if (this.ffmpegProcess) { proc.kill('SIGKILL'); } }, 5_000);
     });
@@ -313,7 +342,7 @@ export class ScreenCapture {
 
   dispose(): void {
     if (this.ffmpegProcess) {
-      this.ffmpegProcess.stdin?.write('q');
+      this.ffmpegProcess.stdin?.end('q');
       this.ffmpegProcess.kill('SIGTERM');
       this.ffmpegProcess = null;
     }

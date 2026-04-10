@@ -17,6 +17,11 @@ const STATE_CONFIG: Record<RecordingState, { text: string; tooltip: string; comm
     tooltip: 'gEcho — click to stop GIF recording',
     command: 'gecho.stopGifRecording',
   },
+  'saving-gif': {
+    text: '$(loading~spin) gEcho: Saving...',
+    tooltip: 'gEcho — finalising recording, please wait',
+    command: 'gecho.showCommands',
+  },
   replaying: {
     text: '▶️ gEcho: Replaying...',
     tooltip: 'gEcho — click to cancel replay',
