@@ -3,7 +3,7 @@ import * as path from 'path';
 import { unlink } from 'node:fs/promises';
 import { EchoRecorder } from './recording/index.js';
 import { EchoPlayer } from './replay/index.js';
-import { ScreenCapture } from './screen/index.js';
+import { ScreenCapture, checkScreenRecordingPermission } from './screen/index.js';
 import { GifConverter } from './converter/index.js';
 import { readEcho, writeEcho } from './echo/index.js';
 import { createStatusBar, updateStatusBar } from './ui/index.js';
@@ -19,6 +19,25 @@ let activeCapture: ScreenCapture | undefined;
 export function activate(context: vscode.ExtensionContext): void {
   // Check for required external dependencies (e.g. ffmpeg) in the background
   checkDependencies();
+
+  // On macOS, proactively verify Screen Recording permission so the user is warned
+  // before they try to start a GIF recording.
+  if (process.platform === 'darwin') {
+    checkScreenRecordingPermission().then((result) => {
+      if (!result.granted) {
+        vscode.window.showErrorMessage(
+          'gEcho: Screen Recording permission not granted. Enable VS Code in System Settings → Privacy & Security → Screen Recording, then restart VS Code.',
+          'Open System Settings'
+        ).then((choice) => {
+          if (choice === 'Open System Settings') {
+            vscode.env.openExternal(
+              vscode.Uri.parse('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture')
+            );
+          }
+        });
+      }
+    }).catch(() => undefined);
+  }
 
   const statusBar = createStatusBar(context);
 
