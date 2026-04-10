@@ -172,7 +172,7 @@ export class WorkbookPlayer {
   private waitForIdle(quietMs: number): Promise<void> {
     const maxWaitMs = 30_000;
     return new Promise<void>(resolve => {
-      let timer: ReturnType<typeof setTimeout>;
+      let timer: ReturnType<typeof setTimeout> | undefined;
       const startIdle = () => {
         timer = setTimeout(() => {
           disposable.dispose();
@@ -181,11 +181,11 @@ export class WorkbookPlayer {
         }, quietMs);
       };
       const disposable = vscode.workspace.onDidChangeTextDocument(() => {
-        clearTimeout(timer);
+        if (timer !== undefined) { clearTimeout(timer); }
         startIdle();
       });
       const hardCap = setTimeout(() => {
-        clearTimeout(timer);
+        if (timer !== undefined) { clearTimeout(timer); }
         disposable.dispose();
         resolve();
       }, maxWaitMs);
