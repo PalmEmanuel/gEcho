@@ -41,3 +41,12 @@
 - Status bar lifecycle: create before registering commands, always push to `context.subscriptions`, use a single `updateStatusBar()` helper driven by `currentState`.
 - All command bodies wrapped in `try/catch`; stub implementations throw `"Not implemented"` — that is intentional and correct for Wave 1.
 - `src/config.ts` is the single typed accessor for all `gecho.*` workspace configuration — downstream agents should import `getConfig()` rather than calling `vscode.workspace.getConfiguration` directly.
+
+### PR #72 — Reverse progress bar countdown (#51) — 2026-04-10 (COMPLETED)
+
+- `src/ui/countdown.ts` now uses `setInterval` at 100ms instead of `withProgress` + `setTimeout` per second. No notification toast is shown.
+- Bar format: `$(loading~spin) gEcho: ` prefix + 20-char Unicode block fill (`█`/`░`) draining right-to-left.
+- `runCountdown` is no longer `async` — it returns `new Promise<boolean>` directly, which is cleaner since there's no `await` inside.
+- `setState('countdown')` is called by the caller (extension.ts) before `runCountdown`; after it resolves, the caller calls `setState` again. Countdown doesn't need to restore status bar text — callers own state transitions.
+- The 'countdown' state tooltip in `statusBar.ts` was updated to remove the stale reference to "click Cancel in notification".
+- **Finalized 2026-04-10:** Compiled clean. Pushed to `feat/51-countdown-before-gif`. No `withProgress` notification used.
