@@ -1,7 +1,7 @@
 import { spawn, execFile } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
 import { access } from 'node:fs/promises';
-import { getWindowBounds, detectPlatform, getWindowDisplayIndex } from '../platform/index.js';
+import { getWindowBounds, detectPlatform, getWindowDisplayIndex, clearWindowInfoCache } from '../platform/index.js';
 import type { GifConfig } from '../types/index.js';
 import { sanitizeFfmpegPath } from '../security/index.js';
 import { getConfig } from '../config.js';
@@ -100,6 +100,7 @@ export class ScreenCapture {
   private _stopRequested = false;
 
   async start(outputPath: string, config?: GifConfig): Promise<void> {
+    clearWindowInfoCache();
     this._stopRequested = false;
     const p = this._doStart(outputPath, config);
     this._startPromise = p;

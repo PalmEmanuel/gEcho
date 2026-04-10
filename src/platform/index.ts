@@ -1,1 +1,1 @@
-export { detectPlatform, getWindowBounds, getWindowDisplayIndex } from './platform.js';
+export { detectPlatform, getWindowBounds, getWindowDisplayIndex, getWindowInfo, clearWindowInfoCache } from './platform.js';
