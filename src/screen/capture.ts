@@ -193,7 +193,7 @@ export class ScreenCapture {
     }
 
     return new Promise((resolve, reject) => {
-      const proc = spawn(safeFfmpegPath, args);
+      const proc = spawn(safeFfmpegPath, args, { stdio: ['pipe', 'pipe', 'pipe'] });
       this.ffmpegProcess = proc;
 
       let resolved = false;
@@ -296,22 +296,16 @@ export class ScreenCapture {
         clearTimeout(sigtermTimer);
         clearTimeout(sigkillTimer);
         this.ffmpegProcess = null;
-        // Accept clean exits and all interrupt/kill-induced exits:
-        //   0   — clean exit
-        //   254 — ffmpeg's -2 (signed) on some macOS/AVFoundation combos
-        //   255 — ffmpeg's -1 (SIGINT handled internally)
-        //   130 — SIGINT-killed (128+2) on some platforms
-        //   signal !== null — killed by SIGTERM or SIGKILL (our escalation)
-        if (code === 0 || code === 254 || code === 255 || code === 130 || signal !== null) {
-          resolve(this.outputPath);
-        } else {
-          reject(new Error(`ffmpeg exited with code ${code}`));
-        }
+        // When WE initiated the stop, resolve regardless of exit code — ffmpeg exits
+        // non-zero on interrupt, which is expected. Reject only for unexpected pre-stop crashes.
+        resolve(this.outputPath);
       });
 
-      // SIGINT lets ffmpeg flush buffers and write the final file properly.
-      // If it doesn't respond, escalate to SIGTERM then SIGKILL so stop() never hangs.
-      proc.kill('SIGINT');
+      // Chronicler pattern: write 'q' to ffmpeg stdin for graceful shutdown.
+      // ffmpeg reads 'q' and finalises the output file cleanly without needing a TTY.
+      proc.stdin?.write('q');
+
+      // Fallback escalation if stdin 'q' is ignored (e.g. stdin not connected)
       sigtermTimer = setTimeout(() => { if (this.ffmpegProcess) { proc.kill('SIGTERM'); } }, 3_000);
       sigkillTimer = setTimeout(() => { if (this.ffmpegProcess) { proc.kill('SIGKILL'); } }, 5_000);
     });
@@ -319,7 +313,8 @@ export class ScreenCapture {
 
   dispose(): void {
     if (this.ffmpegProcess) {
-      this.ffmpegProcess.kill('SIGINT');
+      this.ffmpegProcess.stdin?.write('q');
+      this.ffmpegProcess.kill('SIGTERM');
       this.ffmpegProcess = null;
     }
   }
