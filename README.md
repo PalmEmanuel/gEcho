@@ -48,6 +48,8 @@ gEcho is a VS Code extension with two recording modes:
 3. gEcho replays your recorded actions while capturing the screen
 4. Output: a reproducible, pixel-perfect GIF
 
+> **New to gEcho?** See the full [Getting Started guide](docs/getting-started.md) for detailed setup instructions including ffmpeg installation.
+
 ## Workbook Format
 
 Workbooks are human-readable JSON files with a `.gecho.json` extension:
@@ -84,6 +86,8 @@ Workbooks are human-readable JSON files with a `.gecho.json` extension:
 | `paste` | Paste text from clipboard | `{ "type": "paste", "text": "pasted content" }` |
 | `scroll` | Scroll the editor | `{ "type": "scroll", "direction": "down", "lines": 10 }` |
 
+> **Full reference:** See the [Workbook Format Reference](docs/workbook-reference.md) for complete documentation of all step types, fields, and authoring tips.
+
 ## Commands
 
 | Command | Description |
@@ -105,6 +109,8 @@ Workbooks are human-readable JSON files with a `.gecho.json` extension:
 | `gecho.gif.width` | `1920` | GIF output width (height scales proportionally) |
 | `gecho.gif.quality` | `high` | GIF quality preset: `high`, `balanced`, `small` |
 | `gecho.replay.speed` | `1.0` | Replay speed multiplier |
+
+> **Full reference:** See the [Configuration Reference](docs/configuration.md) for detailed descriptions of all settings, quality presets, and workspace vs user configuration.
 
 ## Requirements
 
@@ -154,6 +160,8 @@ Screen recording on Linux requires X11. Wayland is not yet supported (this is a 
 
 Like all region-based screen recorders, gEcho captures a fixed screen region. Moving or resizing the VS Code window during recording will produce artifacts.
 
+> **Full list:** See the [Limitations](docs/limitations.md) page for a detailed explanation of all limitations and workarounds.
+
 ## CI Integration
 
 Workbooks can be replayed in CI to generate GIFs automatically:
@@ -166,6 +174,19 @@ Workbooks can be replayed in CI to generate GIFs automatically:
 ```
 
 For scenarios requiring authentication (e.g., Copilot Chat), run gEcho locally where credentials are available, then commit the generated GIFs.
+
+> **Full guide:** See the [CI Integration guide](docs/ci-integration.md) for cross-platform workflows, configuration, and troubleshooting.
+
+## Documentation
+
+| Guide | Description |
+|-------|-------------|
+| [Getting Started](docs/getting-started.md) | Install ffmpeg, install the extension, first recording |
+| [Workbook Format Reference](docs/workbook-reference.md) | Complete documentation of all step types with examples |
+| [Configuration Reference](docs/configuration.md) | All settings with defaults and descriptions |
+| [CI Integration](docs/ci-integration.md) | Replay workbooks in GitHub Actions |
+| [Limitations](docs/limitations.md) | What cannot be recorded/replayed and workarounds |
+| [Troubleshooting](docs/troubleshooting.md) | Common issues and solutions |
 
 ## Acknowledgements
 
