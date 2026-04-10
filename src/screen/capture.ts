@@ -94,8 +94,23 @@ export class ScreenCapture {
   private ffmpegProcess: ChildProcess | null = null;
   private outputPath: string = '';
   private startupStderr: string = '';
+  /** Tracks the in-flight start() so stop() can wait for it and cancel safely. */
+  private _startPromise: Promise<void> | null = null;
+  /** Set to true by stop() when called before ffmpeg has spawned. */
+  private _stopRequested = false;
 
   async start(outputPath: string, config?: GifConfig): Promise<void> {
+    this._stopRequested = false;
+    const p = this._doStart(outputPath, config);
+    this._startPromise = p;
+    try {
+      await p;
+    } finally {
+      this._startPromise = null;
+    }
+  }
+
+  private async _doStart(outputPath: string, config?: GifConfig): Promise<void> {
     this.outputPath = outputPath;
 
     const bounds = await getWindowBounds();
@@ -126,6 +141,13 @@ export class ScreenCapture {
       // We capture at the native rate and downsample to the desired fps via the fps filter.
       const AVFOUNDATION_NATIVE_FRAMERATE = 60;
       const displayIndex = await getWindowDisplayIndex();
+
+      // If stop() was called while we were awaiting getWindowDisplayIndex()
+      // (e.g. during the first-ever swiftc compilation), abort before spawning.
+      if (this._stopRequested) {
+        return;
+      }
+
       const deviceIndex = await getScreenCaptureDeviceIndex(safeFfmpegPath, displayIndex);
       args = [
         '-f', 'avfoundation',
@@ -242,8 +264,19 @@ export class ScreenCapture {
   }
 
   async stop(): Promise<string> {
+    // If start() is still in the pre-spawn phase (e.g. awaiting swiftc compilation or
+    // device enumeration), signal cancellation and wait for it to finish before proceeding.
+    if (this._startPromise !== null) {
+      this._stopRequested = true;
+      await this._startPromise.catch(() => {}); // never throws — we just want to wait
+    }
+
     const proc = this.ffmpegProcess;
     if (!proc) {
+      // start() was cancelled before ffmpeg spawned — no process, no output file.
+      if (this._stopRequested) {
+        throw new Error('Recording was cancelled before it could start.');
+      }
       try {
         await access(this.outputPath);
       } catch {
