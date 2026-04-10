@@ -289,19 +289,31 @@ export class ScreenCapture {
     }
 
     return new Promise((resolve, reject) => {
-      proc.on('close', (code) => {
+      let sigtermTimer: ReturnType<typeof setTimeout>;
+      let sigkillTimer: ReturnType<typeof setTimeout>;
+
+      proc.on('close', (code, signal) => {
+        clearTimeout(sigtermTimer);
+        clearTimeout(sigkillTimer);
         this.ffmpegProcess = null;
-        // ffmpeg exits 255 on some platforms when interrupted by SIGINT;
-        // exits 254 (-2 signed) on some macOS/avfoundation combinations
-        if (code === 0 || code === 254 || code === 255) {
+        // Accept clean exits and all interrupt/kill-induced exits:
+        //   0   — clean exit
+        //   254 — ffmpeg's -2 (signed) on some macOS/AVFoundation combos
+        //   255 — ffmpeg's -1 (SIGINT handled internally)
+        //   130 — SIGINT-killed (128+2) on some platforms
+        //   signal !== null — killed by SIGTERM or SIGKILL (our escalation)
+        if (code === 0 || code === 254 || code === 255 || code === 130 || signal !== null) {
           resolve(this.outputPath);
         } else {
           reject(new Error(`ffmpeg exited with code ${code}`));
         }
       });
 
-      // SIGINT lets ffmpeg flush buffers and write the final file properly
+      // SIGINT lets ffmpeg flush buffers and write the final file properly.
+      // If it doesn't respond, escalate to SIGTERM then SIGKILL so stop() never hangs.
       proc.kill('SIGINT');
+      sigtermTimer = setTimeout(() => { if (this.ffmpegProcess) { proc.kill('SIGTERM'); } }, 3_000);
+      sigkillTimer = setTimeout(() => { if (this.ffmpegProcess) { proc.kill('SIGKILL'); } }, 5_000);
     });
   }
 
