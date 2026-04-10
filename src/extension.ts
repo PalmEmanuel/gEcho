@@ -19,7 +19,7 @@ let activeCapture: ScreenCapture | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
   // Check for required external dependencies (e.g. ffmpeg) in the background
-  checkDependencies();
+  checkDependencies(context);
 
   // On macOS, proactively verify Screen Recording permission so the user is warned
   // before they try to start a GIF recording.
