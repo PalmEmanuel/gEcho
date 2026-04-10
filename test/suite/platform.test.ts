@@ -23,23 +23,30 @@ describe('detectPlatform', () => {
 // ---------------------------------------------------------------------------
 // getWindowScaleFactor
 // ---------------------------------------------------------------------------
+// The helper binary/script call has a 10 s internal timeout — give Mocha 15 s to avoid
+// the default 2 s firing before execFile resolves (especially on Windows CI).
+const PLATFORM_TIMEOUT_MS = 15_000;
+
 describe('getWindowScaleFactor', () => {
   afterEach(() => {
     clearWindowInfoCache();
   });
 
-  it('returns a number ≥ 1', async () => {
+  it('returns a number ≥ 1', async function () {
+    this.timeout(PLATFORM_TIMEOUT_MS);
     const scale = await getWindowScaleFactor();
     assert.ok(typeof scale === 'number', `Expected number, got ${typeof scale}`);
     assert.ok(scale >= 1, `Expected scale ≥ 1, got ${scale}`);
   });
 
-  it('returns a finite number (not NaN or Infinity)', async () => {
+  it('returns a finite number (not NaN or Infinity)', async function () {
+    this.timeout(PLATFORM_TIMEOUT_MS);
     const scale = await getWindowScaleFactor();
     assert.ok(Number.isFinite(scale), `Expected finite number, got ${scale}`);
   });
 
-  it('falls back to 1.0 when the helper JSON is missing scaleFactor (backwards compat)', async () => {
+  it('falls back to 1.0 when the helper JSON is missing scaleFactor (backwards compat)', async function () {
+    this.timeout(PLATFORM_TIMEOUT_MS);
     // The FALLBACK_INFO constant has scaleFactor: 1.
     // When the helper is absent or returns bad JSON, clearWindowInfoCache() + a broken env
     // will trigger the fallback. We verify the fallback value is 1 by checking the
@@ -50,7 +57,8 @@ describe('getWindowScaleFactor', () => {
     assert.ok(scale >= 1, `Fallback must be ≥ 1, got ${scale}`);
   });
 
-  it('caches the result across multiple calls (no duplicate binary invocations)', async () => {
+  it('caches the result across multiple calls (no duplicate binary invocations)', async function () {
+    this.timeout(PLATFORM_TIMEOUT_MS);
     clearWindowInfoCache();
     const scale1 = await getWindowScaleFactor();
     const scale2 = await getWindowScaleFactor();
@@ -60,7 +68,8 @@ describe('getWindowScaleFactor', () => {
     assert.strictEqual(scale2, scale3, 'scale2 should equal scale3');
   });
 
-  it('clears the cache when clearWindowInfoCache() is called', async () => {
+  it('clears the cache when clearWindowInfoCache() is called', async function () {
+    this.timeout(PLATFORM_TIMEOUT_MS);
     clearWindowInfoCache();
     const scale1 = await getWindowScaleFactor();
     clearWindowInfoCache();

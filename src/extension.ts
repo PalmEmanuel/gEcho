@@ -95,7 +95,7 @@ export function activate(context: vscode.ExtensionContext): void {
         setState('recording');
         activeRecorder = new EchoRecorder();
         activeRecorder.start();
-        vscode.window.showInformationMessage('gEcho: Echo recording started.');
+
       } catch (err) {
         setState('idle');
         activeRecorder = undefined;
@@ -165,7 +165,7 @@ export function activate(context: vscode.ExtensionContext): void {
         await activeCapture.start(tmpMp4Path);
         await activeCapture.waitForReady(getConfig().recording.startupTimeoutMs);
         setState('recording-gif');
-        vscode.window.showInformationMessage('gEcho: GIF recording started.');
+
       } catch (err) {
         setState('idle');
         activeCapture = undefined;
