@@ -28,7 +28,7 @@ On Windows:
 }
 ```
 
-> **Security:** The path is validated to prevent command injection. Only alphanumeric characters, path separators, dots, hyphens, underscores, and spaces are allowed.
+> **Security:** The path is validated to reduce command injection risk by rejecting shell metacharacters (`;`, `&`, `|`, `` ` ``, `$`, `>`, `<`). Paths with other characters, including spaces and Unicode, are permitted.
 
 ---
 
@@ -40,7 +40,7 @@ On Windows:
 | **Default** | `"~/gecho-recordings"` |
 | **Description** | Default directory for saving recordings. |
 
-When you stop a recording, gEcho opens a save dialog starting in this directory. The `~` character is expanded to your home directory.
+When you stop a recording, gEcho opens a save dialog. **Note:** this setting is not currently used to initialize the save dialog location, and `~` is not expanded to the home directory. Configuration in `.vscode/settings.json` is accepted for forward-compatibility, but the save dialog starts in the system default location.
 
 ```json
 {
@@ -56,9 +56,9 @@ When you stop a recording, gEcho opens a save dialog starting in this directory.
 |---|---|
 | **Type** | `number` |
 | **Default** | `10` |
-| **Description** | Frames per second for GIF output. |
+| **Description** | Frames per second used when capturing the screen to an intermediate MP4 file. |
 
-Higher values produce smoother GIFs but larger file sizes. For most demos, 10–15 fps is sufficient.
+Higher values produce smoother source captures but increase MP4 file size and processing time. **Note:** this setting controls the screen capture (MP4) frame rate only — the final GIF playback FPS is determined by the `gecho.gif.quality` preset during conversion.
 
 ```json
 {
@@ -115,7 +115,7 @@ Each preset adjusts internal ffmpeg parameters:
 }
 ```
 
-> **Note:** The quality preset may override `gecho.gif.fps` and `gecho.gif.width` when they conflict with the preset's internal settings.
+> **Note:** The quality preset determines the GIF output FPS and scaling. `gecho.gif.fps` and `gecho.gif.width` only affect the intermediate MP4 capture, not the final GIF conversion.
 
 ---
 

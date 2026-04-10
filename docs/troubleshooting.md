@@ -43,9 +43,9 @@ Common issues and how to resolve them.
 - The window manager does not expose window information
 
 **Fix (Linux):**
-- Install `xdotool` and `x11-utils`:
+- Install `xdotool`:
   ```bash
-  sudo apt-get install xdotool x11-utils
+  sudo apt-get install xdotool
   ```
 - Ensure you are running X11, not Wayland
 
@@ -96,9 +96,9 @@ Common issues and how to resolve them.
 
 ---
 
-## "Another Operation Is Already Running"
+## "Cannot Start / Cannot Replay" State Conflict
 
-**Symptom:** Starting a recording or replay fails with a message that another operation is in progress.
+**Symptom:** Starting a recording or replay shows a warning such as `gEcho: Cannot start recording while replaying` or `gEcho: Cannot replay while recording-gif`.
 
 **Cause:** gEcho allows only one active operation at a time.
 
@@ -181,7 +181,7 @@ If none of the above resolve your issue:
 
 1. Check the VS Code Output panel for gEcho-specific error messages.
 2. Open VS Code Developer Tools (`Ctrl+Shift+I` / `Cmd+Shift+I`) and check the Console tab for errors.
-3. [Open an issue](https://github.com/PalmEmanuel/gEcho/issues) with:
+3. [Open an issue](https://github.com/emanuelpalm/gEcho/issues) with:
    - Your OS and VS Code version
    - The error message or unexpected behavior
    - The workbook file (if applicable)

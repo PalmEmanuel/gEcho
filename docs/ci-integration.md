@@ -37,7 +37,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Install xvfb and X11 tools
-        run: sudo apt-get install -y xvfb xdotool x11-utils
+        run: sudo apt-get install -y xvfb xdotool
 
       - name: Install gEcho extension
         run: code --install-extension PalmEmanuel.gEcho
@@ -60,7 +60,7 @@ jobs:
 
 - **Linux + xvfb:** CI environments typically have no display. Use `xvfb-run` to provide a virtual X11 framebuffer for both VS Code and ffmpeg.
 - **ffmpeg:** Must be installed. On Ubuntu, use `apt-get`. On macOS/Windows runners, use [AnimMouse/setup-ffmpeg](https://github.com/AnimMouse/setup-ffmpeg).
-- **X11 tools:** `xdotool` and `x11-utils` are needed for window detection on Linux.
+- **X11 tools:** `xdotool` is needed for window detection on Linux.
 
 ## Cross-Platform CI
 
@@ -80,7 +80,7 @@ jobs:
 
       # ffmpeg setup - platform specific
       - if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg xvfb xdotool x11-utils
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg xvfb xdotool
 
       - if: runner.os != 'Linux'
         uses: AnimMouse/setup-ffmpeg@v1
@@ -113,15 +113,17 @@ If you build gEcho from source in CI, install the `.vsix` directly:
 
 ## Configuration in CI
 
-Override gEcho settings via VS Code's CLI or settings file:
+Override gEcho settings via VS Code's user settings file. The path is platform-specific:
+
+**Linux** (`~/.config/Code/User/settings.json`):
 
 ```yaml
 - name: Configure gEcho
+  if: runner.os == 'Linux'
   run: |
     mkdir -p ~/.config/Code/User
     cat > ~/.config/Code/User/settings.json << 'EOF'
     {
-      "gecho.outputDirectory": "./output",
       "gecho.gif.fps": 15,
       "gecho.gif.width": 1280,
       "gecho.gif.quality": "balanced",
@@ -130,14 +132,50 @@ Override gEcho settings via VS Code's CLI or settings file:
     EOF
 ```
 
+**macOS** (`~/Library/Application Support/Code/User/settings.json`):
+
+```yaml
+- name: Configure gEcho
+  if: runner.os == 'macOS'
+  run: |
+    mkdir -p "$HOME/Library/Application Support/Code/User"
+    cat > "$HOME/Library/Application Support/Code/User/settings.json" << 'EOF'
+    {
+      "gecho.gif.fps": 15,
+      "gecho.gif.width": 1280,
+      "gecho.gif.quality": "balanced",
+      "gecho.replay.speed": 2.0
+    }
+    EOF
+```
+
+**Windows** (`%APPDATA%\Code\User\settings.json`):
+
+```yaml
+- name: Configure gEcho
+  if: runner.os == 'Windows'
+  shell: pwsh
+  run: |
+    $dir = "$env:APPDATA\Code\User"
+    New-Item -ItemType Directory -Force $dir | Out-Null
+    @'
+    {
+      "gecho.gif.fps": 15,
+      "gecho.gif.width": 1280,
+      "gecho.gif.quality": "balanced",
+      "gecho.replay.speed": 2.0
+    }
+    '@ | Set-Content "$dir\settings.json"
+```
+
 ### Recommended CI Settings
 
 | Setting | CI Value | Reason |
 |---------|----------|--------|
 | `gecho.replay.speed` | `2.0` | Faster replay reduces CI time |
-| `gecho.gif.quality` | `"balanced"` | Good quality at smaller file sizes |
+| `gecho.gif.quality` | `"balanced"` | Good quality/size ratio; this preset controls GIF output FPS (10 fps) |
 | `gecho.gif.width` | `1280` | Reasonable resolution for docs |
-| `gecho.outputDirectory` | `"./output"` | Predictable artifact location |
+| `gecho.gif.fps` | `15` | Smoother MP4 capture; does **not** affect final GIF FPS (that comes from the quality preset) |
 
 ## Authentication Considerations
 

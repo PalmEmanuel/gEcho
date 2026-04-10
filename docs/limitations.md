@@ -26,7 +26,7 @@ gEcho is built on the VS Code extension API, which provides powerful but bounded
 
 ## Wayland Not Supported (Linux)
 
-**Problem:** Screen recording on Linux relies on X11 (`x11grab` ffmpeg input) and `xdotool`/`xwininfo` for window detection. Wayland does not support these tools.
+**Problem:** Screen recording on Linux relies on X11 (`x11grab` ffmpeg input) and `xdotool` for window detection. Wayland does not support these tools.
 
 **Impact:** GIF recording and Replay-as-GIF will not capture the correct screen region on Wayland-based desktops.
 
@@ -49,7 +49,7 @@ gEcho is built on the VS Code extension API, which provides powerful but bounded
 
 ## Single-Window Capture Only
 
-**Problem:** gEcho detects the VS Code window by searching for a process named "Visual Studio Code" (or "Code" on some platforms). If multiple VS Code windows are open, it may capture the wrong one.
+**Problem:** gEcho detects the VS Code window using platform-specific methods: AppleScript targeting the "Visual Studio Code" app on macOS, `xdotool` searching window titles containing "Visual Studio Code" on Linux, and PowerShell querying the `Code` process on Windows. If multiple VS Code windows are open, it may capture the wrong one.
 
 **Impact:** The wrong VS Code window may be recorded.
 
@@ -74,12 +74,12 @@ Screen capture uses different ffmpeg backends per platform:
 | Platform | Input Method | Window Detection |
 |----------|-------------|-----------------|
 | macOS | `avfoundation` | AppleScript |
-| Linux | `x11grab` | `xdotool` / `xwininfo` |
+| Linux | `x11grab` | `xdotool` |
 | Windows | `gdigrab` | PowerShell |
 
 **macOS:** Requires screen recording permission (System Settings → Privacy & Security → Screen Recording). The first recording attempt triggers a system permission prompt.
 
-**Linux:** Requires X11 display server. The `xdotool` and `xwininfo` utilities must be installed (`sudo apt-get install xdotool x11-utils` on Debian/Ubuntu).
+**Linux:** Requires X11 display server. The `xdotool` utility must be installed (`sudo apt-get install xdotool` on Debian/Ubuntu).
 
 **Windows:** Window detection uses PowerShell to query the main window handle of the Code process.
 
@@ -95,16 +95,20 @@ Cancel the current operation first with **gEcho: Cancel Replay** (for replays) o
 
 ## Keyboard Shortcut Limitations
 
-The `key` step maps well-known shortcuts to VS Code commands. Unrecognized key combinations are attempted as-is, but may not work in all contexts. The recognized mappings are:
+The `key` step supports shortcuts that are explicitly mapped by gEcho, and it can type single characters directly. Unknown multi-key combinations are **not** attempted as-is during replay — they are skipped silently. The recognized mappings are:
 
-| Key | Action |
-|-----|--------|
-| `Ctrl+Shift+P` / `Cmd+Shift+P` | Open Command Palette |
-| `Ctrl+P` / `Cmd+P` | Quick Open |
-| `Ctrl+Z` / `Cmd+Z` | Undo |
-| `Ctrl+Shift+Z` / `Cmd+Shift+Z` | Redo |
-| `Tab` | Tab |
-| `Enter` | New line |
-| `Escape` | Close find widget |
+| Key | VS Code Command |
+|-----|----------------|
+| `Ctrl+Shift+P` / `Cmd+Shift+P` | `workbench.action.showCommands` |
+| `Ctrl+P` / `Cmd+P` | `workbench.action.quickOpen` |
+| `Ctrl+Space` / `Cmd+Space` | `editor.action.triggerSuggest` |
+| `Ctrl+Z` / `Cmd+Z` | `undo` |
+| `Ctrl+Shift+Z` / `Cmd+Shift+Z` | `redo` |
+| `Ctrl+/` / `Cmd+/` | `editor.action.commentLine` |
+| `Ctrl+S` / `Cmd+S` | `workbench.action.files.save` |
+| `Ctrl+F` / `Cmd+F` | `actions.find` |
+| `Tab` | `tab` |
+| `Enter` | `acceptSelectedSuggestion` |
+| `Escape` | `cancelSelection` |
 
-For other shortcuts, consider using a `command` step with the corresponding VS Code command ID instead.
+For any shortcut not in this list, use a `command` step with the corresponding VS Code command ID instead.
