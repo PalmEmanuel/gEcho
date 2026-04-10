@@ -110,6 +110,20 @@
           "type": "number",
           "default": 1.0,
           "description": "Replay speed multiplier."
+        },
+        "gecho.recording.startupTimeoutMs": {
+          "type": "number",
+          "default": 20000,
+          "minimum": 5000,
+          "maximum": 60000,
+          "description": "How long (ms) to wait for ffmpeg to open the output file before giving up. AVFoundation on macOS can take 5–15 s on some machines. Increase this if GIF recording fails with 'AVFoundation initialisation is taking too long'."
+        },
+        "gecho.recording.stopTimeoutMs": {
+          "type": "number",
+          "default": 15000,
+          "minimum": 5000,
+          "maximum": 60000,
+          "description": "How long (ms) to wait for ffmpeg to stop gracefully before sending SIGKILL. Increase this if recordings fail to save on slow machines — AVFoundation on macOS can take several seconds to tear down the capture session."
         }
       }
     },
@@ -133,16 +147,17 @@
   },
   "scripts": {
     "compile": "tsc -p ./",
-    "build": "npm run compile",
+    "build": "npm run build:native && npm run compile",
     "watch": "tsc -watch -p ./",
     "check-types": "tsc --noEmit",
+    "build:native": "node -e \"if(process.platform==='darwin'){const{execSync}=require('child_process');execSync('bash scripts/build-native.sh',{stdio:'inherit'})}else{console.log('Skipping native build: not macOS')}\"",
     "pretest": "npm run compile",
     "test": "node ./out/test/runTest.js",
     "pretest:integration": "npm run compile",
     "test:integration": "node ./out/test/runIntegrationTest.js",
     "lint": "eslint src/",
     "package": "vsce package --no-dependencies",
-    "vscode:prepublish": "npm run compile"
+    "vscode:prepublish": "npm run build"
   },
   "devDependencies": {
     "@azure/msal-node": "^2.0.0",
