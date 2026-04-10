@@ -84,6 +84,14 @@ Echoes are `.gecho.json` files validated against `schemas/gecho-v1.schema.json` 
 - Use `os.tmpdir()` subdirectories for filesystem I/O; clean up in `afterEach`.
 - Aim for at least 80% line coverage. Priority: `types/` → `workbook/` → `platform/` → `replay/` → `recording/` → `screen/`.
 
+## Branch Protection Policy
+
+**Never push directly to `main`.** All changes — including rebases, conflict resolutions, hotfixes, and squad work — must go through a pull request. This applies to both humans and AI agents.
+
+- Create a feature branch, make changes there, push the branch, and open a PR
+- Direct pushes to `main` are a policy violation even if branch protection rules allow bypassing them
+- After a rebase onto origin/main, push to a branch and open a PR — do not push to `main` directly
+
 ## PR Titles — Conventional Commits
 
 All PR titles are validated by CI (`validate-pr-title.yml`) and **must** follow [Conventional Commits](https://www.conventionalcommits.org/) format:
