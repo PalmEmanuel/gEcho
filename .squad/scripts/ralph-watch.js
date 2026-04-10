@@ -71,7 +71,7 @@ async function tick() {
       });
     }
   } catch (err) {
-    const errorCode = typeof err === 'object' && err !== null && 'code' in err ? err.code : undefined;
+    const errorCode = typeof err === 'object' && err !== null && 'code' in err ? String(err.code) : undefined;
     const errorMessage = typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : String(err);
 
     if (errorCode === 'AUTH_REQUIRED') {
