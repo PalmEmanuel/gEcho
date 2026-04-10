@@ -127,14 +127,14 @@ Each preset adjusts internal ffmpeg parameters:
 | **Default** | `1.0` |
 | **Description** | Replay speed multiplier. |
 
-Controls how fast workbook steps are replayed. Values greater than 1.0 speed up replay; values less than 1.0 slow it down. Minimum value is 0.1.
+Controls how fast echo steps are replayed. Values greater than 1.0 speed up replay; values less than 1.0 slow it down. Minimum value is 0.1.
 
 | Value | Effect |
 |-------|--------|
 | `0.5` | Half speed (slower, more dramatic) |
 | `1.0` | Original recorded speed |
 | `2.0` | Double speed (faster, saves time in CI) |
-| `5.0` | Very fast (for testing workbooks) |
+| `5.0` | Very fast (for testing echoes) |
 
 The speed multiplier affects:
 - `wait` step durations

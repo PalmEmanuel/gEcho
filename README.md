@@ -9,30 +9,30 @@
 
 gEcho is a VS Code extension with two recording modes:
 
-- **Echo mode** — Records your actions (typing, commands, selections) into a replayable **workbook** (JSON)
+- **Echo mode** — Records your actions (typing, commands, selections) into a replayable **echo** (JSON)
 - **GIF mode** — Records the VS Code window as a screen-captured **GIF** (via ffmpeg)
 
-**Combined:** Record a workbook once → replay it any time → capture the replay as a GIF. Deterministic, version-controlled demo GIFs for your README, docs, or CI pipeline.
+**Combined:** Record an echo once → replay it any time → capture the replay as a GIF. Deterministic, version-controlled demo GIFs for your README, docs, or CI pipeline.
 
 ## Why gEcho?
 
 | Problem | gEcho Solution |
 |---|---|
 | Manual screen recording is tedious and inconsistent | Record once, replay forever |
-| GIFs go stale when UI changes | Re-run the workbook to regenerate |
-| Demo recordings are not version-controllable | Workbooks are JSON — diff, review, commit |
+| GIFs go stale when UI changes | Re-run the echo to regenerate |
+| Demo recordings are not version-controllable | Echoes are JSON — diff, review, commit |
 | Cross-platform recording is painful | One extension, works on macOS, Linux, and Windows |
-| CI-generated GIFs require complex infrastructure | Replay workbooks in headless CI environments |
+| CI-generated GIFs require complex infrastructure | Replay echoes in headless CI environments |
 
 ## Quick Start
 
-### Record a Workbook (Echo Mode)
+### Record an Echo (Echo Mode)
 
 1. Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
 2. Run **gEcho: Start Echo Recording**
 3. Perform your demo actions in VS Code — type code, open files, use the terminal
 4. Run **gEcho: Stop Echo Recording**
-5. Save the workbook as `my-demo.gecho.json`
+5. Save the echo as `my-demo.gecho.json`
 
 ### Record a GIF Directly
 
@@ -41,18 +41,18 @@ gEcho is a VS Code extension with two recording modes:
 3. Run **gEcho: Stop GIF Recording**
 4. The GIF is saved to your configured output directory
 
-### Replay a Workbook as GIF
+### Replay an Echo as GIF
 
-1. Open a `.gecho.json` workbook
+1. Open a `.gecho.json` echo
 2. Run **gEcho: Replay as GIF**
 3. gEcho replays your recorded actions while capturing the screen
 4. Output: a reproducible, pixel-perfect GIF
 
 > **New to gEcho?** See the full [Getting Started guide](docs/getting-started.md) for detailed setup instructions including ffmpeg installation.
 
-## Workbook Format
+## Echo Format
 
-Workbooks are human-readable JSON files with a `.gecho.json` extension:
+Echoes are human-readable JSON files with a `.gecho.json` extension:
 
 ```jsonc
 {
@@ -86,18 +86,18 @@ Workbooks are human-readable JSON files with a `.gecho.json` extension:
 | `paste` | Paste text from clipboard | `{ "type": "paste", "text": "pasted content" }` |
 | `scroll` | Scroll the editor | `{ "type": "scroll", "direction": "down", "lines": 10 }` |
 
-> **Full reference:** See the [Workbook Format Reference](docs/workbook-reference.md) for complete documentation of all step types, fields, and authoring tips.
+> **Full reference:** See the [Echo Format Reference](docs/echo-reference.md) for complete documentation of all step types, fields, and authoring tips.
 
 ## Commands
 
 | Command | Description |
 |---|---|
-| `gEcho: Start Echo Recording` | Record user actions to a workbook |
-| `gEcho: Stop Echo Recording` | Stop and save the workbook |
+| `gEcho: Start Echo Recording` | Record user actions to an echo |
+| `gEcho: Stop Echo Recording` | Stop and save the echo |
 | `gEcho: Start GIF Recording` | Record the VS Code window as a GIF |
 | `gEcho: Stop GIF Recording` | Stop and save the GIF |
-| `gEcho: Replay Workbook` | Replay a workbook (no recording) |
-| `gEcho: Replay as GIF` | Replay a workbook while recording a GIF |
+| `gEcho: Replay Echo` | Replay an echo (no recording) |
+| `gEcho: Replay as GIF` | Replay an echo while recording a GIF |
 
 ## Configuration
 
@@ -140,13 +140,13 @@ gEcho detects the VS Code window position and dimensions, then launches ffmpeg t
 
 ### Replay
 
-The replay engine reads a workbook and executes each step sequentially, honoring the recorded timing. Steps are executed via VS Code's command API — `type` for typing, `executeCommand` for commands, etc.
+The replay engine reads an echo and executes each step sequentially, honoring the recorded timing. Steps are executed via VS Code's command API — `type` for typing, `executeCommand` for commands, etc.
 
 ## Limitations
 
 ### No Mouse Event Recording
 
-VS Code's extension API does not expose mouse position, click, or scroll events. Echo recording captures keyboard-driven actions only. For mouse-driven actions (clicking buttons, scrolling), manually add `command`, `key`, or `scroll` steps to the workbook.
+VS Code's extension API does not expose mouse position, click, or scroll events. Echo recording captures keyboard-driven actions only. For mouse-driven actions (clicking buttons, scrolling), manually add `command`, `key`, or `scroll` steps to the echo.
 
 ### Webview Interaction
 
@@ -164,13 +164,13 @@ Like all region-based screen recorders, gEcho captures a fixed screen region. Mo
 
 ## CI Integration
 
-Workbooks can be replayed in CI to generate GIFs automatically:
+Echoes can be replayed in CI to generate GIFs automatically:
 
 ```yaml
 - name: Generate demo GIFs
   run: |
     code --install-extension gecho.vsix
-    code --command gecho.replayAsGif workbooks/demo.gecho.json
+    code --command gecho.replayAsGif echoes/demo.gecho.json
 ```
 
 For scenarios requiring authentication (e.g., Copilot Chat), run gEcho locally where credentials are available, then commit the generated GIFs.
@@ -182,9 +182,9 @@ For scenarios requiring authentication (e.g., Copilot Chat), run gEcho locally w
 | Guide | Description |
 |-------|-------------|
 | [Getting Started](docs/getting-started.md) | Install ffmpeg, install the extension, first recording |
-| [Workbook Format Reference](docs/workbook-reference.md) | Complete documentation of all step types with examples |
+| [Echo Format Reference](docs/echo-reference.md) | Complete documentation of all step types with examples |
 | [Configuration Reference](docs/configuration.md) | All settings with defaults and descriptions |
-| [CI Integration](docs/ci-integration.md) | Replay workbooks in GitHub Actions |
+| [CI Integration](docs/ci-integration.md) | Replay echoes in GitHub Actions |
 | [Limitations](docs/limitations.md) | What cannot be recorded/replayed and workarounds |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues and solutions |
 

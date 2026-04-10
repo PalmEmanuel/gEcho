@@ -5,9 +5,9 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 
-import type { Workbook } from '../../../src/types/workbook.js';
+import type { Echo } from '../../../src/types/echo.js';
 import { EchoRecorder } from '../../../src/recording/recorder.js';
-import { WorkbookPlayer } from '../../../src/replay/player.js';
+import { EchoPlayer } from '../../../src/replay/player.js';
 
 // ---------------------------------------------------------------------------
 // Helper: wait up to `ms` for a condition to be true, polling every 20 ms.
@@ -25,7 +25,7 @@ async function waitUntil(condition: () => boolean, ms = 2000): Promise<void> {
 // ---------------------------------------------------------------------------
 // Suite
 // ---------------------------------------------------------------------------
-describe('Workbook round-trip integration', function () {
+describe('Echo round-trip integration', function () {
   this.timeout(30_000);
 
   it('records text insertion and replays it back into a fresh document', async function () {
@@ -61,9 +61,9 @@ describe('Workbook round-trip integration', function () {
       `Expected captured text to contain "Hello", got: ${JSON.stringify(capturedText)}`,
     );
 
-    // 6. Build a workbook from the captured steps, keeping only type steps so
+    // 6. Build an echo from the captured steps, keeping only type steps so
     //    the playback is deterministic (exclude select/openFile side-effects).
-    const workbook: Workbook = {
+    const echo: Echo = {
       version: '1.0',
       metadata: { name: 'roundtrip-test' },
       steps: typeSteps,
@@ -82,9 +82,9 @@ describe('Workbook round-trip integration', function () {
     // Ensure the editor is still active before playback.
     await vscode.window.showTextDocument(doc);
 
-    // 8. Play back the recorded workbook.
-    const player = new WorkbookPlayer();
-    await player.play(workbook);
+    // 8. Play back the recorded echo.
+    const player = new EchoPlayer();
+    await player.play(echo);
 
     // 9. Verify the document now contains the replayed text.
     const finalText = doc.getText();
@@ -97,7 +97,7 @@ describe('Workbook round-trip integration', function () {
     await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
   });
 
-  it('recorded workbook is a valid Workbook structure', async function () {
+  it('recorded echo is a valid Echo structure', async function () {
     const doc = await vscode.workspace.openTextDocument({ content: '', language: 'plaintext' });
     await vscode.window.showTextDocument(doc);
 
@@ -111,22 +111,22 @@ describe('Workbook round-trip integration', function () {
 
     const steps = recorder.stop();
 
-    const workbook: Workbook = {
+    const echo: Echo = {
       version: '1.0',
       metadata: { name: 'structure-test' },
       steps,
     };
 
-    assert.strictEqual(workbook.version, '1.0');
-    assert.strictEqual(typeof workbook.metadata.name, 'string');
-    assert.ok(Array.isArray(workbook.steps));
+    assert.strictEqual(echo.version, '1.0');
+    assert.strictEqual(typeof echo.metadata.name, 'string');
+    assert.ok(Array.isArray(echo.steps));
 
     // Write and re-read to verify JSON round-trip.
     const tmpFile = path.join(os.tmpdir(), `gecho-rtrip-${Date.now()}.json`);
     try {
-      await fs.writeFile(tmpFile, JSON.stringify(workbook, null, 2), 'utf8');
+      await fs.writeFile(tmpFile, JSON.stringify(echo, null, 2), 'utf8');
       const raw = await fs.readFile(tmpFile, 'utf8');
-      const parsed = JSON.parse(raw) as Workbook;
+      const parsed = JSON.parse(raw) as Echo;
       assert.strictEqual(parsed.version, '1.0');
       assert.ok(Array.isArray(parsed.steps));
     } finally {

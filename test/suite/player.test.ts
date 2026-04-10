@@ -1,15 +1,15 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import type { Workbook } from '../../src/types/workbook.js';
-import { WorkbookPlayer } from '../../src/replay/player.js';
+import type { Echo } from '../../src/types/echo.js';
+import { EchoPlayer } from '../../src/replay/player.js';
 
-describe('WorkbookPlayer', () => {
-  it('exports WorkbookPlayer class', () => {
-    assert.strictEqual(typeof WorkbookPlayer, 'function');
+describe('EchoPlayer', () => {
+  it('exports EchoPlayer class', () => {
+    assert.strictEqual(typeof EchoPlayer, 'function');
   });
 
-  it('WorkbookPlayer has stop method', () => {
-    const player = new WorkbookPlayer();
+  it('EchoPlayer has stop method', () => {
+    const player = new EchoPlayer();
     assert.strictEqual(typeof player.stop, 'function');
   });
 
@@ -19,8 +19,8 @@ describe('WorkbookPlayer', () => {
       const orig = (vscode.commands as any).executeCommand;
       (vscode.commands as any).executeCommand = async (cmd: string) => { executedCommands.push(cmd); };
       try {
-        const player = new WorkbookPlayer();
-        const workbook: Workbook = {
+        const player = new EchoPlayer();
+        const echo: Echo = {
           version: '1.0',
           metadata: { name: 'test' },
           steps: [
@@ -28,7 +28,7 @@ describe('WorkbookPlayer', () => {
             { type: 'command', id: 'valid.command.id' },
           ],
         };
-        await player.play(workbook);
+        await player.play(echo);
         assert.strictEqual(executedCommands.length, 0, 'No commands should execute after block');
       } finally {
         (vscode.commands as any).executeCommand = orig;
@@ -44,8 +44,8 @@ describe('WorkbookPlayer', () => {
       (vscode.workspace as any).findFiles = async () => { fileCalls.push('findFiles'); return []; };
       (vscode.workspace as any).openTextDocument = async () => { fileCalls.push('openTextDocument'); };
       try {
-        const player = new WorkbookPlayer();
-        const workbook: Workbook = {
+        const player = new EchoPlayer();
+        const echo: Echo = {
           version: '1.0',
           metadata: { name: 'test' },
           steps: [
@@ -53,7 +53,7 @@ describe('WorkbookPlayer', () => {
             { type: 'type', text: 'should not run' },
           ],
         };
-        await player.play(workbook);
+        await player.play(echo);
         assert.strictEqual(fileCalls.length, 0, 'No file APIs should be called after path traversal block');
       } finally {
         (vscode.commands as any).executeCommand = origExec;
@@ -69,7 +69,7 @@ describe('WorkbookPlayer', () => {
       const orig = (vscode.commands as any).executeCommand;
       (vscode.commands as any).executeCommand = async (cmd: string, args: any) => { calls.push({ cmd, args }); };
       try {
-        const player = new WorkbookPlayer();
+        const player = new EchoPlayer();
         await player.play({
           version: '1.0', metadata: { name: 't' },
           steps: [{ type: 'type', text: 'hi' }],
@@ -86,7 +86,7 @@ describe('WorkbookPlayer', () => {
       const orig = (vscode.commands as any).executeCommand;
       (vscode.commands as any).executeCommand = async (cmd: string, args: any) => { calls.push({ cmd, args }); };
       try {
-        const player = new WorkbookPlayer();
+        const player = new EchoPlayer();
         await player.play({
           version: '1.0', metadata: { name: 't' },
           steps: [{ type: 'type', text: 'abc', delay: 30 }],
@@ -103,7 +103,7 @@ describe('WorkbookPlayer', () => {
       const orig = (vscode.commands as any).executeCommand;
       (vscode.commands as any).executeCommand = async (cmd: string) => { calls.push(cmd); };
       try {
-        const player = new WorkbookPlayer();
+        const player = new EchoPlayer();
         await player.play({
           version: '1.0', metadata: { name: 't' },
           steps: [{ type: 'command', id: 'workbench.action.files.save' }],
@@ -119,7 +119,7 @@ describe('WorkbookPlayer', () => {
       const orig = (vscode.commands as any).executeCommand;
       (vscode.commands as any).executeCommand = async (cmd: string, ...args: any[]) => { calls.push({ cmd, args }); };
       try {
-        const player = new WorkbookPlayer();
+        const player = new EchoPlayer();
         await player.play({
           version: '1.0', metadata: { name: 't' },
           steps: [{ type: 'command', id: 'someCommand', args: ['arg1', 42] }],
@@ -137,7 +137,7 @@ describe('WorkbookPlayer', () => {
       const orig = (vscode.commands as any).executeCommand;
       (vscode.commands as any).executeCommand = async (cmd: string, args: any) => { calls.push({ cmd, args }); };
       try {
-        const player = new WorkbookPlayer();
+        const player = new EchoPlayer();
         await player.play({
           version: '1.0', metadata: { name: 't' },
           steps: [{ type: 'key', key: 'escape' }],
@@ -154,7 +154,7 @@ describe('WorkbookPlayer', () => {
       const orig = (vscode.commands as any).executeCommand;
       (vscode.commands as any).executeCommand = async (cmd: string, args: any) => { calls.push({ cmd, args }); };
       try {
-        const player = new WorkbookPlayer();
+        const player = new EchoPlayer();
         await player.play({
           version: '1.0', metadata: { name: 't' },
           steps: [{ type: 'key', key: 'x' }],
@@ -172,7 +172,7 @@ describe('WorkbookPlayer', () => {
       const orig = (vscode.commands as any).executeCommand;
       (vscode.commands as any).executeCommand = async (cmd: string) => { calls.push(cmd); };
       try {
-        const player = new WorkbookPlayer();
+        const player = new EchoPlayer();
         await player.play({
           version: '1.0', metadata: { name: 't' },
           steps: [{ type: 'key', key: 'ctrl+shift+unknown' }],
@@ -184,7 +184,7 @@ describe('WorkbookPlayer', () => {
     });
 
     it('wait step completes without error (10ms)', async () => {
-      const player = new WorkbookPlayer();
+      const player = new EchoPlayer();
       await assert.doesNotReject(() =>
         player.play({
           version: '1.0', metadata: { name: 't' },
@@ -194,7 +194,7 @@ describe('WorkbookPlayer', () => {
     });
 
     it('wait step with until:"idle" completes without error', async () => {
-      const player = new WorkbookPlayer();
+      const player = new EchoPlayer();
       await assert.doesNotReject(() =>
         player.play({
           version: '1.0', metadata: { name: 't' },
@@ -207,7 +207,7 @@ describe('WorkbookPlayer', () => {
       const doc = await vscode.workspace.openTextDocument({ content: '', language: 'plaintext' });
       await vscode.window.showTextDocument(doc);
       try {
-        const player = new WorkbookPlayer();
+        const player = new EchoPlayer();
         await player.play({
           version: '1.0', metadata: { name: 't' },
           steps: [{ type: 'paste', text: 'clipboard content' }],
@@ -226,7 +226,7 @@ describe('WorkbookPlayer', () => {
       const orig = (vscode.commands as any).executeCommand;
       (vscode.commands as any).executeCommand = async (cmd: string, args: any) => { calls.push({ cmd, args }); };
       try {
-        const player = new WorkbookPlayer();
+        const player = new EchoPlayer();
         await player.play({
           version: '1.0', metadata: { name: 't' },
           steps: [{ type: 'scroll', direction: 'down', lines: 3 }],
@@ -240,7 +240,7 @@ describe('WorkbookPlayer', () => {
     });
 
     it('select step does not throw when no active editor', async () => {
-      const player = new WorkbookPlayer();
+      const player = new EchoPlayer();
       // activeTextEditor is undefined in plain test host — step is silently skipped
       await assert.doesNotReject(() =>
         player.play({
@@ -251,7 +251,7 @@ describe('WorkbookPlayer', () => {
     });
 
     it('select step with selections array does not throw when no active editor', async () => {
-      const player = new WorkbookPlayer();
+      const player = new EchoPlayer();
       await assert.doesNotReject(() =>
         player.play({
           version: '1.0', metadata: { name: 't' },
@@ -270,7 +270,7 @@ describe('WorkbookPlayer', () => {
       const doc = await vscode.workspace.openTextDocument({ content: 'hello\nworld', language: 'plaintext' });
       const editor = await vscode.window.showTextDocument(doc);
       try {
-        const player = new WorkbookPlayer();
+        const player = new EchoPlayer();
         await player.play({
           version: '1.0', metadata: { name: 't' },
           steps: [{ type: 'select', anchor: [0, 0], active: [0, 5] }],
@@ -290,7 +290,7 @@ describe('WorkbookPlayer', () => {
       const doc = await vscode.workspace.openTextDocument({ content: 'hello\nworld', language: 'plaintext' });
       const editor = await vscode.window.showTextDocument(doc);
       try {
-        const player = new WorkbookPlayer();
+        const player = new EchoPlayer();
         await player.play({
           version: '1.0', metadata: { name: 't' },
           steps: [{
@@ -322,7 +322,7 @@ describe('WorkbookPlayer', () => {
       const orig = (vscode.commands as any).executeCommand;
       (vscode.commands as any).executeCommand = async (cmd: string) => { calls.push(cmd); };
       try {
-        const player = new WorkbookPlayer();
+        const player = new EchoPlayer();
         player.stop();
         await player.play({
           version: '1.0', metadata: { name: 't' },

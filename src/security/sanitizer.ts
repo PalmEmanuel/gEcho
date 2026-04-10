@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 
-// Validates that a file path from a workbook step is safe to use
+// Validates that a file path from an echo step is safe to use
 // Prevents path traversal attacks (../../etc/passwd style)
 export function sanitizeFilePath(filePath: string, workspaceRoot?: string): string {
   // Normalize path separators
@@ -20,7 +20,7 @@ export function sanitizeFilePath(filePath: string, workspaceRoot?: string): stri
   return normalized;
 }
 
-// Validates that a VS Code command ID from a workbook step is safe
+// Validates that a VS Code command ID from an echo step is safe
 // Prevents execution of dangerous system commands
 export function sanitizeCommandId(commandId: string): string {
   // Command IDs should only contain alphanumeric, dots, hyphens, underscores
