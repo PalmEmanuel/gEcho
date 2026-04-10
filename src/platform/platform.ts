@@ -1,7 +1,4 @@
-import { exec } from 'node:child_process';
-import { writeFile, unlink } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { exec, execFile } from 'node:child_process';
 import type { Platform } from '../types/index.js';
 
 export function detectPlatform(): Platform {
@@ -95,8 +92,9 @@ export async function getWindowBounds(): Promise<WindowBounds> {
 
 /**
  * Returns the 0-based index of the physical screen that VS Code's window is currently on.
- * Uses NSScreen via osascript to match the window's left edge against screen frames.
- * Falls back to 0 on any failure (safe default — first screen).
+ * Uses CoreGraphics CGDisplayBounds via `swift -e` — a direct framework call that requires
+ * no Automation permission and never triggers macOS's "would like to access data from other
+ * apps" dialog. Falls back to 0 on any failure or on pre-macOS-12 systems.
  * macOS only; always returns 0 on other platforms.
  */
 export async function getWindowDisplayIndex(): Promise<number> {
@@ -104,36 +102,40 @@ export async function getWindowDisplayIndex(): Promise<number> {
     return 0;
   }
 
-  const script = [
-    'use framework "AppKit"',
-    'use scripting additions',
-    'tell application "Visual Studio Code"',
-    '  set wb to bounds of window 1',
-    '  set wx to (item 1 of wb) as integer',
-    'end tell',
-    'set theScreens to current application\'s NSScreen\'s screens() as list',
-    'set idx to 0',
-    'repeat with i from 1 to count of theScreens',
-    '  set s to item i of theScreens',
-    '  set f to s\'s frame()',
-    '  set sX to (f\'s origin\'s x) as integer',
-    '  set sW to (f\'s size\'s width) as integer',
-    '  if wx >= sX and wx < (sX + sW) then',
-    '    set idx to (i - 1)',
-    '  end if',
-    'end repeat',
-    'return idx',
-  ].join('\n');
-
-  const tmpFile = join(tmpdir(), `gecho-screen-idx-${Date.now()}.scpt`);
   try {
-    await writeFile(tmpFile, script, 'utf8');
-    const out = await execAsync(`osascript "${tmpFile}"`, 3000);
-    const idx = parseInt(out.trim(), 10);
-    return isNaN(idx) ? 0 : idx;
+    const bounds = await getWindowBounds();
+    const wx = bounds.x;
+    const wy = bounds.y;
+
+    const swiftCode = `
+import CoreGraphics
+var count: UInt32 = 0
+CGGetActiveDisplayList(0, nil, &count)
+var displays = [CGDirectDisplayID](repeating: 0, count: Int(count))
+CGGetActiveDisplayList(count, &displays, &count)
+let wx: CGFloat = ${wx}
+let wy: CGFloat = ${wy}
+for (i, d) in displays.enumerated() {
+    let b = CGDisplayBounds(d)
+    if wx >= b.origin.x && wx < b.origin.x + b.size.width && wy >= b.origin.y && wy < b.origin.y + b.size.height {
+        print(i)
+        exit(0)
+    }
+}
+print(0)
+`;
+
+    return new Promise((resolve) => {
+      execFile('swift', ['-e', swiftCode], { timeout: 5000 }, (err, stdout) => {
+        if (err) {
+          resolve(0);
+          return;
+        }
+        const index = parseInt(stdout.trim(), 10);
+        resolve(isNaN(index) ? 0 : index);
+      });
+    });
   } catch {
     return 0;
-  } finally {
-    await unlink(tmpFile).catch(() => {});
   }
 }
