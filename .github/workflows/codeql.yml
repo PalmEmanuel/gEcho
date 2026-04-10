@@ -22,6 +22,9 @@ on:
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
+    # Code scanning is not yet enabled for this repository (private repo).
+    # Re-enable by removing the `if: false` line once the feature is activated.
+    if: false
     runs-on: ubuntu-latest
     permissions:
       security-events: write
