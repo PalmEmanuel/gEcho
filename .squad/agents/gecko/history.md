@@ -24,3 +24,5 @@
 - **`config.ts` is orphaned.** The `getConfig()` accessor is defined but never imported. `capture.ts` reads config directly instead.
 - **Test coverage gaps:** No tests for sanitizers, player, or capture. One test in `recording.test.ts` will fail because it asserts `validateWorkbook` rejects invalid step shapes, but the validator doesn't check step contents.
 - **Windows `getWindowBounds` returns screen area, not window bounds.** The PowerShell script uses `Screen.WorkingArea` instead of actual window geometry.
+
+- **Activation Event Strategy settled (2026-04-09):** `onStartupFinished` is intentionally kept over per-command activation. For a recording extension where the status bar is the primary discovery mechanism, showing the idle state (`🦎 gEcho`) on startup is a deliberate UX win. The updated constraint: prefer `onCommand:gecho.*` unless the feature's UX value requires eager visibility — `onStartupFinished` is acceptable for UI-critical features (like status bars) when the activation payload is lightweight.
