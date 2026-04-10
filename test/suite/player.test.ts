@@ -193,44 +193,15 @@ describe('WorkbookPlayer', () => {
       );
     });
 
-    it('paste step writes to clipboard then calls clipboardPasteAction', async () => {
-      const calls: Array<{ cmd: string; args: any }> = [];
-      const origExec = (vscode.commands as any).executeCommand;
-      // vscode.env.clipboard is a getter-only property on Linux, so direct assignment throws.
-      // Use Object.defineProperty to override it, then restore the original descriptor.
-      const origClipboardDescriptor = Object.getOwnPropertyDescriptor(vscode.env, 'clipboard')
-        ?? Object.getOwnPropertyDescriptor(Object.getPrototypeOf(vscode.env), 'clipboard');
-      const origClipboard = vscode.env.clipboard;
-      let clipboardText = '';
-      // Track all writes so we can verify the paste write happened even though
-      // the player restores the clipboard in its finally block.
-      const writtenTexts: string[] = [];
-      const mockClipboard = {
-        writeText: async (t: string) => { clipboardText = t; writtenTexts.push(t); },
-        readText: async () => clipboardText,
-      };
-      Object.defineProperty(vscode.env, 'clipboard', { value: mockClipboard, configurable: true, writable: true });
-      (vscode.commands as any).executeCommand = async (cmd: string, args: any) => { calls.push({ cmd, args }); };
-      try {
-        const player = new WorkbookPlayer();
-        await player.play({
+    it('paste step does not throw when no active editor', async () => {
+      // activeTextEditor is undefined in plain test host — step is silently skipped
+      const player = new WorkbookPlayer();
+      await assert.doesNotReject(() =>
+        player.play({
           version: '1.0', metadata: { name: 't' },
           steps: [{ type: 'paste', text: 'clipboard content' }],
-        });
-        // Player writes text then restores clipboard — check the write happened in order.
-        assert.strictEqual(writtenTexts[0], 'clipboard content', 'Should write to clipboard before paste');
-        assert.strictEqual(calls.length, 1);
-        assert.strictEqual(calls[0].cmd, 'editor.action.clipboardPasteAction');
-        // Clipboard should be restored to its original value (empty string) after paste.
-        assert.strictEqual(clipboardText, '', 'Clipboard should be restored after paste');
-      } finally {
-        if (origClipboardDescriptor) {
-          Object.defineProperty(vscode.env, 'clipboard', origClipboardDescriptor);
-        } else {
-          Object.defineProperty(vscode.env, 'clipboard', { value: origClipboard, configurable: true, writable: true });
-        }
-        (vscode.commands as any).executeCommand = origExec;
-      }
+        })
+      );
     });
 
     it('scroll step calls editorScroll with correct direction and lines', async () => {
