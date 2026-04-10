@@ -9,6 +9,7 @@ import { readWorkbook, writeWorkbook } from './workbook/index.js';
 import { createStatusBar, updateStatusBar } from './ui/index.js';
 import type { RecordingState, Workbook } from './types/index.js';
 import { WORKBOOK_VERSION } from './types/index.js';
+import { checkDependencies } from './dependencies.js';
 
 let currentState: RecordingState = 'idle';
 let activeRecorder: EchoRecorder | undefined;
@@ -16,6 +17,9 @@ let activePlayer: WorkbookPlayer | undefined;
 let activeCapture: ScreenCapture | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
+  // Check for required external dependencies (e.g. ffmpeg) in the background
+  checkDependencies();
+
   const statusBar = createStatusBar(context);
 
   function setState(state: RecordingState): void {
