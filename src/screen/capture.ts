@@ -1,17 +1,104 @@
-import { spawn } from 'node:child_process';
+import { spawn, execFile } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
-import { access } from 'node:fs/promises';
-import { getWindowBounds, detectPlatform } from '../platform/index.js';
+import { access, stat } from 'node:fs/promises';
+import { getWindowBounds, detectPlatform, getWindowDisplayIndex, getWindowScaleFactor, clearWindowInfoCache, checkScreenRecordingPermissionNative } from '../platform/index.js';
 import type { GifConfig } from '../types/index.js';
 import { sanitizeFfmpegPath } from '../security/index.js';
 import { getConfig } from '../config.js';
+import { buildCropFilter } from './cropFilter.js';
+
+const cachedDeviceIndices: Map<number, string> = new Map();
+let avfDeviceEnumeration: Promise<string[]> | null = null;
+
+/**
+ * Run `ffmpeg -list_devices` once and return the indices of all "Capture screen" devices.
+ * Result is cached as an in-flight Promise so concurrent callers share the same invocation.
+ * Spawn errors (ENOENT, EACCES) are not cached — callers may retry after fixing the path.
+ */
+function enumerateAvfDevices(ffmpegPath: string): Promise<string[]> {
+  if (avfDeviceEnumeration) {
+    return avfDeviceEnumeration;
+  }
+  avfDeviceEnumeration = new Promise((resolve, reject) => {
+    execFile(
+      ffmpegPath,
+      ['-f', 'avfoundation', '-list_devices', 'true', '-i', ''],
+      (err, _stdout, stderr) => {
+        // ENOENT / EACCES mean ffmpeg itself could not be executed — not a permission issue.
+        // Clear the cache so callers can retry once the path is fixed.
+        if (err && (err.code === 'ENOENT' || err.code === 'EACCES')) {
+          avfDeviceEnumeration = null;
+          reject(new Error(`gEcho: Failed to enumerate AVFoundation devices — ${err.message}`));
+          return;
+        }
+        // ffmpeg always exits non-zero when given `-i ""` — that is expected. Parse stderr.
+        const matched: string[] = [];
+        stderr.replace(/\[(\d+)\]\s+Capture\s+screen/gi, (_all, index: string) => {
+          matched.push(index);
+          return '';
+        });
+        resolve(matched);
+      }
+    );
+  });
+  return avfDeviceEnumeration;
+}
+
+/**
+ * Check whether macOS Screen Recording permission has been granted.
+ * Uses the native helper (CGPreflightScreenCaptureAccess) — reliable on macOS 10.15+
+ * and does not trigger a permission prompt.
+ *
+ * On non-darwin platforms this always returns `{ granted: true }`.
+ */
+export async function checkScreenRecordingPermission(): Promise<{ granted: boolean }> {
+  const granted = await checkScreenRecordingPermissionNative();
+  return { granted };
+}
+
+/**
+ * Enumerate AVFoundation video devices and return the index of the screen capture device
+ * for the given display. Falls back to matched[0] if displayIndex is out of range,
+ * then to '1' if no devices are found at all.
+ * Results are cached per display index for the lifetime of the process.
+ */
+async function getScreenCaptureDeviceIndex(ffmpegPath: string, displayIndex: number): Promise<string> {
+  if (cachedDeviceIndices.has(displayIndex)) {
+    return cachedDeviceIndices.get(displayIndex)!;
+  }
+  const matched = await enumerateAvfDevices(ffmpegPath);
+  if (matched.length === 0) {
+    console.warn('gEcho: No AVFoundation screen capture devices found; falling back to device 1');
+    cachedDeviceIndices.set(displayIndex, '1');
+    return '1';
+  }
+  const device = matched[displayIndex] ?? matched[0];
+  cachedDeviceIndices.set(displayIndex, device);
+  return device;
+}
 
 export class ScreenCapture {
   private ffmpegProcess: ChildProcess | null = null;
   private outputPath: string = '';
   private startupStderr: string = '';
+  /** Tracks the in-flight start() so stop() can wait for it and cancel safely. */
+  private _startPromise: Promise<void> | null = null;
+  /** Set by stop() when called while start() is still in-flight. */
+  private _stopRequested = false;
 
   async start(outputPath: string, config?: GifConfig): Promise<void> {
+    clearWindowInfoCache();
+    this._stopRequested = false;
+    const p = this._doStart(outputPath, config);
+    this._startPromise = p;
+    try {
+      await p;
+    } finally {
+      this._startPromise = null;
+    }
+  }
+
+  private async _doStart(outputPath: string, config?: GifConfig): Promise<void> {
     this.outputPath = outputPath;
 
     const bounds = await getWindowBounds();
@@ -31,23 +118,66 @@ export class ScreenCapture {
     let args: string[];
 
     if (platform === 'darwin') {
+      const perm = await checkScreenRecordingPermission();
+      if (!perm.granted) {
+        throw new Error(
+          'gEcho: Screen Recording permission not granted. ' +
+          'Open System Settings → Privacy & Security → Screen Recording and enable VS Code, then restart VS Code.'
+        );
+      }
+      // AVFoundation requires the input framerate to exactly match a supported device mode.
+      // We capture at the native rate and downsample to the desired fps via the fps filter.
+      const AVFOUNDATION_NATIVE_FRAMERATE = 60;
+      const displayIndex = await getWindowDisplayIndex();
+
+      // If stop() was called while we were awaiting getWindowDisplayIndex()
+      // (e.g. awaiting getWindowDisplayIndex), abort before spawning.
+      if (this._stopRequested) {
+        return;
+      }
+
+      const deviceIndex = await getScreenCaptureDeviceIndex(safeFfmpegPath, displayIndex);
+
+      if (this._stopRequested) { return; }
+
+      // AVFoundation captures at physical (Retina) resolution, but CoreGraphics
+      // reports window bounds in logical points. Scale coords up to physical pixels,
+      // then scale the output back down so the GIF matches the logical window size.
+      const scaleFactor = await getWindowScaleFactor();
+      const vf = buildCropFilter({ x, y, width, height }, scaleFactor, fps);
+
       args = [
         '-f', 'avfoundation',
-        '-framerate', String(fps),
-        '-i', '1',
-        '-vf', `crop=${width}:${height}:${x}:${y}`,
+        '-framerate', String(AVFOUNDATION_NATIVE_FRAMERATE),
+        // Skip pixel format negotiation — AVFoundation always settles on uyvy422.
+        // Specifying it explicitly saves 5-10 s of startup time.
+        '-pixel_format', 'uyvy422',
+        '-i', deviceIndex,
+        '-vf', vf,
         '-vcodec', 'libx264',
         '-preset', 'ultrafast',
+        // Force a keyframe every second so fragments flush quickly.
+        '-g', String(AVFOUNDATION_NATIVE_FRAMERATE),
+        // Write self-contained fragments progressively — the file is valid even if
+        // recording is interrupted, avoiding "No such file" errors on quick stops.
+        '-movflags', '+frag_keyframe+empty_moov',
         '-y', outputPath,
       ];
     } else if (platform === 'linux') {
+      // Derive display number from $DISPLAY.
+      // Handles ":0", ":0.0", "localhost:10.0" → "0", "0", "10".
+      // Strips an optional host prefix (anything before the last ':'), then the
+      // screen suffix (anything after '.'), leaving only the numeric display part.
+      const displayNum = (process.env['DISPLAY'] ?? ':0').replace(/^[^:]*:/, '').split('.')[0] || '0';
       args = [
         '-f', 'x11grab',
         '-framerate', String(fps),
         '-video_size', `${width}x${height}`,
-        '-i', `:0.0+${x},${y}`,
+        '-i', `:${displayNum}.0+${x},${y}`,
         '-vcodec', 'libx264',
         '-preset', 'ultrafast',
+        '-g', String(Math.max(1, Math.round(fps))),
+        '-movflags', '+frag_keyframe+empty_moov',
         '-y', outputPath,
       ];
     } else {
@@ -61,6 +191,8 @@ export class ScreenCapture {
         '-i', 'desktop',
         '-vcodec', 'libx264',
         '-preset', 'ultrafast',
+        '-g', String(fps),
+        '-movflags', '+frag_keyframe+empty_moov',
         '-y', outputPath,
       ];
     }
@@ -74,7 +206,7 @@ export class ScreenCapture {
     }
 
     return new Promise((resolve, reject) => {
-      const proc = spawn(safeFfmpegPath, args);
+      const proc = spawn(safeFfmpegPath, args, { stdio: ['pipe', 'pipe', 'pipe'] });
       this.ffmpegProcess = proc;
 
       let resolved = false;
@@ -114,9 +246,24 @@ export class ScreenCapture {
     return this.ffmpegProcess !== null;
   }
 
-  async waitForReady(timeoutMs = 800): Promise<void> {
+  /**
+   * Wait until ffmpeg has opened the output file and is ready to encode frames.
+   *
+   * We watch stderr for "Output #0" — the line ffmpeg emits when it has opened
+   * the muxer and is about to start writing. This is more reliable than a fixed
+   * timeout because AVFoundation device initialisation can take 2-5 seconds on
+   * some machines regardless of CPU speed.
+   *
+   * Rejects with a timeout error after `timeoutMs` (default 8 s) if the signal never arrives.
+   */
+  async waitForReady(timeoutMs = 8_000): Promise<void> {
     if (!this.ffmpegProcess) {
-      throw new Error(`ffmpeg is not running — it may have failed to start. ${this.startupStderr.slice(-500)}`);
+      throw new Error(`gEcho: ffmpeg is not running — it may have failed to start. ${this.startupStderr.slice(-500)}`);
+    }
+
+    // "Output #0" may already be in the buffer if stderr arrived fast.
+    if (this.startupStderr.includes('Output #0')) {
+      return;
     }
 
     return new Promise((resolve, reject) => {
@@ -126,58 +273,126 @@ export class ScreenCapture {
         if (settled) { return; }
         settled = true;
         clearTimeout(timer);
+        this.ffmpegProcess?.stderr?.off('data', onData);
+        this.ffmpegProcess?.off('close', onClose);
         if (err) { reject(err); } else { resolve(); }
+      };
+
+      // Watch for the encoding-ready signal in the continuously accumulated stderr.
+      const onData = () => {
+        if (this.startupStderr.includes('Output #0')) {
+          settle();
+        }
       };
 
       const onClose = (code: number | null) => {
         const stderr = this.startupStderr.slice(-500);
         settle(new Error(
-          `ffmpeg exited with code ${code}${stderr ? ` — ${stderr}` : ''}`
+          `gEcho: ffmpeg exited with code ${code}${stderr ? ` — ${stderr}` : ''}`
         ));
       };
 
+      // If "Output #0" never appeared, the output file was never opened — ffmpeg
+      // is still stuck in AVFoundation device initialisation. Resolving silently
+      // would put us in 'recording-gif' state while recording nothing, so we
+      // reject and let the caller surface a clear error to the user.
+      // They can raise gecho.recording.startupTimeoutMs in settings if needed.
       const timer = setTimeout(() => {
+        this.ffmpegProcess?.stderr?.off('data', onData);
         this.ffmpegProcess?.off('close', onClose);
-        settle();
+        if (this.startupStderr.includes('Output #0')) {
+          settle();
+        } else {
+          settle(new Error(
+            `gEcho: ffmpeg did not open the output file within ${timeoutMs / 1000} s — ` +
+            `AVFoundation initialisation is taking too long. ` +
+            `Try increasing the "gecho.recording.startupTimeoutMs" setting.`
+          ));
+        }
       }, timeoutMs);
 
+      this.ffmpegProcess!.stderr?.on('data', onData);
       this.ffmpegProcess!.once('close', onClose);
     });
   }
 
-  async stop(): Promise<string> {
+  async stop(stopTimeoutMs = 15_000): Promise<string> {
+    // If start() is still in the pre-spawn phase (e.g. awaiting device enumeration or
+    // permission checks), signal cancellation and wait for it to finish before proceeding.
+    let startErr: unknown;
+    if (this._startPromise !== null) {
+      this._stopRequested = true;
+      await this._startPromise.catch((err: unknown) => { startErr = err; });
+    }
+
     const proc = this.ffmpegProcess;
     if (!proc) {
+      // If start() failed with a real error (permission denied, bad ffmpeg path, etc.),
+      // surface that error even if stop() was called. Cancellation only succeeds when
+      // start() completes gracefully after seeing _stopRequested.
+      if (startErr) {
+        throw startErr instanceof Error ? startErr : new Error(String(startErr));
+      }
+      // start() was cancelled cleanly — _stopRequested was checked and start returned early.
+      if (this._stopRequested) {
+        throw new Error('gEcho: Recording was cancelled before it could start.');
+      }
       try {
         await access(this.outputPath);
       } catch {
         throw new Error(
-          `Recording failed — no output was written to ${this.outputPath}. Check ffmpeg permissions and device availability.`
+          `gEcho: Recording failed — no output was written to ${this.outputPath}. Check ffmpeg permissions and device availability.`
         );
       }
       return this.outputPath;
     }
 
     return new Promise((resolve, reject) => {
-      proc.on('close', (code) => {
+      proc.on('close', async (code, signal) => {
+        clearTimeout(sigtermTimer);
+        clearTimeout(sigkillTimer);
         this.ffmpegProcess = null;
-        // ffmpeg exits 255 on some platforms when interrupted by SIGINT;
-        // exits 254 (-2 signed) on some macOS/avfoundation combinations
-        if (code === 0 || code === 254 || code === 255) {
-          resolve(this.outputPath);
-        } else {
-          reject(new Error(`ffmpeg exited with code ${code}`));
+
+        // Verify the output file was actually written before resolving.
+        // If ffmpeg was killed before flushing (or never opened the file), provide
+        // a clear error rather than letting the GIF converter fail silently.
+        try {
+          const fileStat = await stat(this.outputPath);
+          if (fileStat.size === 0) {
+            reject(new Error(
+              'gEcho: Recording produced an empty file — no frames were captured. ' +
+              'Try recording for a longer duration before stopping.'
+            ));
+            return;
+          }
+        } catch {
+          reject(new Error(
+            `gEcho: Recording file not found after stop — ffmpeg exited (code ${code}, signal ${signal}) ` +
+            `before writing data. Diagnostics: ${this.startupStderr.slice(-300)}`
+          ));
+          return;
         }
+
+        resolve(this.outputPath);
       });
 
-      // SIGINT lets ffmpeg flush buffers and write the final file properly
-      proc.kill('SIGINT');
+      // Chronicler pattern: write 'q' and close stdin.
+      // ffmpeg treats 'q' on stdin as a graceful quit, and the stdin EOF is an
+      // additional fallback so ffmpeg exits even if it's not polling stdin.
+      proc.stdin?.end('q');
+
+      // Escalation ladder if stdin signal is ignored.
+      // AVFoundation capture sessions can take several seconds to tear down after
+      // receiving the quit signal, so we give generous grace periods before escalating.
+      const sigtermTimer = setTimeout(() => { if (this.ffmpegProcess) { proc.kill('SIGTERM'); } }, Math.floor(stopTimeoutMs * 0.5));
+      const sigkillTimer = setTimeout(() => { if (this.ffmpegProcess) { proc.kill('SIGKILL'); } }, stopTimeoutMs);
     });
   }
 
   dispose(): void {
     if (this.ffmpegProcess) {
-      this.ffmpegProcess.kill('SIGINT');
+      this.ffmpegProcess.stdin?.end('q');
+      this.ffmpegProcess.kill('SIGTERM');
       this.ffmpegProcess = null;
     }
   }

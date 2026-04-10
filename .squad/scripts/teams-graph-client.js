@@ -18,10 +18,9 @@ const AUTH_PATH = path.join(SQUAD_DIR, 'teams-auth.json');
 // Cursor is repo-local (gitignored) — must match the path teams-monitor.js writes to.
 const LAST_READ_PATH = path.join(__dirname, '..', 'teams-last-read.json');
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
-const GRAPH_BETA = 'https://graph.microsoft.com/beta';
 
 const FALLBACK_LOOKBACK_MINUTES = 30;
-const MAX_MESSAGES_PER_PAGE = 50;
+const MAX_MESSAGES = 20;
 
 // ---------------------------------------------------------------------------
 // Config / cache helpers
@@ -51,7 +50,6 @@ function loadTokenCache() {
 
 function saveTokenCache(serialized) {
   fs.writeFileSync(AUTH_PATH, serialized, 'utf8');
-  fs.chmodSync(AUTH_PATH, 0o600);
 }
 
 // ---------------------------------------------------------------------------
@@ -109,9 +107,9 @@ async function acquireToken() {
 // Graph HTTP helpers
 // ---------------------------------------------------------------------------
 
-function graphRequest(method, apiPath, accessToken, body, baseUrl = GRAPH_BASE) {
+function graphRequest(method, apiPath, accessToken, body) {
   return new Promise((resolve, reject) => {
-    const url = new URL(baseUrl + apiPath);
+    const url = new URL(GRAPH_BASE + apiPath);
     const payload = body ? JSON.stringify(body) : null;
     const options = {
       hostname: url.hostname,
@@ -179,66 +177,12 @@ function stripHtml(html) {
 // Convert plain text to simple Teams-renderable HTML
 // ---------------------------------------------------------------------------
 
-// Teams Fluent emoji tags: <emoji id="SHORTNAME" alt="ASCII_LABEL"></emoji>
-// alt must be ASCII — raw Unicode in alt causes Graph API 400 errors.
-const TEAMS_EMOJI = {
-  '👋': { id: 'wavinghand',      label: 'wave'     },
-  '✅': { id: 'checkmarkbutton', label: 'check'    },
-  '⚡': { id: 'highvoltage',     label: 'zap'      },
-  '⏳': { id: 'hourglassnotdone',label: 'hourglass'},
-  '❌': { id: 'crossmark',       label: 'x'        },
-};
-
 function textToHtml(text) {
-  let html = text
+  return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/\n/g, '<br/>');
-
-  // Replace unicode emoji with Teams Fluent emoji tags.
-  // unicode chars survive HTML escaping unchanged, so we replace after escaping.
-  for (const [char, { id, label }] of Object.entries(TEAMS_EMOJI)) {
-    html = html.split(char).join(`<emoji id="${id}" alt="${label}"></emoji>`);
-  }
-
-  // Strip any remaining emoji / pictographic Unicode that Teams can't render
-  html = html.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\uFE00-\uFE0F]/gu, '');
-
-  return html;
-}
-
-// ---------------------------------------------------------------------------
-// Emoji-strip helpers
-// ---------------------------------------------------------------------------
-
-function stripAllEmoji(html) {
-  return html
-    .replace(/<emoji\b[^>]*><\/emoji>/gi, '')
-    .replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\uFE00-\uFE0F]/gu, '');
-}
-
-async function sendWithEmojiRetry(chatId, html, accessToken) {
-  try {
-    return await graphRequest(
-      'POST',
-      `/chats/${chatId}/messages`,
-      accessToken,
-      { body: { contentType: 'html', content: html } }
-    );
-  } catch (err) {
-    if (err.message && err.message.includes('Unicode')) {
-      console.warn('[teams] emoji stripped and retrying post after Unicode error');
-      const stripped = stripAllEmoji(html);
-      return await graphRequest(
-        'POST',
-        `/chats/${chatId}/messages`,
-        accessToken,
-        { body: { contentType: 'html', content: stripped } }
-      );
-    }
-    throw err;
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -269,24 +213,25 @@ async function getNewMessages() {
     ? new Date(lastRead.lastReadAt)
     : new Date(Date.now() - FALLBACK_LOOKBACK_MINUTES * 60 * 1000);
 
-  // Graph API does not support $filter on createdDateTime for chat messages.
-  // Fetch the 50 most recent messages and filter client-side.
-  let url = `/chats/${config.chatId}/messages?$top=${MAX_MESSAGES_PER_PAGE}`;
-  const messages = [];
-  while (url) {
-    const page = await graphRequest('GET', url, accessToken);
-    const items = page?.value || [];
-    messages.push(...items);
-    // Follow @odata.nextLink if the page was full (strip the base URL prefix)
-    const next = page?.['@odata.nextLink'];
-    url = next ? next.replace(/^https:\/\/graph\.microsoft\.com\/v1\.0/, '') : null;
+  const messagesData = await graphRequest(
+    'GET',
+    `/chats/${config.chatId}/messages?$top=${MAX_MESSAGES}`,
+    accessToken
+  );
+
+  const messages = messagesData?.value || [];
+
+  if (messages.length >= MAX_MESSAGES) {
+    process.stderr.write(`Warning: received ${MAX_MESSAGES} messages (the maximum). Some messages may have been missed.\n`);
   }
 
   const newMessages = messages.filter((msg) => {
     if (!msg.createdDateTime) return false;
     if (new Date(msg.createdDateTime) <= cutoffDate) return false;
+
     const senderName = msg.from?.user?.displayName || msg.from?.application?.displayName || '';
-    if (isBotSender(senderName, config)) return false;
+    if (isBotSender(senderName)) return false;
+
     const rawBody = msg.body?.content || '';
     const text = msg.body?.contentType === 'html' ? stripHtml(rawBody) : rawBody;
     return matchTriggerWord(text, triggerWords) !== null;
@@ -294,12 +239,7 @@ async function getNewMessages() {
 
   newMessages.reverse(); // oldest first
 
-  // Find the most recent message by timestamp (API order is not guaranteed without $orderby).
-  const latestMsg = messages.reduce((latest, m) => {
-    if (!latest || !latest.createdDateTime) return m;
-    if (!m.createdDateTime) return latest;
-    return new Date(m.createdDateTime) > new Date(latest.createdDateTime) ? m : latest;
-  }, null);
+  const latestMsg = messages[0] || null;
   const latestProcessed = newMessages.length > 0 ? newMessages[newMessages.length - 1] : null;
 
   const tasks = newMessages.map((msg) => {
@@ -323,6 +263,7 @@ async function getNewMessages() {
 /**
  * Post a message to the configured chat.
  * @param {string} text - Plain text or HTML content to send.
+ * @param {string} replyToMessageId - Optional message ID to reply to (creates threaded reply).
  */
 async function sendChatMessage(text) {
   const config = loadConfig();
@@ -337,7 +278,12 @@ async function sendChatMessage(text) {
 
   // Always post as a new top-level chat message.
   // The /replies sub-path returns 405 on group chats via Graph API.
-  const result = await sendWithEmojiRetry(config.chatId, html, accessToken);
+  const result = await graphRequest(
+    'POST',
+    `/chats/${config.chatId}/messages`,
+    accessToken,
+    { body: { contentType: 'html', content: html } }
+  );
 
   let id = result?.id || null;
 
@@ -381,41 +327,6 @@ async function editChatMessage(text, messageId) {
   });
 }
 
-/**
- * Add a reaction to a message. Falls back to 👍 if the requested reactionType fails.
- * Returns true on success, false on all-failing.
- * @param {string} chatId
- * @param {string} messageId
- * @param {string} reactionType - e.g. "🫡"
- */
-async function addReaction(chatId, messageId, reactionType) {
-  let accessToken;
-  try {
-    accessToken = await acquireToken();
-  } catch (err) {
-    console.error(`[teams] addReaction: auth failed — ${err.message}`);
-    return false;
-  }
-
-  const apiPath = `/chats/${chatId}/messages/${messageId}/setReaction`;
-
-  try {
-    await graphRequest('POST', apiPath, accessToken, { reactionType }, GRAPH_BETA);
-    return true;
-  } catch (err) {
-    console.error(`[teams] addReaction(${reactionType}) failed — ${err.message}`);
-    if (reactionType === '👍') return false;
-    // Fallback to 👍
-    try {
-      await graphRequest('POST', apiPath, accessToken, { reactionType: '👍' }, GRAPH_BETA);
-      return true;
-    } catch (fallbackErr) {
-      console.error(`[teams] addReaction fallback(👍) failed — ${fallbackErr.message}`);
-      return false;
-    }
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Internal helpers (also used by getNewMessages)
 // ---------------------------------------------------------------------------
@@ -428,14 +339,10 @@ function matchTriggerWord(text, triggerWords) {
   return null;
 }
 
-
-function isBotSender(displayName, config) {
+function isBotSender(displayName) {
   if (!displayName) return false;
   const lower = displayName.toLowerCase();
-  if (config && Array.isArray(config.botDisplayNames) && config.botDisplayNames.length > 0) {
-    return config.botDisplayNames.some(name => name.toLowerCase() === lower);
-  }
   return lower.includes('squad') || lower.includes('bot') || lower.includes('gecho');
 }
 
-module.exports = { acquireToken, loadConfig, getNewMessages, sendChatMessage, editChatMessage, addReaction };
+module.exports = { acquireToken, getNewMessages, sendChatMessage, editChatMessage };

@@ -14,3 +14,5 @@ CHANGELOG.md
 **/*.ts
 !**/*.d.ts
 !images/**
+# Explicitly included — native helpers for window detection
+!resources/bin/**

@@ -554,6 +554,7 @@ The schema path in `contributes.jsonValidation` uses a relative `./schemas/gecho
 **By:** Emanuel Palm (via Copilot)
 
 **What:** Squad agents must never consume tokens unless a new task has actually been discovered. The watch loop (`ralph-watch.js`) runs token-free on a schedule. When the Copilot CLI is open and Ralph's monitoring cycle runs, Ralph checks `.squad/teams-inbox/` — if the inbox is empty, NO agents are spawned. Only when task files are present does Ralph route work to agents.
+**What:** Squad agents must never consume tokens unless a new task has actually been discovered. The watch loop (`ralph-watch.js`) runs token-free on a schedule. When the Copilot CLI is open and Ralph's monitoring cycle runs, Ralph checks `~/.squad/teams-inbox/` — if the inbox is empty, NO agents are spawned. Only when task files are present does Ralph route work to agents.
 
 **Why:** User request — cost discipline. Polling should be pure infrastructure (no AI). Intelligence (and token spend) is triggered only by real work.
 
@@ -760,4 +761,262 @@ Extract `graphRequest` into injectable dependency or export for mocking.
 **Finding:** `getSquadSDK()` called in dead code, never defined.
 
 **Decision:** Remove `askCopilot()` or fix reference (applied ✓ — removed dead code).
+
+---
+
+## 2026-04-10T17:05:22Z: User directive
+
+**By:** Emanuel (via Copilot)  
+**What:** Never push directly to `main`. All changes must go through pull requests — no force-pushes, no direct branch pushes to main, regardless of rebase or conflict resolution context.  
+**Why:** User request — captured for team memory.
+
+---
+
+## Epoch — AVFoundation Screen Device Index Detection (2026-04-10)
+
+**Author:** Epoch  
+**Date:** 2026-04-10  
+**Branch:** fix/avfoundation-device-index  
+**PR:** #65
+
+### Context
+
+macOS AVFoundation enumerates capture devices dynamically. When OBS (with Virtual Camera enabled) is running, it inserts itself into the device list, shifting all subsequent indices. The previously hardcoded `-i 1` was silently recording the OBS Virtual Camera feed instead of the screen.
+
+### Decision
+
+Before spawning the AVFoundation capture process, enumerate devices by running `ffmpeg -f avfoundation -list_devices true -i ""`. Parse stderr for a line matching `\[(\d+)\] .*[Cc]apture [Ss]creen` and use that index as the `-i` argument. Cache the result module-level so enumeration runs at most once per process lifetime.
+
+**Fallback:** if the command fails or no matching device is found, fall back to index `'1'` with a `console.warn`.
+
+### Constraints
+
+1. macOS-only — Linux (`x11grab`) and Windows (`gdigrab`) not affected.
+2. Cache must be invalidated if tests mock device enumeration.
+3. Fallback warning surfaced via `console.warn`.
+
+---
+
+## Epoch — AVFoundation Native Framerate Capture (2026-04-10)
+
+**Author:** Epoch  
+**Date:** 2026-04-10  
+**PR:** fix/avfoundation-framerate-mismatch (#64)
+
+### Context
+
+macOS AVFoundation requires the input `-framerate` to exactly match one of the device's hardware-supported capture modes. Passing an arbitrary framerate (e.g. `gif.fps = 10`) causes ffmpeg to exit immediately with code 251.
+
+### Decision
+
+For the `darwin` platform branch in `src/screen/capture.ts`:
+
+1. Always use `AVFOUNDATION_NATIVE_FRAMERATE = 60` as the input `-framerate`.
+2. Prepend `fps=${fps},` to the `-vf` filter chain so ffmpeg downsamples after capture.
+
+```
+ffmpeg -f avfoundation -framerate 60 -i 1 \
+  -vf "fps=10,crop=W:H:X:Y" \
+  -vcodec libx264 -preset ultrafast output.mp4
+```
+
+---
+
+## Epoch — Multi-Monitor AVFoundation Device Selection (2026-04-10)
+
+**Agent:** Epoch  
+**Date:** 2026-04-10  
+**Branch:** fix/avfoundation-device-index (PR #65)
+
+### Decision
+
+1. **Collect ALL AVFoundation screen devices** — global replace to collect all matching `[N] Capture screen` indices into `matched: string[]`.
+2. **Select device by display index** — use `matched[displayIndex]` where `displayIndex` comes from `getWindowDisplayIndex()`.
+3. **`getWindowDisplayIndex()`** — macOS only; uses `NSScreen.screens()` via AppKit framework bridge to map window X coordinate to screen index; falls back to `0` on error.
+4. **Per-display cache** — `cachedDeviceIndices: Map<number, string>` keyed by displayIndex (replaces single `cachedScreenDeviceIndex`).
+5. **Rebase onto PR #64** — restores `AVFOUNDATION_NATIVE_FRAMERATE = 60` and `fps=${fps},` vf filter.
+
+---
+
+## Epoch — Proactive macOS Screen Recording Permission Check (2026-04-10)
+
+**Author:** Epoch  
+**Date:** 2026-04-10  
+**PR:** #66
+
+### Decision
+
+1. `enumerateAvfDevices(ffmpegPath)` — single source of truth for AVFoundation `-list_devices` output; result cached module-level.
+2. `checkScreenRecordingPermission(ffmpegPath?)` — returns `{ granted: boolean; deviceCount: number }`. Non-darwin returns `{ granted: true, deviceCount: 0 }` immediately.
+3. `ScreenCapture.start()` — calls `checkScreenRecordingPermission` at top of darwin branch; throws before proceeding if `granted === false`. Error includes exact System Settings path.
+4. Extension activation (darwin only) — runs check in background; shows `showErrorMessage` with `'Open System Settings'` button using `x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture` deep-link.
+5. No new VS Code configuration setting — check is automatic and transparent.
+
+---
+
+## Epoch — enumerateAvfDevices Promise-cache and Error Handling (2026-04-10)
+
+**Author:** Epoch  
+**Date:** 2026-04-10  
+**PR:** #66
+
+### Decision
+
+**Cache the Promise, not the resolved value.** `avfDeviceEnumeration: Promise<string[]> | null` replaces `cachedAvfDevices: string[] | null`. First call creates and stores the Promise; all concurrent and subsequent callers return the same Promise.
+
+**Distinguish spawn errors from expected non-zero exit.** `ENOENT`/`EACCES` from `execFile` triggers reject + cache clear. Non-zero exit with stderr is treated as normal enumeration.
+
+**Cache clear on spawn error enables retry** — allows callers to retry after fixing ffmpeg path without extension reload.
+
+**Rule:** All user-facing errors in `capture.ts` must begin with `gEcho:`.
+
+---
+
+## Epoch — CGDisplayBounds (CoreGraphics) for getWindowDisplayIndex (2026-04-10)
+
+**Author:** Epoch  
+**Date:** 2026-04-10  
+**PR:** #67
+
+### Decision
+
+Replace `osascript` + AppKit (`NSScreen.screens()`) with `swift -e` executing a CoreGraphics `CGDisplayBounds` snippet in `getWindowDisplayIndex()`.
+
+**Why:** `CGDisplayBounds` is a direct C-level call — no Apple Events, no Automation permission prompt. Window x/y coordinates are inlined directly into the Swift source string (not as `CommandLine.arguments`, which are not forwarded by `swift -e`).
+
+**Fallback:** fail silently and return display index `0` on systems without `swift -e` (pre-macOS 12 or no Xcode CLT).
+
+**Rule:** When querying macOS display geometry (screen count, bounds, display IDs), always use CoreGraphics via `swift -e` rather than AppKit via `osascript`.
+
+---
+
+## Epoch — Precompile Swift display-index binary (2026-04-10)
+
+**Author:** Epoch  
+**Date:** 2026-04-10  
+**Branch:** fix/macos-display-index-no-automation-permission  
+**PR:** #67 (follow-up)
+
+### Problem
+
+`swift -e {inlineCode}` JIT-compiles on every invocation (10–30 s). Combined with the 5 s `execFile` timeout, `getWindowDisplayIndex()` always timed out and returned 0 while blocking `start()` for 5 s.
+
+### Decision
+
+**Precompile + on-disk binary cache:**
+
+- `buildDisplayIndexBinary()` writes source to `~/.cache/gecho/display-index.swift`, compiles to `~/.cache/gecho/display-index` with `swiftc -O`. `access(binaryPath, X_OK)` check reuses existing binary sub-millisecond.
+- `compiledBinaryPath: Promise<string> | null` — module-level Promise cache; concurrent callers share one `swiftc` invocation; reset to `null` on error.
+- `getWindowDisplayIndex()` runs `Promise.all([getWindowBounds(), getDisplayIndexBinary()])` in parallel, then executes the binary.
+
+**Stop/start race-condition guard in capture.ts:**
+
+- `_startPromise: Promise<void> | null` — tracks in-flight `_doStart()`.
+- `_stopRequested: boolean` — set by `stop()` before ffmpeg has spawned.
+- `stop()` awaits `_startPromise` if in-flight, then proceeds. If cancelled before spawn, throws `'Recording was cancelled before it could start.'`.
+
+---
+
+## Epoch — PR #20 Fixes (2026-04-08)
+
+**Author:** Epoch  
+**Date:** 2026-04-08
+
+### TypeStep.delay semantics clarified
+
+`TypeStep.delay` consistently means *ms since the previous typed character* (per-keystroke interval). Future workbook authoring should treat it as typing cadence (e.g. 55 ms/char), not an absolute timestamp offset.
+
+### QuickPickItem dispatch pattern
+
+Use explicit `command` field on each `QuickPickItem` and dispatch via `vscode.commands.executeCommand(pick.command)`. This is the preferred pattern for all future `showQuickPick` menus in gEcho.
+
+### activeCapture null-safety in async commands
+
+Any command that sets `activeCapture` before an `await` must use optional chaining (`activeCapture?.stop()`) for all post-await accesses.
+
+---
+
+## Gecko — Activation Event Strategy (2026-04-09)
+
+**Author:** Gecko  
+**Date:** 2026-04-09  
+**Status:** Decided
+
+### Decision: Keep `onStartupFinished`
+
+For a recording extension whose primary value proposition is "always there when you need it," showing the idle status bar on startup is a reasonable UX win that outweighs the negligible performance cost.
+
+**Updated constraint:**
+
+> **Activation Strategy:** Prefer per-command activation (`onCommand:gecho.*`) unless the extension's core UX value requires eager visibility. `onStartupFinished` is acceptable for UI-critical features like status bars if the activation payload remains lightweight.
+
+**Implementation:** `"activationEvents": ["onStartupFinished"]` kept in `package.json`. Status bar starts in idle state (`🦎 gEcho`). No additional activation-time side effects.
+
+---
+
+## Epoch — Teams Inbound Integration Design (2026-04-08)
+
+**Author:** Epoch  
+**Date:** 2026-04-08  
+**Status:** Implemented
+
+### Key decisions
+
+- **Auth:** MSAL device code flow (`@azure/msal-node`); no redirect URI needed; token cache serialized to `~/.squad/teams-auth.json`.
+- **File locations:** `~/.squad/teams-config.json` (chatId, clientId, tenantId, triggerWords), `~/.squad/teams-auth.json` (MSAL cache), `~/.squad/teams-last-read.json` (dedup cursor), `~/.squad/teams-inbox/*.md` (pending tasks).
+- **Deduplication:** `lastReadAt` ISO timestamp cursor; fallback 30-minute lookback on first run.
+- **Trigger word:** case-insensitive prefix match after HTML stripping; stripped from task body before writing inbox.
+- **Exit code contract:** exit 0 = normal; exit 1 + stderr `AUTH_REQUIRED` = token expired; exit 0 + "Network error" = transient skip.
+- **Repo vs home split:** repo contains template config (no secrets); runtime state in `~/.squad/`.
+
+---
+
+## Epoch — Teams React-as-Ack + Always-Reply Guarantee (2026-04-10)
+
+**Author:** Epoch  
+**Date:** 2026-04-10  
+**Status:** Implemented
+
+### Decisions
+
+1. **React to original message instead of posting ack** — `POST .../messages/{messageId}/setReaction` with `{ "reactionType": "🙏" }`. Retry once with `"👍"` if non-2xx; non-fatal if both fail.
+2. **`graphRequest` accepts optional `baseUrl`** — default `GRAPH_BASE` (v1.0); beta calls pass `GRAPH_BETA`.
+3. **Remove ack-edit pattern** — `editTeamsMessage` removed; Copilot response posted as new top-level message.
+4. **Task file key renamed** — `**Message ID:**` → `**User Message ID:**`.
+5. **Always-reply guarantee** — every non-final error path in `processTask` posts a user-facing message to Teams; `briefError(err)` caps at 120 chars and strips stack traces.
+
+---
+
+## Grimoire — Integration Test Strategy (2026-04-08)
+
+**Author:** Grimoire  
+**Date:** 2026-04-08  
+**Status:** Active
+
+### Where integration tests live
+
+`test/integration/` — run in VS Code extension host via `test/runIntegrationTest.ts`. Timeout 20 000 ms.
+
+### npm scripts
+
+| Script | What it does |
+|---|---|
+| `npm test` | Unit tests — fast, no ffmpeg required |
+| `npm run test:integration` | Integration tests in VS Code extension host |
+
+### Mock vs real
+
+| Component | Approach |
+|---|---|
+| **ScreenCapture** | Fake ffmpeg binary (shell script). Verifies spawn/SIGINT/stop lifecycle without TCC. |
+| **GifConverter** | Real ffmpeg (skip if absent). Uses `ffmpeg -f lavfi` synthetic video. |
+| **EchoRecorder** | Real VS Code editor. `type` command triggers real `onDidChangeTextDocument`. |
+| **WorkbookPlayer** | Real VS Code editor. Asserts `document.getText()` after playback. |
+
+### Wave 2 addendum (2026-04-09)
+
+- `test/suite/integration/` — second integration layer colocated with extension host tests. Mocha-only tests (`gifConverter`, `screenCapture`) picked up by `.mocharc.json`.
+- **vscode stub:** `Module.prototype.require` patched in `vscodeMock.ts` — must be first import in any file that loads vscode.
+- **Fake ffmpeg without fixtures:** `/usr/bin/false` for `ScreenCapture.start()` rejection test (skip if absent).
+- **`stop()` defensive guard:** rejects with `'no output was written'` when called without a prior `start()`.
 

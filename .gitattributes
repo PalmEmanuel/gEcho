@@ -3,3 +3,7 @@
 .squad/agents/*/history.md merge=union
 .squad/log/** merge=union
 .squad/orchestration-log/** merge=union
+
+# Binary files
+resources/bin/darwin/gecho-helper binary
+

@@ -35,10 +35,9 @@ cat > ~/.squad/teams-config.json << 'EOF'
 }
 EOF
 
-# Install dependencies and run setup (from the repository root)
-cd .squad/scripts
+# Install dependencies and run setup
+cd /Users/emanuel/Code/gEcho
 npm install
-cd ../..
 node .squad/scripts/teams-setup.js
 ```
 
@@ -59,7 +58,7 @@ Send a message starting with `/task` in the configured group chat, then run agai
 ```bash
 node .squad/scripts/teams-monitor.js
 # Expected output: "Found 1 new task"
-# Task file will appear in .squad/teams-inbox/
+# Task file will appear in ~/.squad/teams-inbox/
 ```
 
 ## Re-authentication

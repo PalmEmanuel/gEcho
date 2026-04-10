@@ -4,7 +4,7 @@
  * ralph-watch.js — Ralph's persistent Teams watch loop.
  *
  * Polls the Teams chat on an interval, auto-acknowledges new tasks,
- * and writes them to .squad/teams-inbox/ for the squad to process.
+ * and writes them to ~/.squad/teams-inbox/ for the squad to process.
  *
  * Usage:
  *   node .squad/scripts/ralph-watch.js              # polls every 30s (default)
@@ -71,16 +71,13 @@ async function tick() {
       });
     }
   } catch (err) {
-    const errorCode = typeof err === 'object' && err !== null && 'code' in err ? String(err.code) : undefined;
-    const errorMessage = typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : String(err);
-
-    if (errorCode === 'AUTH_REQUIRED') {
+    if (err.code === 'AUTH_REQUIRED') {
       console.error('❌ AUTH_REQUIRED — run: node .squad/scripts/teams-setup.js');
       cleanup();
       process.exit(1);
     }
     // Network blip — log and continue
-    console.log(`[${new Date().toISOString()}] Error: ${errorMessage} — will retry`);
+    console.log(`[${new Date().toISOString()}] Error: ${err.message} — will retry`);
   }
 }
 
