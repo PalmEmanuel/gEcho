@@ -168,7 +168,7 @@ export class ScreenCapture {
       // Handles ":0", ":0.0", "localhost:10.0" → "0", "0", "10".
       // Strips an optional host prefix (anything before the last ':'), then the
       // screen suffix (anything after '.'), leaving only the numeric display part.
-      const displayNum = (process.env['DISPLAY'] ?? ':0').replace(/^[^:]*:/, '').split('.')[0] ?? '0';
+      const displayNum = (process.env['DISPLAY'] ?? ':0').replace(/^[^:]*:/, '').split('.')[0] || '0';
       args = [
         '-f', 'x11grab',
         '-framerate', String(fps),
@@ -327,12 +327,13 @@ export class ScreenCapture {
 
     const proc = this.ffmpegProcess;
     if (!proc) {
-      // If start() failed for a non-cancellation reason (e.g. bad ffmpeg path, permission
-      // denied), surface the original error so callers know exactly what went wrong.
-      if (startErr && !this._stopRequested) {
+      // If start() failed with a real error (permission denied, bad ffmpeg path, etc.),
+      // surface that error even if stop() was called. Cancellation only succeeds when
+      // start() completes gracefully after seeing _stopRequested.
+      if (startErr) {
         throw startErr instanceof Error ? startErr : new Error(String(startErr));
       }
-      // start() was cancelled before ffmpeg spawned — no process, no output file.
+      // start() was cancelled cleanly — _stopRequested was checked and start returned early.
       if (this._stopRequested) {
         throw new Error('gEcho: Recording was cancelled before it could start.');
       }

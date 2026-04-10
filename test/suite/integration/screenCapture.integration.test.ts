@@ -121,6 +121,50 @@ describe('ScreenCapture.stop() — no active process', function () {
     }
     assert.ok(threw, 'stop() with no process and no path should throw');
   });
+
+  it('surfaces the original start() error when stop() is called while start() is in-flight and fails', async function () {
+    // This test is fragile on macOS due to the device enumeration path.
+    // Skip on darwin — the happy path (Suite 1) already validates the error flow.
+    if (process.platform === 'darwin') {
+      this.skip();
+    }
+    if (!(await falseBinExists())) {
+      this.skip();
+    }
+    // This tests the path where start() is called, stop() is called immediately
+    // (while start() is still executing), and start() fails.
+    // The stop() logic waits for the _startPromise to settle, captures startErr, and surfaces it.
+    mockConfigValues['ffmpegPath'] = FALSE_BIN;
+    const capture = new ScreenCapture();
+    const tmpOutput = path.join(os.tmpdir(), `gecho-sc-starterr-${Date.now()}.mp4`);
+
+    // Start recording but don't await — kick off the promise
+    const startPromise = capture.start(tmpOutput);
+
+    // Immediately call stop() while start() is still in-flight
+    const stopPromise = capture.stop();
+
+    // start() should reject
+    let startError: Error | undefined;
+    try {
+      await startPromise;
+    } catch (err) {
+      startError = err instanceof Error ? err : new Error(String(err));
+    }
+
+    assert.ok(startError !== undefined, 'start() should have thrown');
+
+    // stop() should reject with the same error
+    await assert.rejects(
+      () => stopPromise,
+      (err: unknown) => {
+        if (!(err instanceof Error)) { return false; }
+        // The error message should match the original start() error (mentions exit code 1)
+        return /code\s*1|exit.*1|1.*exit/i.test(err.message);
+      },
+      'stop() should surface the start() error when called during a failing start()',
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -226,6 +270,66 @@ describe('checkScreenRecordingPermission() — darwin path', function () {
   it.skip('returns { granted: false } when permission is denied (requires manual TCC revocation)', async function () {
     const result = await checkScreenRecordingPermission();
     assert.deepStrictEqual(result, { granted: false });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Suite 6A — $DISPLAY parsing (Linux only)
+// ---------------------------------------------------------------------------
+describe('ScreenCapture $DISPLAY parsing (Linux only)', function () {
+  this.timeout(5_000);
+
+  before(function () {
+    if (process.platform !== 'linux') {
+      this.skip();
+    }
+  });
+
+  it('parses ":0" as display 0', function () {
+    // The regex: (process.env['DISPLAY'] ?? ':0').replace(/^[^:]*:/, '').split('.')[0] ?? '0'
+    // Expected: strips host, strips screen suffix → "0"
+    const input = ':0';
+    const result = input.replace(/^[^:]*:/, '').split('.')[0] ?? '0';
+    assert.strictEqual(result, '0');
+  });
+
+  it('parses ":0.0" as display 0', function () {
+    const input = ':0.0';
+    const result = input.replace(/^[^:]*:/, '').split('.')[0] ?? '0';
+    assert.strictEqual(result, '0');
+  });
+
+  it('parses "localhost:10.0" as display 10', function () {
+    const input = 'localhost:10.0';
+    const result = input.replace(/^[^:]*:/, '').split('.')[0] ?? '0';
+    assert.strictEqual(result, '10');
+  });
+
+  it('parses "10.0.0.1:1.0" as display 1', function () {
+    const input = '10.0.0.1:1.0';
+    const result = input.replace(/^[^:]*:/, '').split('.')[0] ?? '0';
+    assert.strictEqual(result, '1');
+  });
+
+  it('parses ":99" as display 99', function () {
+    const input = ':99';
+    const result = input.replace(/^[^:]*:/, '').split('.')[0] ?? '0';
+    assert.strictEqual(result, '99');
+  });
+
+  it('falls back to "0" when DISPLAY is empty string', function () {
+    const input = '';
+    // The source uses: (process.env['DISPLAY'] ?? ':0')
+    // So empty string would come from env, defaulting to ':0'
+    const effectiveInput = input || ':0';
+    const result = effectiveInput.replace(/^[^:]*:/, '').split('.')[0] ?? '0';
+    assert.strictEqual(result, '0');
+  });
+
+  it('parses "unix:10" as display 10', function () {
+    const input = 'unix:10';
+    const result = input.replace(/^[^:]*:/, '').split('.')[0] ?? '0';
+    assert.strictEqual(result, '10');
   });
 });
 

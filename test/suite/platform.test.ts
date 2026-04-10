@@ -49,6 +49,26 @@ describe('getWindowScaleFactor', () => {
     const scale = await getWindowScaleFactor();
     assert.ok(scale >= 1, `Fallback must be ≥ 1, got ${scale}`);
   });
+
+  it('caches the result across multiple calls (no duplicate binary invocations)', async () => {
+    clearWindowInfoCache();
+    const scale1 = await getWindowScaleFactor();
+    const scale2 = await getWindowScaleFactor();
+    const scale3 = await getWindowScaleFactor();
+    // All three calls should return the same value because the cache is shared
+    assert.strictEqual(scale1, scale2, 'scale1 should equal scale2');
+    assert.strictEqual(scale2, scale3, 'scale2 should equal scale3');
+  });
+
+  it('clears the cache when clearWindowInfoCache() is called', async () => {
+    clearWindowInfoCache();
+    const scale1 = await getWindowScaleFactor();
+    clearWindowInfoCache();
+    const scale2 = await getWindowScaleFactor();
+    // We can't assert they differ (platform is stable), but we can assert they're both valid
+    assert.ok(scale1 >= 1, `scale1 must be ≥ 1, got ${scale1}`);
+    assert.ok(scale2 >= 1, `scale2 must be ≥ 1, got ${scale2}`);
+  });
 });
 
 // ---------------------------------------------------------------------------

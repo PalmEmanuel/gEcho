@@ -15,7 +15,8 @@ import { buildCropFilter } from '../../src/screen/cropFilter.js';
 // ---------------------------------------------------------------------------
 function parseVf(vf: string): { fps: number; pw: number; ph: number; px: number; py: number; sw: number; sh: number } {
   // Expected format: fps=N,crop=pw:ph:px:py,scale=sw:sh
-  const m = vf.match(/^fps=(\d+),crop=(\d+):(\d+):(\d+):(\d+),scale=(\d+):(\d+)$/);
+  // px and py can be negative (multi-monitor scenarios)
+  const m = vf.match(/^fps=(\d+),crop=(\d+):(\d+):(-?\d+):(-?\d+),scale=(\d+):(\d+)$/);
   assert.ok(m, `vf string did not match expected format: ${vf}`);
   return {
     fps: Number(m[1]),
@@ -190,6 +191,23 @@ describe('buildCropFilter — zero and edge cases', () => {
     const result = buildCropFilter({ x: 0, y: 0, width: 1920, height: 1080 }, 2.0, 60);
     const parts = parseVf(result);
     assert.strictEqual(parts.fps, 60);
+  });
+
+  it('negative x coordinate is preserved (multi-monitor scenario)', () => {
+    // Secondary monitor positioned to the left can have negative x
+    const result = buildCropFilter({ x: -1920, y: 0, width: 1920, height: 1080 }, 1.0, 10);
+    const parts = parseVf(result);
+    assert.strictEqual(parts.px, -1920);
+    assert.strictEqual(parts.py, 0);
+  });
+
+  it('negative x,y coordinates at 2× scale', () => {
+    const result = buildCropFilter({ x: -500, y: -200, width: 800, height: 600 }, 2.0, 10);
+    const parts = parseVf(result);
+    assert.strictEqual(parts.px, -1000, 'px should be 2× negative x');
+    assert.strictEqual(parts.py, -400, 'py should be 2× negative y');
+    assert.strictEqual(parts.pw, 1600);
+    assert.strictEqual(parts.ph, 1200);
   });
 });
 
