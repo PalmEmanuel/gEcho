@@ -87,7 +87,7 @@ Workbooks are `.gecho.json` files validated against `schemas/gecho-v1.schema.jso
 All PR titles are validated by CI (`validate-pr-title.yml`) and **must** follow [Conventional Commits](https://www.conventionalcommits.org/) format:
 
 ```
-<type>(<optional-scope>): <Subject with at least 10 characters>
+<type>(<optional-scope>): <subject with at least 10 characters>
 ```
 
 ### Allowed Types
@@ -108,7 +108,13 @@ All PR titles are validated by CI (`validate-pr-title.yml`) and **must** follow 
 
 ### Allowed Scopes (optional)
 
-`recording`, `replay`, `capture`, `workbook`, `platform`, `config`, `security`, `ci`, `release`, `deps`, `deps-dev`, `deps-peer`, `github-actions`
+**Architecture scopes** (pair with any type):
+
+`recording`, `replay`, `capture`, `workbook`, `platform`, `config`, `security`, `ci`, `release`
+
+**Dependency scopes** (pair with `deps` type):
+
+`deps`, `deps-dev`, `deps-peer`, `github-actions`
 
 ### Examples
 
