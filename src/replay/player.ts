@@ -124,12 +124,14 @@ export class WorkbookPlayer {
         }
 
         case 'paste': {
-          const previousClipboardText = await vscode.env.clipboard.readText();
-          try {
-            await vscode.env.clipboard.writeText(step.text);
-            await vscode.commands.executeCommand('editor.action.clipboardPasteAction');
-          } finally {
-            await vscode.env.clipboard.writeText(previousClipboardText);
+          const editor = vscode.window.activeTextEditor;
+          if (editor) {
+            const applied = await editor.edit(editBuilder => {
+              editBuilder.replace(editor.selection, step.text);
+            });
+            if (!applied) {
+              vscode.window.showWarningMessage('gEcho: Paste step could not be applied — edit was rejected (document may be read-only).');
+            }
           }
           break;
         }
