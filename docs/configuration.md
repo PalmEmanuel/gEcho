@@ -143,7 +143,7 @@ Each preset removes common VS Code UI elements from the output:
 }
 ```
 
-> **Note:** Custom crop values (`gecho.gif.crop.*`) override the corresponding edge of the preset. The crop is applied before scaling during GIF conversion.
+> **Note:** Custom crop values (`gecho.gif.crop.*`) with a value greater than 0 override the corresponding edge of the preset. A value of 0 (the default) is treated as "use the preset value". The crop is applied before scaling during GIF conversion.
 
 ---
 
@@ -155,7 +155,7 @@ Each preset removes common VS Code UI elements from the output:
 | **Default** | `0` |
 | **Description** | Pixels to crop from the specified edge of the recording. |
 
-Set individual crop values to fine-tune the output. These values override the corresponding edge of the crop preset. All values must be non-negative.
+Set individual crop values to fine-tune the output. Values greater than 0 override the corresponding edge of the crop preset; a value of 0 uses the preset default. All values must be non-negative.
 
 ```json
 {

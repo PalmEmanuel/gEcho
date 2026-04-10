@@ -1,4 +1,4 @@
-import '../suite/integration/vscodeMock.js'; // MUST be the first import — registers vscode stub
+import './integration/vscodeMock.js'; // MUST be the first import — registers vscode stub
 
 import * as assert from 'assert';
 import { resolveCrop, buildCropFilter } from '../../src/converter/gifConverter.js';

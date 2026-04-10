@@ -127,25 +127,25 @@
           "type": "number",
           "default": 0,
           "minimum": 0,
-          "description": "Pixels to crop from the top of the recording. Overrides the crop preset for this edge."
+          "description": "Pixels to crop from the top. Values > 0 override the crop preset; 0 uses the preset default."
         },
         "gecho.gif.crop.bottom": {
           "type": "number",
           "default": 0,
           "minimum": 0,
-          "description": "Pixels to crop from the bottom of the recording. Overrides the crop preset for this edge."
+          "description": "Pixels to crop from the bottom. Values > 0 override the crop preset; 0 uses the preset default."
         },
         "gecho.gif.crop.left": {
           "type": "number",
           "default": 0,
           "minimum": 0,
-          "description": "Pixels to crop from the left of the recording. Overrides the crop preset for this edge."
+          "description": "Pixels to crop from the left. Values > 0 override the crop preset; 0 uses the preset default."
         },
         "gecho.gif.crop.right": {
           "type": "number",
           "default": 0,
           "minimum": 0,
-          "description": "Pixels to crop from the right of the recording. Overrides the crop preset for this edge."
+          "description": "Pixels to crop from the right. Values > 0 override the crop preset; 0 uses the preset default."
         },
         "gecho.replay.speed": {
           "type": "number",
