@@ -126,9 +126,12 @@ export class WorkbookPlayer {
         case 'paste': {
           const editor = vscode.window.activeTextEditor;
           if (editor) {
-            await editor.edit(editBuilder => {
+            const applied = await editor.edit(editBuilder => {
               editBuilder.replace(editor.selection, step.text);
             });
+            if (!applied) {
+              vscode.window.showWarningMessage('gEcho: Paste step could not be applied — edit was rejected (document may be read-only).');
+            }
           }
           break;
         }
