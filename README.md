@@ -108,6 +108,11 @@ Echoes are human-readable JSON files with a `.gecho.json` extension:
 | `gecho.gif.fps` | `10` | Frames per second for GIF output |
 | `gecho.gif.width` | `1920` | GIF output width (height scales proportionally) |
 | `gecho.gif.quality` | `high` | GIF quality preset: `high`, `balanced`, `small` |
+| `gecho.gif.cropPreset` | `none` | Crop preset: `none`, `no-title-bar`, `no-status-bar`, `content-only` |
+| `gecho.gif.crop.top` | `0` | Pixels to crop from the top |
+| `gecho.gif.crop.bottom` | `0` | Pixels to crop from the bottom |
+| `gecho.gif.crop.left` | `0` | Pixels to crop from the left |
+| `gecho.gif.crop.right` | `0` | Pixels to crop from the right |
 | `gecho.replay.speed` | `1.0` | Replay speed multiplier |
 
 > **Full reference:** See the [Configuration Reference](docs/configuration.md) for detailed descriptions of all settings, quality presets, and workspace vs user configuration.

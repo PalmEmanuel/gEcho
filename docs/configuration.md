@@ -119,6 +119,56 @@ Each preset adjusts internal ffmpeg parameters:
 
 ---
 
+### `gecho.gif.cropPreset`
+
+| | |
+|---|---|
+| **Type** | `string` (enum) |
+| **Default** | `"none"` |
+| **Allowed values** | `"none"`, `"no-title-bar"`, `"no-status-bar"`, `"content-only"` |
+| **Description** | Preset for cropping the output recording. |
+
+Each preset removes common VS Code UI elements from the output:
+
+| Preset | Crop | Best For |
+|--------|------|----------|
+| `none` | No cropping | Full window captures |
+| `no-title-bar` | Top 30px | Removing the window title bar |
+| `no-status-bar` | Bottom 22px | Removing the status bar |
+| `content-only` | Top 30px + Bottom 22px | Editor content only |
+
+```json
+{
+  "gecho.gif.cropPreset": "content-only"
+}
+```
+
+> **Note:** Custom crop values (`gecho.gif.crop.*`) override the corresponding edge of the preset. The crop is applied before scaling during GIF conversion.
+
+---
+
+### `gecho.gif.crop.top` / `gecho.gif.crop.bottom` / `gecho.gif.crop.left` / `gecho.gif.crop.right`
+
+| | |
+|---|---|
+| **Type** | `number` |
+| **Default** | `0` |
+| **Description** | Pixels to crop from the specified edge of the recording. |
+
+Set individual crop values to fine-tune the output. These values override the corresponding edge of the crop preset. All values must be non-negative.
+
+```json
+{
+  "gecho.gif.cropPreset": "no-title-bar",
+  "gecho.gif.crop.top": 50,
+  "gecho.gif.crop.bottom": 30
+}
+```
+
+In this example, the title bar preset's default top crop (30px) is overridden with 50px, and an additional 30px bottom crop is added.
+
+---
+
 ### `gecho.replay.speed`
 
 | | |

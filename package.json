@@ -106,6 +106,47 @@
           ],
           "description": "GIF quality preset."
         },
+        "gecho.gif.cropPreset": {
+          "type": "string",
+          "default": "none",
+          "enum": [
+            "none",
+            "no-title-bar",
+            "no-status-bar",
+            "content-only"
+          ],
+          "enumDescriptions": [
+            "No cropping applied.",
+            "Crop the title bar (top 30px).",
+            "Crop the status bar (bottom 22px).",
+            "Crop both the title bar (top 30px) and status bar (bottom 22px)."
+          ],
+          "description": "Preset for cropping the output recording. Custom crop values override the preset."
+        },
+        "gecho.gif.crop.top": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Pixels to crop from the top of the recording. Overrides the crop preset for this edge."
+        },
+        "gecho.gif.crop.bottom": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Pixels to crop from the bottom of the recording. Overrides the crop preset for this edge."
+        },
+        "gecho.gif.crop.left": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Pixels to crop from the left of the recording. Overrides the crop preset for this edge."
+        },
+        "gecho.gif.crop.right": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Pixels to crop from the right of the recording. Overrides the crop preset for this edge."
+        },
         "gecho.replay.speed": {
           "type": "number",
           "default": 1.0,

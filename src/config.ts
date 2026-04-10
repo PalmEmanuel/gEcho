@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { GifConfig, ReplayConfig } from './types/index.js';
+import type { GifConfig, ReplayConfig, CropPreset } from './types/index.js';
 
 export function getConfig() {
   const cfg = vscode.workspace.getConfiguration('gecho');
@@ -10,6 +10,13 @@ export function getConfig() {
       fps: cfg.get<number>('gif.fps', 10),
       width: cfg.get<number>('gif.width', 1920),
       quality: cfg.get<'high' | 'balanced' | 'small'>('gif.quality', 'high'),
+      cropPreset: cfg.get<CropPreset>('gif.cropPreset', 'none'),
+      crop: {
+        top: cfg.get<number>('gif.crop.top', 0),
+        bottom: cfg.get<number>('gif.crop.bottom', 0),
+        left: cfg.get<number>('gif.crop.left', 0),
+        right: cfg.get<number>('gif.crop.right', 0),
+      },
     } satisfies GifConfig,
     replay: {
       speed: cfg.get<number>('replay.speed', 1.0),
