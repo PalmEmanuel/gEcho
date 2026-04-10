@@ -145,7 +145,7 @@
     "vscode:prepublish": "npm run compile"
   },
   "devDependencies": {
-    "@types/vscode": "^1.101.0",
+    "@types/vscode": "^1.115.0",
     "@types/mocha": "^10.0.0",
     "@types/node": "18.x",
     "@typescript-eslint/eslint-plugin": "^7.14.0",
