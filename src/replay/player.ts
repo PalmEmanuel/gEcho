@@ -136,8 +136,12 @@ export class WorkbookPlayer {
         }
 
         case 'paste': {
-          await vscode.env.clipboard.writeText(step.text);
-          await vscode.commands.executeCommand('editor.action.clipboardPasteAction');
+          const editor = vscode.window.activeTextEditor;
+          if (editor) {
+            await editor.edit(editBuilder => {
+              editBuilder.insert(editor.selection.active, step.text);
+            });
+          }
           break;
         }
 

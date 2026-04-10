@@ -203,28 +203,21 @@ describe('WorkbookPlayer', () => {
       );
     });
 
-    it('paste step writes to clipboard and calls clipboardPasteAction', async () => {
-      const calls: Array<{ cmd: string; args: any }> = [];
-      const origExec = (vscode.commands as any).executeCommand;
-      const origClipboard = (vscode.env as any).clipboard;
-      let clipboardText = '';
-      (vscode.env as any).clipboard = {
-        writeText: async (text: string) => { clipboardText = text; },
-        readText: async () => clipboardText,
-      };
-      (vscode.commands as any).executeCommand = async (cmd: string, ...args: any[]) => { calls.push({ cmd, args }); };
+    it('paste step inserts text at cursor position via editor.edit', async () => {
+      const doc = await vscode.workspace.openTextDocument({ content: '', language: 'plaintext' });
+      await vscode.window.showTextDocument(doc);
       try {
         const player = new WorkbookPlayer();
         await player.play({
           version: '1.0', metadata: { name: 't' },
           steps: [{ type: 'paste', text: 'clipboard content' }],
         });
-        assert.strictEqual(clipboardText, 'clipboard content', 'Text should be written to clipboard');
-        assert.strictEqual(calls.length, 1, 'Should call one command');
-        assert.strictEqual(calls[0].cmd, 'editor.action.clipboardPasteAction', 'Should call clipboardPasteAction');
+        assert.ok(
+          doc.getText().includes('clipboard content'),
+          `Expected pasted text in document, got: ${JSON.stringify(doc.getText())}`,
+        );
       } finally {
-        (vscode.commands as any).executeCommand = origExec;
-        (vscode.env as any).clipboard = origClipboard;
+        await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
       }
     });
 
