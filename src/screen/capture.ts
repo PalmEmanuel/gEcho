@@ -7,6 +7,67 @@ import { sanitizeFfmpegPath } from '../security/index.js';
 import { getConfig } from '../config.js';
 
 const cachedDeviceIndices: Map<number, string> = new Map();
+let avfDeviceEnumeration: Promise<string[]> | null = null;
+
+/**
+ * Run `ffmpeg -list_devices` once and return the indices of all "Capture screen" devices.
+ * Result is cached as an in-flight Promise so concurrent callers share the same invocation.
+ * Spawn errors (ENOENT, EACCES) are not cached — callers may retry after fixing the path.
+ */
+function enumerateAvfDevices(ffmpegPath: string): Promise<string[]> {
+  if (avfDeviceEnumeration) {
+    return avfDeviceEnumeration;
+  }
+  avfDeviceEnumeration = new Promise((resolve, reject) => {
+    execFile(
+      ffmpegPath,
+      ['-f', 'avfoundation', '-list_devices', 'true', '-i', ''],
+      (err, _stdout, stderr) => {
+        // ENOENT / EACCES mean ffmpeg itself could not be executed — not a permission issue.
+        // Clear the cache so callers can retry once the path is fixed.
+        if (err && (err.code === 'ENOENT' || err.code === 'EACCES')) {
+          avfDeviceEnumeration = null;
+          reject(new Error(`gEcho: Failed to enumerate AVFoundation devices — ${err.message}`));
+          return;
+        }
+        // ffmpeg always exits non-zero when given `-i ""` — that is expected. Parse stderr.
+        const matched: string[] = [];
+        stderr.replace(/\[(\d+)\]\s+Capture\s+screen/gi, (_all, index: string) => {
+          matched.push(index);
+          return '';
+        });
+        resolve(matched);
+      }
+    );
+  });
+  return avfDeviceEnumeration;
+}
+
+/**
+ * Check whether macOS Screen Recording permission has been granted.
+ * AVFoundation only lists "Capture screen" devices when the permission is active;
+ * an empty device list is a reliable signal that the permission is missing.
+ *
+ * On non-darwin platforms this always returns `{ granted: true, deviceCount: 0 }`.
+ *
+ * @param ffmpegPath Optional resolved ffmpeg path. Reads from config when omitted.
+ */
+export async function checkScreenRecordingPermission(
+  ffmpegPath?: string
+): Promise<{ granted: boolean; deviceCount: number }> {
+  if (process.platform !== 'darwin') {
+    return { granted: true, deviceCount: 0 };
+  }
+  let resolvedPath: string;
+  try {
+    resolvedPath = ffmpegPath ?? sanitizeFfmpegPath(getConfig().ffmpegPath);
+  } catch {
+    // Can't validate without a working ffmpeg path — don't block.
+    return { granted: true, deviceCount: 0 };
+  }
+  const devices = await enumerateAvfDevices(resolvedPath);
+  return { granted: devices.length > 0, deviceCount: devices.length };
+}
 
 /**
  * Enumerate AVFoundation video devices and return the index of the screen capture device
@@ -18,29 +79,15 @@ async function getScreenCaptureDeviceIndex(ffmpegPath: string, displayIndex: num
   if (cachedDeviceIndices.has(displayIndex)) {
     return cachedDeviceIndices.get(displayIndex)!;
   }
-
-  return new Promise((resolve) => {
-    execFile(
-      ffmpegPath,
-      ['-f', 'avfoundation', '-list_devices', 'true', '-i', ''],
-      (_err, _stdout, stderr) => {
-        const matched: string[] = [];
-        stderr.replace(/\[(\d+)\]\s+Capture\s+screen/gi, (_all, index: string) => {
-          matched.push(index);
-          return '';
-        });
-        if (matched.length === 0) {
-          console.warn('gEcho: No AVFoundation screen capture devices found; falling back to device 1');
-          cachedDeviceIndices.set(displayIndex, '1');
-          resolve('1');
-          return;
-        }
-        const device = matched[displayIndex] ?? matched[0];
-        cachedDeviceIndices.set(displayIndex, device);
-        resolve(device);
-      }
-    );
-  });
+  const matched = await enumerateAvfDevices(ffmpegPath);
+  if (matched.length === 0) {
+    console.warn('gEcho: No AVFoundation screen capture devices found; falling back to device 1');
+    cachedDeviceIndices.set(displayIndex, '1');
+    return '1';
+  }
+  const device = matched[displayIndex] ?? matched[0];
+  cachedDeviceIndices.set(displayIndex, device);
+  return device;
 }
 
 export class ScreenCapture {
@@ -68,6 +115,13 @@ export class ScreenCapture {
     let args: string[];
 
     if (platform === 'darwin') {
+      const perm = await checkScreenRecordingPermission(safeFfmpegPath);
+      if (!perm.granted) {
+        throw new Error(
+          'gEcho: Screen Recording permission not granted. ' +
+          'Open System Settings → Privacy & Security → Screen Recording and enable VS Code, then restart VS Code.'
+        );
+      }
       // AVFoundation requires the input framerate to exactly match a supported device mode.
       // We capture at the native rate and downsample to the desired fps via the fps filter.
       const AVFOUNDATION_NATIVE_FRAMERATE = 60;

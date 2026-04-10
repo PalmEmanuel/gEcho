@@ -1,1 +1,1 @@
-export { ScreenCapture } from './capture.js';
+export { ScreenCapture, checkScreenRecordingPermission } from './capture.js';
