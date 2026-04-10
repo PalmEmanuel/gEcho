@@ -111,6 +111,13 @@
           "default": 1.0,
           "description": "Replay speed multiplier."
         },
+        "gecho.recording.startupTimeoutMs": {
+          "type": "number",
+          "default": 20000,
+          "minimum": 5000,
+          "maximum": 60000,
+          "description": "How long (ms) to wait for ffmpeg to open the output file before giving up. AVFoundation on macOS can take 5–15 s on some machines. Increase this if GIF recording fails with 'AVFoundation initialisation is taking too long'."
+        },
         "gecho.recording.stopTimeoutMs": {
           "type": "number",
           "default": 15000,

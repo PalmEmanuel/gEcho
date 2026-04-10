@@ -288,12 +288,23 @@ export class ScreenCapture {
         ));
       };
 
-      // Fallback: if "Output #0" never appears within the window, proceed anyway
-      // (some ffmpeg builds may phrase this line differently).
+      // If "Output #0" never appeared, the output file was never opened — ffmpeg
+      // is still stuck in AVFoundation device initialisation. Resolving silently
+      // would put us in 'recording-gif' state while recording nothing, so we
+      // reject and let the caller surface a clear error to the user.
+      // They can raise gecho.recording.startupTimeoutMs in settings if needed.
       const timer = setTimeout(() => {
         this.ffmpegProcess?.stderr?.off('data', onData);
         this.ffmpegProcess?.off('close', onClose);
-        settle();
+        if (this.startupStderr.includes('Output #0')) {
+          settle();
+        } else {
+          settle(new Error(
+            `ffmpeg did not open the output file within ${timeoutMs / 1000} s — ` +
+            `AVFoundation initialisation is taking too long. ` +
+            `Try increasing the "gecho.recording.startupTimeoutMs" setting.`
+          ));
+        }
       }, timeoutMs);
 
       this.ffmpegProcess!.stderr?.on('data', onData);

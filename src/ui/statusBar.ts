@@ -7,6 +7,11 @@ const STATE_CONFIG: Record<RecordingState, { text: string; tooltip: string; comm
     tooltip: 'gEcho — click to browse commands',
     command: 'gecho.showCommands',
   },
+  'starting-gif': {
+    text: '$(loading~spin) gEcho: Starting...',
+    tooltip: 'gEcho — initialising screen capture, please wait',
+    command: 'gecho.showCommands',
+  },
   recording: {
     text: '🔴 gEcho: Recording...',
     tooltip: 'gEcho — click to stop recording',

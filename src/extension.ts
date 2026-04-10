@@ -152,11 +152,12 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       try {
+        setState('starting-gif');
         activeCapture = new ScreenCapture();
         await vscode.workspace.fs.createDirectory(context.globalStorageUri);
         const tmpMp4Path = path.join(context.globalStorageUri.fsPath, `gecho-${Date.now()}.mp4`);
         await activeCapture.start(tmpMp4Path);
-        await activeCapture.waitForReady();
+        await activeCapture.waitForReady(getConfig().recording.startupTimeoutMs);
         setState('recording-gif');
         vscode.window.showInformationMessage('gEcho: GIF recording started.');
       } catch (err) {
