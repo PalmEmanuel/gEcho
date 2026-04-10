@@ -141,9 +141,13 @@
     },
     "SelectStep": {
       "type": "object",
-      "required": ["type", "anchor", "active"],
+      "required": ["type"],
       "additionalProperties": false,
-      "description": "Set the editor selection with anchor and active positions",
+      "description": "Set the editor selection with anchor and active positions, or multiple selections for multi-cursor",
+      "anyOf": [
+        { "required": ["anchor", "active"] },
+        { "required": ["selections"] }
+      ],
       "properties": {
         "type": {
           "type": "string",
@@ -163,6 +167,32 @@
           "minItems": 2,
           "maxItems": 2,
           "description": "Active (cursor) position as [line, character] (zero-based)"
+        },
+        "selections": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["anchor", "active"],
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "type": "array",
+                "items": { "type": "integer", "minimum": 0 },
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "Anchor position as [line, character] (zero-based)"
+              },
+              "active": {
+                "type": "array",
+                "items": { "type": "integer", "minimum": 0 },
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "Active (cursor) position as [line, character] (zero-based)"
+              }
+            }
+          },
+          "description": "Array of selections for multi-cursor support"
         }
       }
     },
