@@ -43,7 +43,7 @@ export class EchoRecorder {
         // Skip empty collapsed cursors that match an earlier position (no real intent)
         if (selection.isEmpty) {
           const prev = this.lastStep();
-          if (prev?.type === 'select') {
+          if (prev?.type === 'select' && prev.active) {
             const [al, ac] = prev.active;
             if (al === selection.active.line && ac === selection.active.character) {
               return;
