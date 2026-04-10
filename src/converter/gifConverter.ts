@@ -29,7 +29,7 @@ export class GifConverter {
     try {
       safeFfmpegPath = sanitizeFfmpegPath(cfg.ffmpegPath);
     } catch (err) {
-      throw new Error(`gEcho: Invalid ffmpeg path — ${err instanceof Error ? err.message : String(err)}`);
+      throw new Error(`gEcho: Invalid ffmpeg path — ${err instanceof Error ? err.message : String(err)}`, { cause: err });
     }
 
     const palettePath = path.join(os.tmpdir(), `gecho-palette-${Date.now()}.png`);

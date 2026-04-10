@@ -24,7 +24,7 @@ export class ScreenCapture {
     try {
       safeFfmpegPath = sanitizeFfmpegPath(cfg.ffmpegPath);
     } catch (err) {
-      throw new Error(`gEcho: Invalid ffmpeg path — ${err instanceof Error ? err.message : String(err)}`);
+      throw new Error(`gEcho: Invalid ffmpeg path — ${err instanceof Error ? err.message : String(err)}`, { cause: err });
     }
 
     const platform = detectPlatform();
