@@ -136,6 +136,7 @@
     "build": "npm run compile",
     "watch": "tsc -watch -p ./",
     "check-types": "tsc --noEmit",
+    "build:native": "bash scripts/build-native.sh",
     "pretest": "npm run compile",
     "test": "node ./out/test/runTest.js",
     "pretest:integration": "npm run compile",
