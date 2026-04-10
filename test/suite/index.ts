@@ -8,9 +8,11 @@ export function run(): Promise<void> {
 
   return new Promise((resolve, reject) => {
     // Match all *.test.js files including those in subdirectories (e.g. integration/).
+    // Exclude mocha-only integration tests (gifConverter, screenCapture) that patch
+    // Module.prototype.require via vscodeMock and cannot run in the extension host.
     glob('**/*.test.js', { cwd: testsRoot }).then((files) => {
       files
-        .filter((f) => !f.endsWith('.integration.test.js'))
+        .filter((f) => !f.includes('gifConverter.integration') && !f.includes('screenCapture.integration'))
         .forEach((f) => mocha.addFile(path.resolve(testsRoot, f)));
 
       try {

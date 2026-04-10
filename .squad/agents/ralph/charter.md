@@ -33,7 +33,7 @@
 
 ## Teams Inbox Integration
 
-The watch daemon (`ralph-watch.js`) runs token-free on a schedule and writes task files to `~/.squad/teams-inbox/`. Ralph only consumes tokens when task files are actually present.
+The watch daemon (`ralph-watch.js`) runs token-free on a schedule and writes task files to `.squad/teams-inbox/`. Ralph only consumes tokens when task files are actually present.
 
 **Token discipline rule:** NEVER spawn agents, NEVER use tokens, unless at least one `.md` file exists in `.squad/teams-inbox/`. An empty inbox means do nothing — no agents, no polling cost.
 
