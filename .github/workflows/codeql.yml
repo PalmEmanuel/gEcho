@@ -22,6 +22,10 @@ on:
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
+    # Code scanning is gated by an explicit repository/org variable.
+    # Set CODEQL_ENABLED=true in repo/org variables to re-enable this workflow when
+    # the feature is activated.
+    if: ${{ vars.CODEQL_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       security-events: write

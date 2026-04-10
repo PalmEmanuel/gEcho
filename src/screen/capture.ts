@@ -67,6 +67,12 @@ export class ScreenCapture {
 
     this.startupStderr = '';
 
+    // On Windows, .bat/.cmd files cannot be spawned directly — wrap via cmd.exe.
+    if (process.platform === 'win32' && /\.(bat|cmd)$/i.test(safeFfmpegPath)) {
+      args = ['/c', safeFfmpegPath, ...args];
+      safeFfmpegPath = 'cmd.exe';
+    }
+
     return new Promise((resolve, reject) => {
       const proc = spawn(safeFfmpegPath, args);
       this.ffmpegProcess = proc;

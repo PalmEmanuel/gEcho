@@ -22,4 +22,8 @@
 - **Cross-platform matrix non-negotiable:** Always test on [ubuntu-latest, macos-latest, windows-latest] to catch platform bugs early
 - **VS Code Marketplace requires repository, bugs, homepage fields:** Missing `repository`, `bugs`, or `homepage` in package.json blocks Marketplace publishing; also add relevant `keywords` and expand `categories` for discoverability
 - **VS Code 1.74+ auto-generates activation events:** With vscode >=1.74.0, explicit `activationEvents` for commands are auto-generated from `contributes.commands`; redundant activation events can be removed (gEcho targets 1.101.0, so safe to remove)
+- **ffmpeg setup for integration tests:** Use `sudo apt-get install -y ffmpeg` on Linux (fast, ~30s), `AnimMouse/setup-ffmpeg@v1` action on macOS/Windows (cross-platform portable, avoids slow homebrew); make ffmpeg available in PATH for test discovery
+- **Mocha integration tests alongside unit tests:** Mocha runs both unit and integration tests via `mocha --config .mocharc.json --grep "integration" --timeout 60000`; integration tests self-skip if ffmpeg unavailable; use 60s timeout instead of 10s default
+- **Separate integration-gif job for long-running GIF pipeline:** Linux-only dedicated job that depends on build-and-test; runs full record→play→GIF tests with Xvfb and 15-minute timeout; prevents GIF test flakiness from blocking the 3-platform matrix
+- **check-types step required:** Add `npm run check-types` to CI after compile; runs `tsc --noEmit` to catch type errors early without emitting code (already configured in package.json scripts)
 

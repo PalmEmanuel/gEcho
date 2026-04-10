@@ -1,10 +1,12 @@
 {
-  "spec": "out/test/suite/**/*.test.js",
+  "spec": ["out/test/suite/**/*.test.js"],
   "ignore": [
     "out/test/suite/extension.test.js",
     "out/test/suite/player.test.js",
-    "out/test/suite/recorder.test.js"
+    "out/test/suite/recorder.test.js",
+    "out/test/suite/integration/workbookRoundtrip.integration.test.js",
+    "out/test/suite/integration/playerFidelity.integration.test.js"
   ],
-  "timeout": 10000,
+  "timeout": 30000,
   "ui": "bdd"
 }

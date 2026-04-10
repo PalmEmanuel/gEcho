@@ -547,6 +547,26 @@ The schema path in `contributes.jsonValidation` uses a relative `./schemas/gecho
 **Why:** User requirement — quality and maintainability standard for the project.
 
 **Effect on routing:** All feature work spawns Grimoire in parallel. Grimoire's test coverage is a required deliverable, not optional.
+
+---
+
+## 2026-04-09T14:51:50Z: User directive
+**By:** Emanuel Palm (via Copilot)
+
+**What:** Squad agents must never consume tokens unless a new task has actually been discovered. The watch loop (`ralph-watch.js`) runs token-free on a schedule. When the Copilot CLI is open and Ralph's monitoring cycle runs, Ralph checks `.squad/teams-inbox/` — if the inbox is empty, NO agents are spawned. Only when task files are present does Ralph route work to agents.
+
+**Why:** User request — cost discipline. Polling should be pure infrastructure (no AI). Intelligence (and token spend) is triggered only by real work.
+
+---
+
+## 2026-04-09T15:04:30Z: User directive
+**By:** Emanuel Palm (via Copilot)
+
+**What:** Teams inbox (task files) should live in the repo at `.squad/teams-inbox/` (gitignored), not at `~/.squad/teams-inbox/`. Processed files go to `.squad/teams-processed/` (also gitignored).
+
+**Why:** User preference — keeps all squad state in one place (the repo), easier to navigate and debug. Not scattered across home directory.
+
+**Effect:** Update `.gitignore` to exclude `.squad/teams-inbox/` and `.squad/teams-processed/`. Update `teams-monitor.js`, `ralph-watch.js`, `ralph-agent.js` to use repo-local paths.
 # Decision: Event-driven ffmpeg startup liveness check
 
 **Date:** 2026-04-08  

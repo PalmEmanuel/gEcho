@@ -38,13 +38,37 @@ jobs:
 
       - run: npm run compile
 
+      - run: npm run check-types
+
       - run: npm run lint
+
+      - if: runner.os == 'Linux'
+        run: sudo apt-get install -y ffmpeg
+
+      - if: runner.os != 'Linux'
+        uses: AnimMouse/setup-ffmpeg@v1
 
       - if: runner.os == 'Linux'
         run: xvfb-run -a npm test
 
       - if: runner.os != 'Linux'
         run: npm test
+
+      - name: Integration tests
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:integration
+
+      - name: Integration tests
+        if: runner.os != 'Linux'
+        run: npm run test:integration
+
+      - name: Node integration tests
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npx mocha --config .mocharc.json --grep integration
+
+      - name: Node integration tests
+        if: runner.os != 'Linux'
+        run: npx mocha --config .mocharc.json --grep integration
 
       - if: runner.os == 'Linux'
         run: npm run package

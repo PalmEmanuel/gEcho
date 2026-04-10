@@ -9,9 +9,9 @@ type WindowBounds = { x: number; y: number; width: number; height: number };
 
 const FALLBACK_BOUNDS: WindowBounds = { x: 0, y: 0, width: 1920, height: 1080 };
 
-function execAsync(cmd: string): Promise<string> {
+function execAsync(cmd: string, timeoutMs = 3000): Promise<string> {
   return new Promise((resolve, reject) => {
-    exec(cmd, (error, stdout) => {
+    exec(cmd, { timeout: timeoutMs }, (error, stdout) => {
       if (error) {
         reject(error);
       } else {
