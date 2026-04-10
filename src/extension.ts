@@ -164,7 +164,7 @@ export function activate(context: vscode.ExtensionContext): void {
         setState('idle');
         activeCapture = undefined;
         const msg = err instanceof Error ? err.message : String(err);
-        const isPermissionError = /permission|AVFoundation|avfoundation/i.test(msg);
+        const isPermissionError = /permission not granted|screen recording|not authorized/i.test(msg);
         const hint = process.platform === 'darwin' && isPermissionError
           ? ' Go to System Settings → Privacy & Security → Screen Recording and enable VS Code.'
           : '';
@@ -324,7 +324,7 @@ export function activate(context: vscode.ExtensionContext): void {
         activeCapture = undefined;
         setState('idle');
         const msg = err instanceof Error ? err.message : String(err);
-        const isPermissionError = /permission|AVFoundation|avfoundation/i.test(msg);
+        const isPermissionError = /permission not granted|screen recording|not authorized/i.test(msg);
         const hint = process.platform === 'darwin' && isPermissionError
           ? ' Go to System Settings → Privacy & Security → Screen Recording and enable VS Code.'
           : '';

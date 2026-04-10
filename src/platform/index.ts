@@ -1,1 +1,1 @@
-export { detectPlatform, getWindowBounds, getWindowDisplayIndex, getWindowInfo, clearWindowInfoCache } from './platform.js';
+export { detectPlatform, getWindowBounds, getWindowDisplayIndex, getWindowScaleFactor, getWindowInfo, clearWindowInfoCache, checkScreenRecordingPermissionNative } from './platform.js';
