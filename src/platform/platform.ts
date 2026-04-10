@@ -1,4 +1,7 @@
 import { exec } from 'node:child_process';
+import { writeFile, unlink } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { Platform } from '../types/index.js';
 
 export function detectPlatform(): Platform {
@@ -88,4 +91,49 @@ export async function getWindowBounds(): Promise<WindowBounds> {
   }
 
   return FALLBACK_BOUNDS;
+}
+
+/**
+ * Returns the 0-based index of the physical screen that VS Code's window is currently on.
+ * Uses NSScreen via osascript to match the window's left edge against screen frames.
+ * Falls back to 0 on any failure (safe default — first screen).
+ * macOS only; always returns 0 on other platforms.
+ */
+export async function getWindowDisplayIndex(): Promise<number> {
+  if (detectPlatform() !== 'darwin') {
+    return 0;
+  }
+
+  const script = [
+    'use framework "AppKit"',
+    'use scripting additions',
+    'tell application "Visual Studio Code"',
+    '  set wb to bounds of window 1',
+    '  set wx to (item 1 of wb) as integer',
+    'end tell',
+    'set theScreens to current application\'s NSScreen\'s screens() as list',
+    'set idx to 0',
+    'repeat with i from 1 to count of theScreens',
+    '  set s to item i of theScreens',
+    '  set f to s\'s frame()',
+    '  set sX to (f\'s origin\'s x) as integer',
+    '  set sW to (f\'s size\'s width) as integer',
+    '  if wx >= sX and wx < (sX + sW) then',
+    '    set idx to (i - 1)',
+    '  end if',
+    'end repeat',
+    'return idx',
+  ].join('\n');
+
+  const tmpFile = join(tmpdir(), `gecho-screen-idx-${Date.now()}.scpt`);
+  try {
+    await writeFile(tmpFile, script, 'utf8');
+    const out = await execAsync(`osascript "${tmpFile}"`, 3000);
+    const idx = parseInt(out.trim(), 10);
+    return isNaN(idx) ? 0 : idx;
+  } catch {
+    return 0;
+  } finally {
+    await unlink(tmpFile).catch(() => {});
+  }
 }

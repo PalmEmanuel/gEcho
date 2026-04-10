@@ -1,10 +1,47 @@
-import { spawn } from 'node:child_process';
+import { spawn, execFile } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
 import { access } from 'node:fs/promises';
-import { getWindowBounds, detectPlatform } from '../platform/index.js';
+import { getWindowBounds, detectPlatform, getWindowDisplayIndex } from '../platform/index.js';
 import type { GifConfig } from '../types/index.js';
 import { sanitizeFfmpegPath } from '../security/index.js';
 import { getConfig } from '../config.js';
+
+const cachedDeviceIndices: Map<number, string> = new Map();
+
+/**
+ * Enumerate AVFoundation video devices and return the index of the screen capture device
+ * for the given display. Falls back to matched[0] if displayIndex is out of range,
+ * then to '1' if no devices are found at all.
+ * Results are cached per display index for the lifetime of the process.
+ */
+async function getScreenCaptureDeviceIndex(ffmpegPath: string, displayIndex: number): Promise<string> {
+  if (cachedDeviceIndices.has(displayIndex)) {
+    return cachedDeviceIndices.get(displayIndex)!;
+  }
+
+  return new Promise((resolve) => {
+    execFile(
+      ffmpegPath,
+      ['-f', 'avfoundation', '-list_devices', 'true', '-i', ''],
+      (_err, _stdout, stderr) => {
+        const matched: string[] = [];
+        stderr.replace(/\[(\d+)\]\s+Capture\s+screen/gi, (_all, index: string) => {
+          matched.push(index);
+          return '';
+        });
+        if (matched.length === 0) {
+          console.warn('gEcho: No AVFoundation screen capture devices found; falling back to device 1');
+          cachedDeviceIndices.set(displayIndex, '1');
+          resolve('1');
+          return;
+        }
+        const device = matched[displayIndex] ?? matched[0];
+        cachedDeviceIndices.set(displayIndex, device);
+        resolve(device);
+      }
+    );
+  });
+}
 
 export class ScreenCapture {
   private ffmpegProcess: ChildProcess | null = null;
@@ -30,15 +67,16 @@ export class ScreenCapture {
     const platform = detectPlatform();
     let args: string[];
 
-    // AVFoundation requires the input framerate to exactly match a supported device mode.
-    // We capture at the native rate and downsample to the desired fps via the fps filter.
-    const AVFOUNDATION_NATIVE_FRAMERATE = 60;
-
     if (platform === 'darwin') {
+      // AVFoundation requires the input framerate to exactly match a supported device mode.
+      // We capture at the native rate and downsample to the desired fps via the fps filter.
+      const AVFOUNDATION_NATIVE_FRAMERATE = 60;
+      const displayIndex = await getWindowDisplayIndex();
+      const deviceIndex = await getScreenCaptureDeviceIndex(safeFfmpegPath, displayIndex);
       args = [
         '-f', 'avfoundation',
         '-framerate', String(AVFOUNDATION_NATIVE_FRAMERATE),
-        '-i', '1',
+        '-i', deviceIndex,
         '-vf', `fps=${fps},crop=${width}:${height}:${x}:${y}`,
         '-vcodec', 'libx264',
         '-preset', 'ultrafast',
