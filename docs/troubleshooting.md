@@ -84,14 +84,14 @@ Common issues and how to resolve them.
 
 ## Replay Does Nothing
 
-**Symptom:** Running "Replay Workbook" appears to do nothing, or the command is not found.
+**Symptom:** Running "Replay Echo" appears to do nothing, or the command is not found.
 
-**Cause:** The extension may not be activated, or the workbook file is invalid.
+**Cause:** The extension may not be activated, or the echo file is invalid.
 
 **Fix:**
 1. Ensure gEcho is installed and enabled in VS Code's Extensions view.
 2. Open the Command Palette and verify that gEcho commands appear.
-3. Check the workbook file for JSON syntax errors — VS Code will show red squiggles if the file does not match the schema.
+3. Check the echo file for JSON syntax errors — VS Code will show red squiggles if the file does not match the schema.
 4. Check VS Code's Output panel (View → Output → select "gEcho" from the dropdown) for error messages.
 
 ---
@@ -110,9 +110,9 @@ Common issues and how to resolve them.
 
 ---
 
-## Workbook Validation Errors
+## Echo Validation Errors
 
-**Symptom:** Red squiggles appear in your `.gecho.json` file, or replay fails with "Invalid workbook format."
+**Symptom:** Red squiggles appear in your `.gecho.json` file, or replay fails with "Invalid echo format."
 
 **Common causes and fixes:**
 
@@ -124,7 +124,7 @@ Common issues and how to resolve them.
 | Extra properties | Remove unrecognized fields — the schema uses `additionalProperties: false` |
 | Invalid `anchor`/`active` in `select` | Ensure they are arrays of exactly two non-negative integers: `[line, character]` |
 
-See the [Workbook Format Reference](workbook-reference.md) for the complete schema.
+See the [Echo Format Reference](echo-reference.md) for the complete schema.
 
 ---
 
@@ -144,14 +144,14 @@ See the [Workbook Format Reference](workbook-reference.md) for the complete sche
 
 ## Slow Replay
 
-**Symptom:** Workbook replay is too slow, especially in CI.
+**Symptom:** Echo replay is too slow, especially in CI.
 
 **Fix:**
 - Increase the replay speed:
   ```json
   { "gecho.replay.speed": 2.0 }
   ```
-- Reduce `wait` step durations in the workbook.
+- Reduce `wait` step durations in the echo.
 - Remove unnecessary `wait` steps.
 
 ---
@@ -184,5 +184,5 @@ If none of the above resolve your issue:
 3. [Open an issue](https://github.com/emanuelpalm/gEcho/issues) with:
    - Your OS and VS Code version
    - The error message or unexpected behavior
-   - The workbook file (if applicable)
+   - The echo file (if applicable)
    - Output from `ffmpeg -version`

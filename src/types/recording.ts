@@ -1,4 +1,4 @@
-import type { StepType } from './workbook.js';
+import type { StepType } from './echo.js';
 
 export type RecordingMode = 'echo' | 'gif' | 'combined';
 

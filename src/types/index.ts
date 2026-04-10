@@ -8,10 +8,10 @@ export type {
   PasteStep,
   ScrollStep,
   StepType,
-  WorkbookMetadata,
-  Workbook,
-} from './workbook.js';
-export { WORKBOOK_VERSION, WORKBOOK_FILE_EXTENSION } from './workbook.js';
+  EchoMetadata,
+  Echo,
+} from './echo.js';
+export { ECHO_VERSION, ECHO_FILE_EXTENSION } from './echo.js';
 
 export type {
   RecordingMode,

@@ -10,7 +10,7 @@ gEcho requires **VS Code 1.101.0** or later. Download it from [code.visualstudio
 
 ### ffmpeg
 
-ffmpeg is required for GIF recording and screen capture. It is **not** needed for Echo (workbook) recording or workbook replay without GIF output.
+ffmpeg is required for GIF recording and screen capture. It is **not** needed for Echo recording or echo replay without GIF output.
 
 #### macOS
 
@@ -67,7 +67,7 @@ code --install-extension PalmEmanuel.gEcho
 
 ## Your First Echo Recording
 
-Echo mode records your VS Code interactions (typing, commands, selections) into a replayable **workbook** — a human-readable JSON file.
+Echo mode records your VS Code interactions (typing, commands, selections) into a replayable **echo** — a human-readable JSON file.
 
 1. Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
 2. Run **gEcho: Start Echo Recording**
@@ -76,7 +76,7 @@ Echo mode records your VS Code interactions (typing, commands, selections) into 
 5. Open the Command Palette again and run **gEcho: Stop Echo Recording**
 6. Choose a save location and save as `my-first-demo.gecho.json`
 
-The resulting workbook captures your typing rhythm, commands, and file navigation. You can open it in VS Code to inspect or edit the steps.
+The resulting echo captures your typing rhythm, commands, and file navigation. You can open it in VS Code to inspect or edit the steps.
 
 ## Your First GIF Recording
 
@@ -90,28 +90,28 @@ GIF mode captures the VS Code window as a screen recording.
 
 > **macOS users:** The first time you record, macOS may prompt for screen recording permission. Grant it in **System Settings → Privacy & Security → Screen Recording**.
 
-## Replay a Workbook as GIF
+## Replay an Echo as GIF
 
-The most powerful workflow: replay a recorded workbook while capturing it as a GIF. This produces deterministic, reproducible output.
+The most powerful workflow: replay a recorded echo while capturing it as a GIF. This produces deterministic, reproducible output.
 
 1. Open the Command Palette
 2. Run **gEcho: Replay as GIF**
-3. Select a `.gecho.json` workbook file
+3. Select a `.gecho.json` echo file
 4. gEcho replays your recorded actions and simultaneously records the screen
 5. When replay finishes, choose a save location for the GIF
 
 ## Replay Without Recording
 
-To test a workbook without generating a GIF:
+To test an echo without generating a GIF:
 
 1. Open the Command Palette
-2. Run **gEcho: Replay Workbook**
-3. Select a `.gecho.json` workbook file
+2. Run **gEcho: Replay Echo**
+3. Select a `.gecho.json` echo file
 4. Watch as gEcho replays each step
 
 ## Next Steps
 
-- Learn the full [Workbook Format Reference](workbook-reference.md) to hand-author or edit workbooks
+- Learn the full [Echo Format Reference](echo-reference.md) to hand-author or edit echoes
 - Review all available [Configuration](configuration.md) settings
 - Set up [CI Integration](ci-integration.md) to auto-generate GIFs in your pipeline
 - Check [Limitations](limitations.md) to understand what gEcho can and cannot capture

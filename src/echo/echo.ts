@@ -1,28 +1,28 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import type { Workbook } from '../types/index.js';
+import type { Echo } from '../types/index.js';
 
-export async function readWorkbook(filePath: string): Promise<Workbook> {
+export async function readEcho(filePath: string): Promise<Echo> {
   const raw = await readFile(filePath, 'utf-8');
   let data: unknown;
   try {
     data = JSON.parse(raw) as unknown;
   } catch (err) {
-    throw new Error(`Failed to parse workbook at "${filePath}": ${String(err)}`, { cause: err });
+    throw new Error(`Failed to parse echo at "${filePath}": ${String(err)}`, { cause: err });
   }
-  if (!validateWorkbook(data)) {
+  if (!validateEcho(data)) {
     throw new Error(
-      `Invalid workbook format at "${filePath}": expected version "1.0", metadata.name string, and steps array`
+      `Invalid echo format at "${filePath}": expected version "1.0", metadata.name string, and steps array`
     );
   }
   return data;
 }
 
-export async function writeWorkbook(workbook: Workbook, filePath: string): Promise<void> {
-  const json = JSON.stringify(workbook, null, 2);
+export async function writeEcho(echo: Echo, filePath: string): Promise<void> {
+  const json = JSON.stringify(echo, null, 2);
   await writeFile(filePath, json, 'utf-8');
 }
 
-export function validateWorkbook(data: unknown): data is Workbook {
+export function validateEcho(data: unknown): data is Echo {
   if (typeof data !== 'object' || data === null) {
     return false;
   }

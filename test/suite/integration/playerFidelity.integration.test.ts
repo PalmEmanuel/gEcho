@@ -5,13 +5,13 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 
-import type { Workbook } from '../../../src/types/workbook.js';
-import { WorkbookPlayer } from '../../../src/replay/player.js';
+import type { Echo } from '../../../src/types/echo.js';
+import { EchoPlayer } from '../../../src/replay/player.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function makeWorkbook(steps: Workbook['steps']): Workbook {
+function makeEcho(steps: Echo['steps']): Echo {
   return { version: '1.0', metadata: { name: 'fidelity-test' }, steps };
 }
 
@@ -28,7 +28,7 @@ async function waitMs(ms: number): Promise<void> {
 // ---------------------------------------------------------------------------
 // Suite
 // ---------------------------------------------------------------------------
-describe('WorkbookPlayer fidelity integration', function () {
+describe('EchoPlayer fidelity integration', function () {
   this.timeout(20_000);
 
   // ------------------------------------------------------------------
@@ -37,8 +37,8 @@ describe('WorkbookPlayer fidelity integration', function () {
   describe('type step', function () {
     it('inserts text into the active editor (no delay)', async function () {
       const doc = await openFreshDoc();
-      const player = new WorkbookPlayer();
-      await player.play(makeWorkbook([{ type: 'type', text: 'fidelity' }]));
+      const player = new EchoPlayer();
+      await player.play(makeEcho([{ type: 'type', text: 'fidelity' }]));
       assert.ok(
         doc.getText().includes('fidelity'),
         `Expected "fidelity" in document, got: ${JSON.stringify(doc.getText())}`,
@@ -48,9 +48,9 @@ describe('WorkbookPlayer fidelity integration', function () {
 
     it('inserts text per-character when delay > 0', async function () {
       const doc = await openFreshDoc();
-      const player = new WorkbookPlayer();
+      const player = new EchoPlayer();
       // delay: 10 ms → per-char cadence, finishes quickly
-      await player.play(makeWorkbook([{ type: 'type', text: 'abc', delay: 10 }]));
+      await player.play(makeEcho([{ type: 'type', text: 'abc', delay: 10 }]));
       assert.ok(
         doc.getText().includes('abc'),
         `Expected "abc" in document, got: ${JSON.stringify(doc.getText())}`,
@@ -65,10 +65,10 @@ describe('WorkbookPlayer fidelity integration', function () {
   describe('wait step', function () {
     it('pauses execution for approximately the requested duration (±200 ms)', async function () {
       await openFreshDoc();
-      const player = new WorkbookPlayer();
+      const player = new EchoPlayer();
       const waitDurationMs = 200;
       const start = Date.now();
-      await player.play(makeWorkbook([{ type: 'wait', ms: waitDurationMs }]));
+      await player.play(makeEcho([{ type: 'wait', ms: waitDurationMs }]));
       const elapsed = Date.now() - start;
       assert.ok(
         elapsed >= waitDurationMs - 50,
@@ -94,8 +94,8 @@ describe('WorkbookPlayer fidelity integration', function () {
       });
       await vscode.window.showTextDocument(doc);
 
-      const player = new WorkbookPlayer();
-      await player.play(makeWorkbook([{ type: 'select', anchor: [1, 0], active: [1, 4] }]));
+      const player = new EchoPlayer();
+      await player.play(makeEcho([{ type: 'select', anchor: [1, 0], active: [1, 4] }]));
 
       const editor = vscode.window.activeTextEditor;
       assert.ok(editor, 'Active editor should exist after select step');
@@ -128,8 +128,8 @@ describe('WorkbookPlayer fidelity integration', function () {
       };
 
       try {
-        const player = new WorkbookPlayer();
-        await player.play(makeWorkbook([{ type: 'scroll', direction: 'down', lines: 5 }]));
+        const player = new EchoPlayer();
+        await player.play(makeEcho([{ type: 'scroll', direction: 'down', lines: 5 }]));
         assert.strictEqual(scrollCalls.length, 1, 'editorScroll should be called once');
         assert.deepStrictEqual(scrollCalls[0], { to: 'down', by: 'line', value: 5 });
       } finally {
@@ -145,8 +145,8 @@ describe('WorkbookPlayer fidelity integration', function () {
   describe('paste step', function () {
     it('inserts paste text into the active editor', async function () {
       const doc = await openFreshDoc();
-      const player = new WorkbookPlayer();
-      await player.play(makeWorkbook([{ type: 'paste', text: 'pasted-content' }]));
+      const player = new EchoPlayer();
+      await player.play(makeEcho([{ type: 'paste', text: 'pasted-content' }]));
       assert.ok(
         doc.getText().includes('pasted-content'),
         `Expected "pasted-content" in document, got: ${JSON.stringify(doc.getText())}`,
@@ -171,8 +171,8 @@ describe('WorkbookPlayer fidelity integration', function () {
     });
 
     it('opens the specified file and makes it the active editor', async function () {
-      const player = new WorkbookPlayer();
-      await player.play(makeWorkbook([{ type: 'openFile', path: tmpFile }]));
+      const player = new EchoPlayer();
+      await player.play(makeEcho([{ type: 'openFile', path: tmpFile }]));
 
       const editor = vscode.window.activeTextEditor;
       assert.ok(editor, 'Active editor should exist after openFile step');
@@ -206,10 +206,10 @@ describe('WorkbookPlayer fidelity integration', function () {
       };
 
       try {
-        const player = new WorkbookPlayer();
+        const player = new EchoPlayer();
         player.stop();
         await player.play(
-          makeWorkbook([
+          makeEcho([
             { type: 'type', text: 'should-not-appear' },
             { type: 'wait', ms: 50 },
           ]),

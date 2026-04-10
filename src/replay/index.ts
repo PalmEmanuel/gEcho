@@ -1,1 +1,1 @@
-export { WorkbookPlayer } from './player.js';
+export { EchoPlayer } from './player.js';

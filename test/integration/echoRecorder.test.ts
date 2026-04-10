@@ -4,8 +4,8 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import * as vscode from 'vscode';
 import { EchoRecorder } from '../../src/recording/recorder.js';
-import { readWorkbook, writeWorkbook, validateWorkbook } from '../../src/workbook/index.js';
-import type { Workbook } from '../../src/types/workbook.js';
+import { readEcho, writeEcho, validateEcho } from '../../src/echo/index.js';
+import type { Echo } from '../../src/types/echo.js';
 
 /**
  * Integration tests for EchoRecorder.
@@ -50,28 +50,28 @@ describe('EchoRecorder integration — record → write → reload', function ()
       `Expected captured text to contain "integration test recording", got: "${combined}"`,
     );
 
-    // Build a workbook and write it to disk
-    const workbook: Workbook = {
+    // Build an echo and write it to disk
+    const echo: Echo = {
       version: '1.0',
       metadata: { name: 'integration-recorder-test', created: new Date().toISOString() },
       steps,
     };
 
     const filePath = path.join(tmpDir, 'recording.gecho.json');
-    await writeWorkbook(workbook, filePath);
+    await writeEcho(echo, filePath);
 
-    // Verify the file exists and parses as a valid workbook
+    // Verify the file exists and parses as a valid echo
     const stat = await fs.stat(filePath);
-    assert.ok(stat.size > 0, 'Written workbook file must not be empty');
+    assert.ok(stat.size > 0, 'Written echo file must not be empty');
 
-    const reloaded = await readWorkbook(filePath);
-    assert.ok(validateWorkbook(reloaded), 'Reloaded workbook must pass validation');
+    const reloaded = await readEcho(filePath);
+    assert.ok(validateEcho(reloaded), 'Reloaded echo must pass validation');
     assert.strictEqual(reloaded.version, '1.0');
     assert.strictEqual(reloaded.metadata.name, 'integration-recorder-test');
     assert.strictEqual(reloaded.steps.length, steps.length, 'Step count must survive serialisation roundtrip');
   });
 
-  it('produces a workbook that can immediately be replayed by WorkbookPlayer', async function () {
+  it('produces an echo that can immediately be replayed by EchoPlayer', async function () {
     const doc = await vscode.workspace.openTextDocument({ content: '', language: 'plaintext' });
     await vscode.window.showTextDocument(doc);
 
@@ -80,7 +80,7 @@ describe('EchoRecorder integration — record → write → reload', function ()
     await vscode.commands.executeCommand('type', { text: 'replay me' });
     const steps = recorder.stop();
 
-    const workbook: Workbook = {
+    const echo: Echo = {
       version: '1.0',
       metadata: { name: 'replay-roundtrip' },
       steps,
@@ -88,16 +88,16 @@ describe('EchoRecorder integration — record → write → reload', function ()
 
     // Write and reload to test the full roundtrip path, not just in-memory
     const filePath = path.join(tmpDir, 'replay-roundtrip.gecho.json');
-    await writeWorkbook(workbook, filePath);
-    const reloaded = await readWorkbook(filePath);
+    await writeEcho(echo, filePath);
+    const reloaded = await readEcho(filePath);
 
     // Open a fresh document, replay the recording into it
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
     const fresh = await vscode.workspace.openTextDocument({ content: '', language: 'plaintext' });
     await vscode.window.showTextDocument(fresh);
 
-    const { WorkbookPlayer } = await import('../../src/replay/player.js');
-    const player = new WorkbookPlayer();
+    const { EchoPlayer } = await import('../../src/replay/player.js');
+    const player = new EchoPlayer();
     await player.play(reloaded);
 
     const result = fresh.getText();

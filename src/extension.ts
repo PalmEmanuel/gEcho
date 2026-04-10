@@ -2,18 +2,18 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { unlink } from 'node:fs/promises';
 import { EchoRecorder } from './recording/index.js';
-import { WorkbookPlayer } from './replay/index.js';
+import { EchoPlayer } from './replay/index.js';
 import { ScreenCapture } from './screen/index.js';
 import { GifConverter } from './converter/index.js';
-import { readWorkbook, writeWorkbook } from './workbook/index.js';
+import { readEcho, writeEcho } from './echo/index.js';
 import { createStatusBar, updateStatusBar } from './ui/index.js';
-import type { RecordingState, Workbook } from './types/index.js';
-import { WORKBOOK_VERSION } from './types/index.js';
+import type { RecordingState, Echo } from './types/index.js';
+import { ECHO_VERSION } from './types/index.js';
 import { checkDependencies } from './dependencies.js';
 
 let currentState: RecordingState = 'idle';
 let activeRecorder: EchoRecorder | undefined;
-let activePlayer: WorkbookPlayer | undefined;
+let activePlayer: EchoPlayer | undefined;
 let activeCapture: ScreenCapture | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -31,10 +31,10 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('gecho.showCommands', async () => {
       const items: (vscode.QuickPickItem & { command: string })[] = [
-        { label: '$(record) Start Echo Recording', description: 'Record keystrokes as a workbook', command: 'gecho.startEchoRecording' },
+        { label: '$(record) Start Echo Recording', description: 'Record keystrokes as an echo', command: 'gecho.startEchoRecording' },
         { label: '$(device-camera-video) Start GIF Recording', description: 'Capture screen to GIF', command: 'gecho.startGifRecording' },
-        { label: '$(play) Replay Workbook', description: 'Execute a .gecho.json workbook', command: 'gecho.replayWorkbook' },
-        { label: '$(play) Replay Workbook as GIF', description: 'Execute workbook and capture GIF', command: 'gecho.replayAsGif' },
+        { label: '$(play) Replay Echo', description: 'Execute a .gecho.json echo', command: 'gecho.replayEcho' },
+        { label: '$(play) Replay Echo as GIF', description: 'Execute echo and capture GIF', command: 'gecho.replayAsGif' },
       ];
       const pick = await vscode.window.showQuickPick(items, { placeHolder: 'gEcho — choose an action' });
       if (!pick) { return; }
@@ -99,21 +99,21 @@ export function activate(context: vscode.ExtensionContext): void {
         setState('idle');
 
         const uri = await vscode.window.showSaveDialog({
-          filters: { 'gEcho Workbook': ['gecho.json'] },
-          saveLabel: 'Save Workbook',
+          filters: { 'gEcho Echo': ['gecho.json'] },
+          saveLabel: 'Save Echo',
         });
         if (!uri) { return; }
 
-        const workbook: Workbook = {
-          version: WORKBOOK_VERSION,
+        const echo: Echo = {
+          version: ECHO_VERSION,
           metadata: {
             name: path.basename(uri.fsPath, '.gecho.json'),
             created: new Date().toISOString(),
           },
           steps,
         };
-        await writeWorkbook(workbook, uri.fsPath);
-        vscode.window.showInformationMessage(`gEcho: Workbook saved to ${uri.fsPath}`);
+        await writeEcho(echo, uri.fsPath);
+        vscode.window.showInformationMessage(`gEcho: Echo saved to ${uri.fsPath}`);
       } catch (err) {
         setState('idle');
         activeRecorder = undefined;
@@ -209,26 +209,26 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
-  // gecho.replayWorkbook
+  // gecho.replayEcho
   context.subscriptions.push(
-    vscode.commands.registerCommand('gecho.replayWorkbook', async () => {
+    vscode.commands.registerCommand('gecho.replayEcho', async () => {
       if (currentState !== 'idle') {
         vscode.window.showWarningMessage(`gEcho: Cannot replay while ${currentState}.`);
         return;
       }
       try {
         const uris = await vscode.window.showOpenDialog({
-          filters: { 'gEcho Workbook': ['gecho.json'] },
+          filters: { 'gEcho Echo': ['gecho.json'] },
           canSelectMany: false,
-          openLabel: 'Open Workbook',
+          openLabel: 'Open Echo',
         });
         if (!uris || uris.length === 0) { return; }
 
-        const workbook = await readWorkbook(uris[0].fsPath);
+        const echo = await readEcho(uris[0].fsPath);
         setState('replaying');
-        activePlayer = new WorkbookPlayer();
+        activePlayer = new EchoPlayer();
 
-        await activePlayer.play(workbook);
+        await activePlayer.play(echo);
 
         activePlayer = undefined;
         setState('idle');
@@ -252,9 +252,9 @@ export function activate(context: vscode.ExtensionContext): void {
       let tmpMp4Path: string | undefined;
       try {
         const uris = await vscode.window.showOpenDialog({
-          filters: { 'gEcho Workbook': ['gecho.json'] },
+          filters: { 'gEcho Echo': ['gecho.json'] },
           canSelectMany: false,
-          openLabel: 'Open Workbook',
+          openLabel: 'Open Echo',
         });
         if (!uris || uris.length === 0) { return; }
 
@@ -264,16 +264,16 @@ export function activate(context: vscode.ExtensionContext): void {
         });
         if (!saveUri) { return; }
 
-        const workbook = await readWorkbook(uris[0].fsPath);
+        const echo = await readEcho(uris[0].fsPath);
         setState('replaying-gif');
-        activePlayer = new WorkbookPlayer();
+        activePlayer = new EchoPlayer();
         activeCapture = new ScreenCapture();
 
         await vscode.workspace.fs.createDirectory(context.globalStorageUri);
         tmpMp4Path = path.join(context.globalStorageUri.fsPath, `gecho-replay-${Date.now()}.mp4`);
         await activeCapture.start(tmpMp4Path);
         await activeCapture.waitForReady(800);
-        await activePlayer.play(workbook);
+        await activePlayer.play(echo);
         const mp4Path = await activeCapture?.stop();
 
         activePlayer = undefined;

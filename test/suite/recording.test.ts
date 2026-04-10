@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { WORKBOOK_VERSION, WORKBOOK_FILE_EXTENSION } from '../../src/types/workbook.js';
+import { ECHO_VERSION, ECHO_FILE_EXTENSION } from '../../src/types/echo.js';
 import type {
   TypeStep,
   CommandStep,
@@ -10,27 +10,27 @@ import type {
   PasteStep,
   ScrollStep,
   StepType,
-} from '../../src/types/workbook.js';
-import { validateWorkbook } from '../../src/workbook/index.js';
+} from '../../src/types/echo.js';
+import { validateEcho } from '../../src/echo/index.js';
 
 describe('Constants', () => {
-  it("WORKBOOK_VERSION is '1.0'", () => {
-    assert.strictEqual(WORKBOOK_VERSION, '1.0');
+  it("ECHO_VERSION is '1.0'", () => {
+    assert.strictEqual(ECHO_VERSION, '1.0');
   });
 
-  it("WORKBOOK_FILE_EXTENSION is '.gecho.json'", () => {
-    assert.strictEqual(WORKBOOK_FILE_EXTENSION, '.gecho.json');
+  it("ECHO_FILE_EXTENSION is '.gecho.json'", () => {
+    assert.strictEqual(ECHO_FILE_EXTENSION, '.gecho.json');
   });
 });
 
-describe('validateWorkbook edge cases', () => {
+describe('validateEcho edge cases', () => {
   it('returns false for TypeStep with non-string text', () => {
     const bad = {
       version: '1.0',
       metadata: { name: 'x' },
       steps: [{ type: 'type', text: 42 }],
     };
-    assert.strictEqual(validateWorkbook(bad), false);
+    assert.strictEqual(validateEcho(bad), false);
   });
 
   it('returns false for TypeStep missing required text field', () => {
@@ -39,7 +39,7 @@ describe('validateWorkbook edge cases', () => {
       metadata: { name: 'x' },
       steps: [{ type: 'type' }],
     };
-    assert.strictEqual(validateWorkbook(bad), false);
+    assert.strictEqual(validateEcho(bad), false);
   });
 
   it('returns false for step with unknown type', () => {
@@ -48,7 +48,7 @@ describe('validateWorkbook edge cases', () => {
       metadata: { name: 'x' },
       steps: [{ type: 'unknown-step' }],
     };
-    assert.strictEqual(validateWorkbook(bad), false);
+    assert.strictEqual(validateEcho(bad), false);
   });
 });
 
