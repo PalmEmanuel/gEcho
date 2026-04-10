@@ -150,7 +150,7 @@
     "build": "npm run build:native && npm run compile",
     "watch": "tsc -watch -p ./",
     "check-types": "tsc --noEmit",
-    "build:native": "bash scripts/build-native.sh",
+    "build:native": "node -e \"if(process.platform==='darwin'){const{execSync}=require('child_process');execSync('bash scripts/build-native.sh',{stdio:'inherit'})}else{console.log('Skipping native build: not macOS')}\"",
     "pretest": "npm run compile",
     "test": "node ./out/test/runTest.js",
     "pretest:integration": "npm run compile",

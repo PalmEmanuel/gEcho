@@ -169,7 +169,7 @@ describe('checkScreenRecordingPermission() — result shape', function () {
   afterEach(function () { clearMockConfig(); });
 
   it('returns an object with a boolean `granted` property (not deviceCount)', async function () {
-    // Mock ffmpegPath so the function does not need a real binary
+    // Mock ffmpegPath so the ScreenCapture helper path resolution is stable
     mockConfigValues['ffmpegPath'] = FALSE_BIN;
 
     const result = await checkScreenRecordingPermission();

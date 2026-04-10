@@ -164,9 +164,11 @@ export class ScreenCapture {
         '-y', outputPath,
       ];
     } else if (platform === 'linux') {
-      // Derive display number from $DISPLAY (e.g. ":1" → "1", ":0" → "0").
-      // Falls back to "0" so bare Xvfb starts still work.
-      const displayNum = (process.env['DISPLAY'] ?? ':0').replace(/^:/, '').split('.')[0];
+      // Derive display number from $DISPLAY.
+      // Handles ":0", ":0.0", "localhost:10.0" → "0", "0", "10".
+      // Strips an optional host prefix (anything before the last ':'), then the
+      // screen suffix (anything after '.'), leaving only the numeric display part.
+      const displayNum = (process.env['DISPLAY'] ?? ':0').replace(/^[^:]*:/, '').split('.')[0] ?? '0';
       args = [
         '-f', 'x11grab',
         '-framerate', String(fps),
@@ -252,7 +254,7 @@ export class ScreenCapture {
    * timeout because AVFoundation device initialisation can take 2-5 seconds on
    * some machines regardless of CPU speed.
    *
-   * Falls back to `timeoutMs` (default 8 s) if the signal never arrives.
+   * Rejects with a timeout error after `timeoutMs` (default 8 s) if the signal never arrives.
    */
   async waitForReady(timeoutMs = 8_000): Promise<void> {
     if (!this.ffmpegProcess) {
@@ -317,13 +319,19 @@ export class ScreenCapture {
   async stop(stopTimeoutMs = 15_000): Promise<string> {
     // If start() is still in the pre-spawn phase (e.g. awaiting device enumeration or
     // permission checks), signal cancellation and wait for it to finish before proceeding.
+    let startErr: unknown;
     if (this._startPromise !== null) {
       this._stopRequested = true;
-      await this._startPromise.catch(() => {}); // never throws — we just want to wait
+      await this._startPromise.catch((err: unknown) => { startErr = err; });
     }
 
     const proc = this.ffmpegProcess;
     if (!proc) {
+      // If start() failed for a non-cancellation reason (e.g. bad ffmpeg path, permission
+      // denied), surface the original error so callers know exactly what went wrong.
+      if (startErr && !this._stopRequested) {
+        throw startErr instanceof Error ? startErr : new Error(String(startErr));
+      }
       // start() was cancelled before ffmpeg spawned — no process, no output file.
       if (this._stopRequested) {
         throw new Error('gEcho: Recording was cancelled before it could start.');
