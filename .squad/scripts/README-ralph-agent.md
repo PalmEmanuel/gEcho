@@ -18,7 +18,7 @@ cd .squad/scripts
 npm install
 
 # Ensure GITHUB_TOKEN is set for Copilot CLI access
-export GITHUB_TOKEN=ghp_...
+export GITHUB_TOKEN=YOUR_GITHUB_TOKEN
 
 # Start Ralph watch daemon
 node ralph-watch.js
