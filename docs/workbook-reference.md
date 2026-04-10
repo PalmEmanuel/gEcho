@@ -61,7 +61,7 @@ Types text character-by-character into the active editor, simulating natural key
 **Notes:**
 - The `delay` value is adjusted by the `gecho.replay.speed` setting during replay.
 - Multi-line text is supported — include `\n` for newlines.
-- During echo recording, consecutive single-character insertions within 300 ms are coalesced into a single `type` step, preserving your natural typing rhythm.
+- During echo recording, rapid consecutive single-character insertions within 300 ms can be coalesced into an existing `type` step once that step already has a `delay`, helping preserve your natural typing rhythm.
 
 ---
 
