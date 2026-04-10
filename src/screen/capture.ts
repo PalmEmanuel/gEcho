@@ -30,12 +30,16 @@ export class ScreenCapture {
     const platform = detectPlatform();
     let args: string[];
 
+    // AVFoundation requires the input framerate to exactly match a supported device mode.
+    // We capture at the native rate and downsample to the desired fps via the fps filter.
+    const AVFOUNDATION_NATIVE_FRAMERATE = 60;
+
     if (platform === 'darwin') {
       args = [
         '-f', 'avfoundation',
-        '-framerate', String(fps),
+        '-framerate', String(AVFOUNDATION_NATIVE_FRAMERATE),
         '-i', '1',
-        '-vf', `crop=${width}:${height}:${x}:${y}`,
+        '-vf', `fps=${fps},crop=${width}:${height}:${x}:${y}`,
         '-vcodec', 'libx264',
         '-preset', 'ultrafast',
         '-y', outputPath,
