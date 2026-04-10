@@ -40,10 +40,10 @@ The watch daemon (`ralph-watch.js`) runs token-free on a schedule and writes tas
 On each monitoring cycle, after checking GitHub:
 1. Check `.squad/teams-inbox/` for `.md` files — **if empty, skip the rest of this section entirely**
 2. For each file: read the task, execute it (route to appropriate agent), post result as a chat reply (see below)
-3. Delete processed task files from `.squad/teams-processed/`
+3. After successful processing, move the task file from `.squad/teams-inbox/` to `.squad/teams-processed/` so it is archived and not processed again
 4. If auth fails (Graph API 401): log a warning and skip Teams processing for this cycle — do NOT spawn agents just to report the error
 
-Never process the same task file twice. Check modification time if needed.
+Never process the same task file twice. Process only files still in `.squad/teams-inbox/`; once handled, move them to `.squad/teams-processed/`. Check modification time only as an extra safeguard if needed.
 
 ## Teams Task Replies
 
