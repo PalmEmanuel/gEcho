@@ -11,16 +11,13 @@ const FALLBACK_BOUNDS: WindowBounds = { x: 0, y: 0, width: 1920, height: 1080 };
 
 function execAsync(cmd: string, timeoutMs = 3000): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = exec(cmd, { timeout: timeoutMs }, (error, stdout) => {
+    exec(cmd, { timeout: timeoutMs }, (error, stdout) => {
       if (error) {
         reject(error);
       } else {
         resolve(stdout);
       }
     });
-    // Ensure the child is killed if the timeout fires (exec timeout only sets
-    // an error but may leave the process running on some platforms).
-    child.on('error', () => {});
   });
 }
 

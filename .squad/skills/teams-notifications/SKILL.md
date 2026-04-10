@@ -124,7 +124,7 @@ curl -H "Content-Type: application/json" \
 ```
 Teams group chat message
   → teams-monitor.js polls Graph API
-  → ~/.squad/teams-inbox/{timestamp}-{slug}.md written
+  → .squad/teams-inbox/{timestamp}-{slug}.md written
   → Ralph picks up file on next loop iteration
   → Routes task to appropriate squad agent
   → Result posted back via `teams-reply.js` (Graph API chat message)
@@ -144,7 +144,7 @@ Teams group chat message
 node .squad/scripts/teams-monitor.js
 
 # Output:
-#   "Found N new task(s)"  — task files written to ~/.squad/teams-inbox/
+#   "Found N new task(s)"  — task files written to .squad/teams-inbox/
 #   "No new tasks"         — nothing to do
 #   AUTH_REQUIRED on stderr, exit 1 — token expired, re-run teams-setup.js
 #   "Network error — skipping Teams check", exit 0 — transient, skip this cycle
@@ -182,5 +182,5 @@ If `teams-monitor.js` outputs `AUTH_REQUIRED` on stderr:
 | `~/.squad/teams-config.json` | clientId, tenantId, chatId, triggerWords |
 | `~/.squad/teams-auth.json` | Serialized MSAL token cache |
 | `~/.squad/teams-last-read.json` | Dedup cursor (lastMessageId, lastReadAt) |
-| `~/.squad/teams-inbox/` | Pending task files |
+| `.squad/teams-inbox/` | Pending task files |
 | `~/.squad/teams-webhook.url` | Outbound webhook URL |

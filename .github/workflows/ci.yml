@@ -54,8 +54,6 @@ jobs:
       - if: runner.os != 'Linux'
         run: npm test
 
-      # Integration tests run in the VS Code extension host — same environment as unit tests
-      # but with longer timeout and real ffmpeg-lifecycle verification via fake binaries.
       - name: Integration tests
         if: runner.os == 'Linux'
         run: xvfb-run -a npm run test:integration
@@ -63,6 +61,14 @@ jobs:
       - name: Integration tests
         if: runner.os != 'Linux'
         run: npm run test:integration
+
+      - name: Node integration tests
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npx mocha --config .mocharc.json --grep integration
+
+      - name: Node integration tests
+        if: runner.os != 'Linux'
+        run: npx mocha --config .mocharc.json --grep integration
 
       - if: runner.os == 'Linux'
         run: npm run package

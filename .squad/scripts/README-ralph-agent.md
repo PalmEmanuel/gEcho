@@ -13,8 +13,8 @@ Ralph agent enables fully automated task processing from Teams chat. Emanuel can
 ## Setup
 
 ```bash
-# Install dependencies
-cd /Users/emanuel/Code/gEcho/.squad/scripts
+# From the repository root, install dependencies
+cd .squad/scripts
 npm install
 
 # Ensure GITHUB_TOKEN is set for Copilot CLI access
