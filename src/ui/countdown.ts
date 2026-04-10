@@ -1,54 +1,42 @@
 import * as vscode from 'vscode';
 
+const BAR_WIDTH = 20;
+const TICK_MS = 100;
+const FILLED = '█';
+const EMPTY = '░';
+const PREFIX = '$(loading~spin) gEcho: ';
+
 /**
- * Runs a status-bar countdown before GIF capture begins.
+ * Runs a reverse progress-bar countdown in the status bar before GIF capture begins.
  *
- * Ticks the status bar item text each second: "gEcho: Starting in 3… 2… 1…"
- * while also showing a cancellable notification so the user can abort by
- * clicking Cancel (or pressing Escape to dismiss the notification).
+ * Updates every 100ms with a draining Unicode block bar (starts full, empties right-to-left).
+ * No notification toast is shown — the bar is the entire UX.
  *
  * @param seconds  Number of seconds to count down. Pass 0 to skip entirely.
  * @param statusBar  The extension's status bar item (text is updated each tick).
- * @returns  `true` when the countdown completes; `false` if the user cancelled.
+ * @returns  `true` when the countdown completes normally.
  */
-export async function runCountdown(
+export function runCountdown(
   seconds: number,
   statusBar: vscode.StatusBarItem,
 ): Promise<boolean> {
-  if (seconds <= 0) { return true; }
+  if (seconds <= 0) { return Promise.resolve(true); }
 
-  let cancelled = false;
+  const totalMs = seconds * 1000;
+  let elapsed = 0;
+  let interval: ReturnType<typeof setInterval> | undefined;
 
-  await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: 'gEcho',
-      cancellable: true,
-    },
-    async (progress, token) => {
-      token.onCancellationRequested(() => { cancelled = true; });
+  return new Promise<boolean>((resolve) => {
+    interval = setInterval(() => {
+      elapsed += TICK_MS;
+      const remaining = Math.max(0, totalMs - elapsed);
+      const filled = Math.round((remaining / totalMs) * BAR_WIDTH);
+      statusBar.text = `${PREFIX}${FILLED.repeat(filled)}${EMPTY.repeat(BAR_WIDTH - filled)}`;
 
-      for (let remaining = seconds; remaining > 0; remaining--) {
-        if (cancelled || token.isCancellationRequested) { break; }
-
-        statusBar.text = `gEcho: Starting in ${remaining}…`;
-        progress.report({ message: `Starting in ${remaining}…` });
-
-        const completed = await new Promise<boolean>((resolve) => {
-          const timer = setTimeout(() => resolve(true), 1000);
-          token.onCancellationRequested(() => {
-            clearTimeout(timer);
-            resolve(false);
-          });
-        });
-
-        if (!completed) {
-          cancelled = true;
-          break;
-        }
+      if (elapsed >= totalMs) {
+        clearInterval(interval);
+        resolve(true);
       }
-    },
-  );
-
-  return !cancelled;
+    }, TICK_MS);
+  });
 }
