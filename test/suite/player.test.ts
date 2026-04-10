@@ -193,43 +193,35 @@ describe('WorkbookPlayer', () => {
       );
     });
 
-    it('paste step writes to clipboard then calls clipboardPasteAction', async () => {
-      const calls: Array<{ cmd: string; args: any }> = [];
-      const origExec = (vscode.commands as any).executeCommand;
-      // vscode.env.clipboard is a getter-only property on Linux, so direct assignment throws.
-      // Use Object.defineProperty to override it, then restore the original descriptor.
-      const origClipboardDescriptor = Object.getOwnPropertyDescriptor(vscode.env, 'clipboard')
-        ?? Object.getOwnPropertyDescriptor(Object.getPrototypeOf(vscode.env), 'clipboard');
-      const origClipboard = vscode.env.clipboard;
-      let clipboardText = '';
-      // Track all writes so we can verify the paste write happened even though
-      // the player restores the clipboard in its finally block.
-      const writtenTexts: string[] = [];
-      const mockClipboard = {
-        writeText: async (t: string) => { clipboardText = t; writtenTexts.push(t); },
-        readText: async () => clipboardText,
+    it('paste step inserts text via editor.edit()', async () => {
+      const insertedTexts: Array<{ position: vscode.Position; text: string }> = [];
+      const origEditor = vscode.window.activeTextEditor;
+
+      // Create a mock editor with an edit method that records calls
+      const mockEditBuilder = {
+        insert: (pos: vscode.Position, text: string) => { insertedTexts.push({ position: pos, text }); },
+        replace: () => {},
+        delete: () => {},
       };
-      Object.defineProperty(vscode.env, 'clipboard', { value: mockClipboard, configurable: true, writable: true });
-      (vscode.commands as any).executeCommand = async (cmd: string, args: any) => { calls.push({ cmd, args }); };
+      const mockEditor = {
+        selection: new vscode.Selection(new vscode.Position(0, 0), new vscode.Position(0, 0)),
+        edit: async (callback: (builder: typeof mockEditBuilder) => void) => {
+          callback(mockEditBuilder);
+          return true;
+        },
+      };
+      Object.defineProperty(vscode.window, 'activeTextEditor', { value: mockEditor, configurable: true, writable: true });
+
       try {
         const player = new WorkbookPlayer();
         await player.play({
           version: '1.0', metadata: { name: 't' },
           steps: [{ type: 'paste', text: 'clipboard content' }],
         });
-        // Player writes text then restores clipboard — check the write happened in order.
-        assert.strictEqual(writtenTexts[0], 'clipboard content', 'Should write to clipboard before paste');
-        assert.strictEqual(calls.length, 1);
-        assert.strictEqual(calls[0].cmd, 'editor.action.clipboardPasteAction');
-        // Clipboard should be restored to its original value (empty string) after paste.
-        assert.strictEqual(clipboardText, '', 'Clipboard should be restored after paste');
+        assert.strictEqual(insertedTexts.length, 1, 'Should insert text once');
+        assert.strictEqual(insertedTexts[0].text, 'clipboard content', 'Should insert the paste text');
       } finally {
-        if (origClipboardDescriptor) {
-          Object.defineProperty(vscode.env, 'clipboard', origClipboardDescriptor);
-        } else {
-          Object.defineProperty(vscode.env, 'clipboard', { value: origClipboard, configurable: true, writable: true });
-        }
-        (vscode.commands as any).executeCommand = origExec;
+        Object.defineProperty(vscode.window, 'activeTextEditor', { value: origEditor, configurable: true, writable: true });
       }
     });
 
