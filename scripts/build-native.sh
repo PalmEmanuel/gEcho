@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Only run on macOS — skip silently on other platforms
+if [[ "$(uname)" != "Darwin" ]]; then
+  echo "ℹ️  Skipping native build on non-macOS platform ($(uname))"
+  exit 0
+fi
+
 SOURCE="resources/native/darwin/main.swift"
 OUT="resources/bin/darwin/gecho-helper"
 
