@@ -42,6 +42,10 @@ jobs:
             security
             ci
             release
+            deps
+            deps-dev
+            deps-peer
+            github-actions
           requireScope: false
           subjectPattern: ^.{10,}$
           subjectPatternError: |
