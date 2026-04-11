@@ -36,6 +36,7 @@ jobs:
             recording
             replay
             capture
+            echo
             workbook
             platform
             config

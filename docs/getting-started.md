@@ -74,7 +74,7 @@ Echo mode records your VS Code interactions (typing, commands, selections) into 
 3. Confirm the keystroke recording prompt
 4. Perform some demo actions — type code, open files, use shortcuts
 5. Open the Command Palette again and run **gEcho: Stop Echo Recording**
-6. Choose a save location and save as `my-first-demo.gecho.json`
+6. Choose a save location and save as `my-first-demo.echo.json`
 
 The resulting echo captures your typing rhythm, commands, and file navigation. You can open it in VS Code to inspect or edit the steps.
 
@@ -96,7 +96,7 @@ The most powerful workflow: replay a recorded echo while capturing it as a GIF. 
 
 1. Open the Command Palette
 2. Run **gEcho: Replay as GIF**
-3. Select a `.gecho.json` echo file
+3. Select a `.echo.json` echo file
 4. gEcho replays your recorded actions and simultaneously records the screen
 5. When replay finishes, choose a save location for the GIF
 
@@ -106,7 +106,7 @@ To test an echo without generating a GIF:
 
 1. Open the Command Palette
 2. Run **gEcho: Replay Echo**
-3. Select a `.gecho.json` echo file
+3. Select a `.echo.json` echo file
 4. Watch as gEcho replays each step
 
 ## Next Steps

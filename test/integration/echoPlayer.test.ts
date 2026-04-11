@@ -84,10 +84,10 @@ describe('EchoPlayer integration — executes steps against a real editor', func
   });
 
   it('plays an echo loaded from the sample fixture file', async function () {
-    // sample.gecho.json types "hello integration world"
+    // sample.echo.json types "hello integration world"
     const fixturePath = path.resolve(
       __dirname,
-      '../../../test/integration/fixtures/sample.gecho.json',
+      '../../../test/integration/fixtures/sample.echo.json',
     );
 
     const echo: Echo = await readEcho(fixturePath);
