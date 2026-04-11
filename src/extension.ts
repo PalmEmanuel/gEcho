@@ -159,10 +159,17 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       try {
         setState('countdown');
-        activeCountdownSource = new vscode.CancellationTokenSource();
-        const proceeded = await runCountdown(getConfig().countdown.seconds, statusBar, activeCountdownSource.token);
-        activeCountdownSource.dispose();
-        activeCountdownSource = undefined;
+        const countdownSource = new vscode.CancellationTokenSource();
+        activeCountdownSource = countdownSource;
+        let proceeded: boolean;
+        try {
+          proceeded = await runCountdown(getConfig().countdown.seconds, statusBar, countdownSource.token);
+        } finally {
+          countdownSource.dispose();
+          if (activeCountdownSource === countdownSource) {
+            activeCountdownSource = undefined;
+          }
+        }
         if (!proceeded) {
           setState('idle');
           return;
@@ -306,10 +313,17 @@ export function activate(context: vscode.ExtensionContext): void {
         const echo = await readEcho(uris[0].fsPath);
 
         setState('countdown');
-        activeCountdownSource = new vscode.CancellationTokenSource();
-        const proceeded = await runCountdown(getConfig().countdown.seconds, statusBar, activeCountdownSource.token);
-        activeCountdownSource.dispose();
-        activeCountdownSource = undefined;
+        const countdownSource = new vscode.CancellationTokenSource();
+        activeCountdownSource = countdownSource;
+        let proceeded: boolean;
+        try {
+          proceeded = await runCountdown(getConfig().countdown.seconds, statusBar, countdownSource.token);
+        } finally {
+          countdownSource.dispose();
+          if (activeCountdownSource === countdownSource) {
+            activeCountdownSource = undefined;
+          }
+        }
         if (!proceeded) {
           setState('idle');
           return;

@@ -9,8 +9,8 @@ const STATE_CONFIG: Record<RecordingState, { text: string; tooltip: string; comm
   },
   countdown: {
     text: '$(loading~spin) gEcho: Starting…',
-    tooltip: 'gEcho — countdown before capture',
-    command: 'gecho.showCommands',
+    tooltip: 'gEcho — click to cancel countdown',
+    command: 'gecho.cancelReplay',
   },
   'starting-gif': {
     text: '$(loading~spin) gEcho: Starting...',
