@@ -29,180 +29,247 @@ const KEY_COMMAND_MAP: Record<string, string> = {
 
 export class EchoPlayer {
   private cancelled = false;
+  private isExecutingStep = false;
+  private inputListeners: vscode.Disposable[] = [];
+  private cancelResolve: (() => void) | undefined;
+  private cancelPromise: Promise<void> = Promise.resolve();
 
   async play(echo: Echo, config?: ReplayConfig): Promise<void> {
     if (this.cancelled) { return; }
     this.cancelled = false;
+    this.cancelPromise = new Promise<void>(resolve => {
+      this.cancelResolve = resolve;
+    });
     const speed = Math.max(config?.speed ?? 1.0, 0.1);
+    const cancelOnInput =
+      config?.cancelOnInput ??
+      vscode.workspace.getConfiguration('gecho').get<boolean>('replay.cancelOnInput') ??
+      true;
 
-    for (const step of echo.steps) {
-      if (this.cancelled) {
-        break;
-      }
-
-      switch (step.type) {
-        case 'type': {
-          const charDelay = Math.min(step.delay ?? DEFAULT_CHAR_DELAY_MS, 500) / speed;
-          if (charDelay > 0) {
-            for (const char of step.text) {
-              if (this.cancelled) { break; }
-              await vscode.commands.executeCommand('type', { text: char });
-              await this.sleep(charDelay);
-            }
-          } else {
-            await vscode.commands.executeCommand('type', { text: step.text });
-          }
-          break;
-        }
-
-        case 'command': {
-          let safeId: string;
-          try {
-            safeId = sanitizeCommandId(step.id);
-          } catch {
-            vscode.window.showWarningMessage(`gEcho: Blocked unsafe command ID in echo: "${step.id}"`);
+    if (cancelOnInput) {
+      this.inputListeners.push(
+        vscode.workspace.onDidChangeTextDocument(e => {
+          const activeEditor = vscode.window.activeTextEditor;
+          if (
+            this.isExecutingStep ||
+            activeEditor === undefined ||
+            activeEditor.document !== e.document ||
+            e.contentChanges.length === 0
+          ) {
             return;
           }
-          if (step.args !== undefined) {
-            if (Array.isArray(step.args)) {
-              await vscode.commands.executeCommand(safeId, ...(step.args as unknown[]));
-            } else {
-              await vscode.commands.executeCommand(safeId, step.args);
+          this.stop();
+        }),
+        vscode.window.onDidChangeTextEditorSelection(e => {
+          const kind = e.kind;
+          // Mouse clicks always cancel — even mid-step (user clearly wants control).
+          // Keyboard selection changes only cancel outside step execution because
+          // VS Code's programmatic `type` command produces Keyboard-kind changes.
+          if (kind === vscode.TextEditorSelectionChangeKind.Mouse) {
+            this.stop();
+          } else if (
+            kind === vscode.TextEditorSelectionChangeKind.Keyboard &&
+            !this.isExecutingStep
+          ) {
+            this.stop();
+          }
+        }),
+      );
+    }
+
+    try {
+      for (const step of echo.steps) {
+        if (this.cancelled) {
+          break;
+        }
+
+        this.isExecutingStep = true;
+        try {
+          switch (step.type) {
+            case 'type': {
+              const charDelay = Math.min(step.delay ?? DEFAULT_CHAR_DELAY_MS, 500) / speed;
+              if (charDelay > 0) {
+                for (const char of step.text) {
+                  if (this.cancelled) { break; }
+                  await vscode.commands.executeCommand('type', { text: char });
+                  await this.sleep(charDelay);
+                }
+              } else {
+                await vscode.commands.executeCommand('type', { text: step.text });
+              }
+              break;
             }
-          } else {
-            await vscode.commands.executeCommand(safeId);
-          }
-          break;
-        }
 
-        case 'key': {
-          const normalized = step.key.toLowerCase().trim();
-          const mappedCommand = KEY_COMMAND_MAP[normalized];
-          if (mappedCommand) {
-            await vscode.commands.executeCommand(mappedCommand);
-          } else if (step.key.length === 1) {
-            await vscode.commands.executeCommand('type', { text: step.key });
-          }
-          // Unknown multi-key sequences are skipped silently
-          break;
-        }
-
-        case 'select': {
-          const editor = vscode.window.activeTextEditor;
-          if (editor) {
-            if (step.selections !== undefined) {
-              editor.selections = step.selections.map(s => {
-                const anchor = new vscode.Position(s.anchor[0], s.anchor[1]);
-                const active = new vscode.Position(s.active[0], s.active[1]);
-                return new vscode.Selection(anchor, active);
-              });
-            } else {
-              const anchor = new vscode.Position(step.anchor[0], step.anchor[1]);
-              const active = new vscode.Position(step.active[0], step.active[1]);
-              editor.selection = new vscode.Selection(anchor, active);
-            }
-          }
-          break;
-        }
-
-        case 'wait': {
-          if (step.until === 'idle') {
-            await this.waitForIdle(step.ms / speed);
-          } else {
-            await this.sleep(step.ms / speed);
-          }
-          break;
-        }
-
-        case 'openFile': {
-          let safePath: string;
-          try {
-            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-            safePath = sanitizeFilePath(step.path, workspaceRoot);
-          } catch {
-            vscode.window.showWarningMessage(`gEcho: Blocked unsafe file path in echo: "${step.path}"`);
-            return;
-          }
-          const uris = await vscode.workspace.findFiles(safePath, undefined, 1);
-          if (uris.length > 0) {
-            const doc = await vscode.workspace.openTextDocument(uris[0]);
-            await vscode.window.showTextDocument(doc);
-          } else {
-            const uri = vscode.Uri.file(safePath);
-            const doc = await vscode.workspace.openTextDocument(uri);
-            await vscode.window.showTextDocument(doc);
-          }
-          break;
-        }
-
-        case 'paste': {
-          const editor = vscode.window.activeTextEditor;
-          if (editor) {
-            const success = await editor.edit(editBuilder => {
-              for (const sel of editor.selections) {
-                if (sel.isEmpty) {
-                  editBuilder.insert(sel.active, step.text);
+            case 'command': {
+              let safeId: string;
+              try {
+                safeId = sanitizeCommandId(step.id);
+              } catch {
+                vscode.window.showWarningMessage(`gEcho: Blocked unsafe command ID in echo: "${step.id}"`);
+                return;
+              }
+              if (step.args !== undefined) {
+                if (Array.isArray(step.args)) {
+                  await vscode.commands.executeCommand(safeId, ...(step.args as unknown[]));
                 } else {
-                  editBuilder.replace(sel, step.text);
+                  await vscode.commands.executeCommand(safeId, step.args);
+                }
+              } else {
+                await vscode.commands.executeCommand(safeId);
+              }
+              break;
+            }
+
+            case 'key': {
+              const normalized = step.key.toLowerCase().trim();
+              const mappedCommand = KEY_COMMAND_MAP[normalized];
+              if (mappedCommand) {
+                await vscode.commands.executeCommand(mappedCommand);
+              } else if (step.key.length === 1) {
+                await vscode.commands.executeCommand('type', { text: step.key });
+              }
+              // Unknown multi-key sequences are skipped silently
+              break;
+            }
+
+            case 'select': {
+              const editor = vscode.window.activeTextEditor;
+              if (editor) {
+                if (step.selections !== undefined) {
+                  editor.selections = step.selections.map(s => {
+                    const anchor = new vscode.Position(s.anchor[0], s.anchor[1]);
+                    const active = new vscode.Position(s.active[0], s.active[1]);
+                    return new vscode.Selection(anchor, active);
+                  });
+                } else {
+                  const anchor = new vscode.Position(step.anchor[0], step.anchor[1]);
+                  const active = new vscode.Position(step.active[0], step.active[1]);
+                  editor.selection = new vscode.Selection(anchor, active);
                 }
               }
-            });
-            if (!success) {
-              vscode.window.showWarningMessage('gEcho: paste step could not be applied (document may be read-only).');
+              break;
+            }
+
+            case 'wait': {
+              if (step.until === 'idle') {
+                await this.waitForIdle(step.ms / speed);
+              } else {
+                await this.sleep(step.ms / speed);
+              }
+              break;
+            }
+
+            case 'openFile': {
+              let safePath: string;
+              try {
+                const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+                safePath = sanitizeFilePath(step.path, workspaceRoot);
+              } catch {
+                vscode.window.showWarningMessage(`gEcho: Blocked unsafe file path in echo: "${step.path}"`);
+                return;
+              }
+              const uris = await vscode.workspace.findFiles(safePath, undefined, 1);
+              if (uris.length > 0) {
+                const doc = await vscode.workspace.openTextDocument(uris[0]);
+                await vscode.window.showTextDocument(doc);
+              } else {
+                const uri = vscode.Uri.file(safePath);
+                const doc = await vscode.workspace.openTextDocument(uri);
+                await vscode.window.showTextDocument(doc);
+              }
+              break;
+            }
+
+            case 'paste': {
+              const editor = vscode.window.activeTextEditor;
+              if (editor) {
+                const success = await editor.edit(editBuilder => {
+                  for (const sel of editor.selections) {
+                    if (sel.isEmpty) {
+                      editBuilder.insert(sel.active, step.text);
+                    } else {
+                      editBuilder.replace(sel, step.text);
+                    }
+                  }
+                });
+                if (!success) {
+                  vscode.window.showWarningMessage('gEcho: paste step could not be applied (document may be read-only).');
+                }
+              }
+              break;
+            }
+
+            case 'scroll': {
+              await vscode.commands.executeCommand('editorScroll', {
+                to: step.direction,
+                by: 'line',
+                value: step.lines,
+              });
+              break;
+            }
+
+            default: {
+              break;
             }
           }
-          break;
-        }
-
-        case 'scroll': {
-          await vscode.commands.executeCommand('editorScroll', {
-            to: step.direction,
-            by: 'line',
-            value: step.lines,
-          });
-          break;
-        }
-
-        default: {
-          break;
+        } finally {
+          this.isExecutingStep = false;
         }
       }
+    } finally {
+      this.disposeInputListeners();
     }
   }
 
   stop(): void {
     this.cancelled = true;
+    this.cancelResolve?.();
+    this.disposeInputListeners();
+  }
+
+  private disposeInputListeners(): void {
+    for (const d of this.inputListeners) {
+      d.dispose();
+    }
+    this.inputListeners = [];
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise<void>(r => setTimeout(r, ms));
+    return Promise.race([
+      new Promise<void>(r => setTimeout(r, ms)),
+      this.cancelPromise,
+    ]);
   }
 
   /**
    * Wait until VS Code is "idle" — no document changes for `quietMs` milliseconds.
    * Uses a hard cap of 30 seconds to prevent infinite waits.
+   * Resolves early if the player is stopped via cancelPromise.
    */
   private waitForIdle(quietMs: number): Promise<void> {
     const maxWaitMs = 30_000;
-    return new Promise<void>(resolve => {
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      const startIdle = () => {
-        timer = setTimeout(() => {
+    return Promise.race([
+      this.cancelPromise,
+      new Promise<void>(resolve => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const startIdle = () => {
+          timer = setTimeout(() => {
+            disposable.dispose();
+            clearTimeout(hardCap);
+            resolve();
+          }, quietMs);
+        };
+        const disposable = vscode.workspace.onDidChangeTextDocument(() => {
+          if (timer !== undefined) { clearTimeout(timer); }
+          startIdle();
+        });
+        const hardCap = setTimeout(() => {
+          if (timer !== undefined) { clearTimeout(timer); }
           disposable.dispose();
-          clearTimeout(hardCap);
           resolve();
-        }, quietMs);
-      };
-      const disposable = vscode.workspace.onDidChangeTextDocument(() => {
-        if (timer !== undefined) { clearTimeout(timer); }
+        }, maxWaitMs);
         startIdle();
-      });
-      const hardCap = setTimeout(() => {
-        if (timer !== undefined) { clearTimeout(timer); }
-        disposable.dispose();
-        resolve();
-      }, maxWaitMs);
-      startIdle();
-    });
+      }),
+    ]);
   }
 }
