@@ -9,9 +9,12 @@ import { readEcho, writeEcho } from './echo/index.js';
 import { createStatusBar, updateStatusBar, runCountdown } from './ui/index.js';
 import { getConfig } from './config.js';
 import type { RecordingState, Echo } from './types/index.js';
-import { ECHO_VERSION } from './types/index.js';
+import { ECHO_VERSION, ECHO_FILE_EXTENSION } from './types/index.js';
 import { checkDependencies } from './dependencies.js';
 import { getWindowBounds, clearWindowInfoCache } from './platform/index.js';
+
+/** Filter extension for VS Code file dialogs, derived from ECHO_FILE_EXTENSION (strips leading dot). */
+const ECHO_FILTER_EXT = ECHO_FILE_EXTENSION.slice(1);
 
 export const WINDOW_SIZE_TOLERANCE_PX = 50;
 
@@ -162,7 +165,7 @@ export function activate(context: vscode.ExtensionContext): void {
         setState('idle');
 
         const uri = await vscode.window.showSaveDialog({
-          filters: { 'gEcho Echo': ['echo.json'] },
+          filters: { 'gEcho Echo': [ECHO_FILTER_EXT] },
           saveLabel: 'Save Echo',
         });
         if (!uri) { return; }
@@ -170,7 +173,7 @@ export function activate(context: vscode.ExtensionContext): void {
         const echo: Echo = {
           version: ECHO_VERSION,
           metadata: {
-            name: path.basename(uri.fsPath, '.echo.json'),
+            name: path.basename(uri.fsPath, ECHO_FILE_EXTENSION),
             created: new Date().toISOString(),
           },
           steps,
@@ -303,7 +306,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       try {
         const uris = await vscode.window.showOpenDialog({
-          filters: { 'gEcho Echo': ['echo.json'] },
+          filters: { 'gEcho Echo': [ECHO_FILTER_EXT, 'gecho.json'] },
           canSelectMany: false,
           openLabel: 'Open Echo',
         });
@@ -340,7 +343,7 @@ export function activate(context: vscode.ExtensionContext): void {
       let tmpMp4Path: string | undefined;
       try {
         const uris = await vscode.window.showOpenDialog({
-          filters: { 'gEcho Echo': ['echo.json'] },
+          filters: { 'gEcho Echo': [ECHO_FILTER_EXT, 'gecho.json'] },
           canSelectMany: false,
           openLabel: 'Open Echo',
         });
