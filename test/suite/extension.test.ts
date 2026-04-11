@@ -55,6 +55,8 @@ describe('Extension Tests', () => {
 
     it('replayEcho with dialog cancelled does not throw', async () => {
       const origDialog = (vscode.window as any).showOpenDialog;
+      const origQuickPick = (vscode.window as any).showQuickPick;
+      (vscode.window as any).showQuickPick = async (items: any[]) => items[0];
       (vscode.window as any).showOpenDialog = async () => undefined;
       try {
         await assert.doesNotReject(
@@ -62,6 +64,22 @@ describe('Extension Tests', () => {
           'replayEcho should handle cancelled dialog gracefully'
         );
       } finally {
+        (vscode.window as any).showOpenDialog = origDialog;
+        (vscode.window as any).showQuickPick = origQuickPick;
+      }
+    });
+
+    it('replayEcho with speed quick-pick cancelled does not open file dialog', async () => {
+      const origQuickPick = (vscode.window as any).showQuickPick;
+      const origDialog = (vscode.window as any).showOpenDialog;
+      let dialogCalled = false;
+      (vscode.window as any).showQuickPick = async () => undefined;
+      (vscode.window as any).showOpenDialog = async () => { dialogCalled = true; return undefined; };
+      try {
+        await vscode.commands.executeCommand('gecho.replayEcho');
+        assert.strictEqual(dialogCalled, false, 'File dialog should not be shown when speed pick is cancelled');
+      } finally {
+        (vscode.window as any).showQuickPick = origQuickPick;
         (vscode.window as any).showOpenDialog = origDialog;
       }
     });
