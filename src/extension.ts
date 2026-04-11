@@ -267,7 +267,7 @@ export function activate(context: vscode.ExtensionContext): void {
         setState('replaying');
         activePlayer = new EchoPlayer();
 
-        await activePlayer.play(echo);
+        await activePlayer.play(echo, getConfig().replay);
 
         activePlayer = undefined;
         setState('idle');
@@ -323,7 +323,7 @@ export function activate(context: vscode.ExtensionContext): void {
         tmpMp4Path = path.join(context.globalStorageUri.fsPath, `gecho-replay-${Date.now()}.mp4`);
         await activeCapture.start(tmpMp4Path);
         await activeCapture.waitForReady();
-        await activePlayer.play(echo);
+        await activePlayer.play(echo, getConfig().replay);
         const mp4Path = await activeCapture?.stop(getConfig().recording.stopTimeoutMs);
 
         activePlayer = undefined;

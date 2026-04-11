@@ -14,6 +14,7 @@ export function getConfig() {
     replay: {
       speed: cfg.get<number>('replay.speed', 1.0),
       captureGif: false,
+      cancelOnInput: cfg.get<boolean>('replay.cancelOnInput', true),
     } satisfies ReplayConfig,
     recording: {
       startupTimeoutMs: cfg.get<number>('recording.startupTimeoutMs', 20_000),

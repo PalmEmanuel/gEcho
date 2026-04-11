@@ -111,6 +111,11 @@
           "default": 1.0,
           "description": "Replay speed multiplier."
         },
+        "gecho.replay.cancelOnInput": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically cancel an active replay when user input is detected."
+        },
         "gecho.recording.startupTimeoutMs": {
           "type": "number",
           "default": 20000,
