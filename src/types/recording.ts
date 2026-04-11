@@ -19,6 +19,7 @@ export interface GifConfig {
 export interface ReplayConfig {
   speed: number;
   captureGif: boolean;
+  cancelOnInput?: boolean;
 }
 
 export type Platform = 'darwin' | 'linux' | 'win32';
