@@ -11,6 +11,37 @@ import { getConfig } from './config.js';
 import type { RecordingState, Echo } from './types/index.js';
 import { ECHO_VERSION } from './types/index.js';
 import { checkDependencies } from './dependencies.js';
+import { getWindowBounds, clearWindowInfoCache } from './platform/index.js';
+
+export const WINDOW_SIZE_TOLERANCE_PX = 50;
+
+/**
+ * Check if the echo declares a windowSize and whether the current window matches.
+ * Returns `true` to continue replay, `false` to cancel.
+ */
+export async function checkWindowSizeMismatch(echo: Echo, isGifMode: boolean): Promise<boolean> {
+  const targetSize = echo.metadata.windowSize;
+  if (!targetSize) { return true; }
+
+  clearWindowInfoCache();
+  const bounds = await getWindowBounds();
+
+  const widthDiff = Math.abs(bounds.width - targetSize.width);
+  const heightDiff = Math.abs(bounds.height - targetSize.height);
+  if (widthDiff <= WINDOW_SIZE_TOLERANCE_PX && heightDiff <= WINDOW_SIZE_TOLERANCE_PX) {
+    return true;
+  }
+
+  const detail = isGifMode
+    ? ' GIF output will reflect the actual window size, not the echo\'s target.'
+    : '';
+  const choice = await vscode.window.showWarningMessage(
+    `This echo was recorded at ${targetSize.width}×${targetSize.height}. Current window is ${bounds.width}×${bounds.height}. Replay may look wrong.${detail}`,
+    'Continue',
+    'Cancel'
+  );
+  return choice === 'Continue';
+}
 
 let currentState: RecordingState = 'idle';
 let activeRecorder: EchoRecorder | undefined;
@@ -273,6 +304,9 @@ export function activate(context: vscode.ExtensionContext): void {
         if (!uris || uris.length === 0) { return; }
 
         const echo = await readEcho(uris[0].fsPath);
+
+        if (!await checkWindowSizeMismatch(echo, false)) { return; }
+
         setState('replaying');
         activePlayer = new EchoPlayer();
 
@@ -315,6 +349,8 @@ export function activate(context: vscode.ExtensionContext): void {
         if (!saveUri) { return; }
 
         const echo = await readEcho(uris[0].fsPath);
+
+        if (!await checkWindowSizeMismatch(echo, true)) { return; }
 
         setState('countdown');
         const countdownSource = new vscode.CancellationTokenSource();
