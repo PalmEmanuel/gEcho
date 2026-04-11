@@ -41,7 +41,7 @@ export function runCountdown(
 
     if (token) {
       if (token.isCancellationRequested) {
-        resolve(false);
+        cleanup(false);
         return;
       }
       cancellationDisposable = token.onCancellationRequested(() => cleanup(false));

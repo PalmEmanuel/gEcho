@@ -37,6 +37,16 @@ describe('runCountdown', () => {
     }
   });
 
+  it('coerces fractional seconds to integer (1.7 treated as 1, completes normally)', async () => {
+    const bar = makeStatusBar();
+    try {
+      const result = await runCountdown(1.7, bar);
+      assert.strictEqual(result, true);
+    } finally {
+      bar.dispose();
+    }
+  }).timeout(3000);
+
   it('returns false when token is already cancelled before countdown starts', async () => {
     const bar = makeStatusBar();
     const cts = new vscode.CancellationTokenSource();
