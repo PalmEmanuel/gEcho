@@ -361,6 +361,9 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       try {
         const echo = await readEcho(uri.fsPath);
+
+        if (!await checkWindowSizeMismatch(echo, false)) { return; }
+
         setState('replaying');
         activePlayer = new EchoPlayer();
 
@@ -393,13 +396,17 @@ export function activate(context: vscode.ExtensionContext): void {
       try {
         const outputFormat = resolveOutputFormat(getConfig().recording.outputFormat);
         const meta = OUTPUT_FORMAT_META[outputFormat];
+        const echoBaseName = path.basename(uri.fsPath, ECHO_FILE_EXTENSION);
         const saveUri = await vscode.window.showSaveDialog({
           filters: { [meta.filterKey]: [meta.ext] },
           saveLabel: meta.label,
+          defaultUri: vscode.Uri.file(path.join(path.dirname(uri.fsPath), `${echoBaseName}.${meta.ext}`)),
         });
         if (!saveUri) { return; }
 
         const echo = await readEcho(uri.fsPath);
+
+        if (!await checkWindowSizeMismatch(echo, true)) { return; }
 
         setState('countdown');
         const countdownSource = new vscode.CancellationTokenSource();
@@ -419,15 +426,17 @@ export function activate(context: vscode.ExtensionContext): void {
         }
 
         setState('replaying-gif');
-        activePlayer = new EchoPlayer();
-        activeCapture = new ScreenCapture();
+        const player = new EchoPlayer();
+        const capture = new ScreenCapture();
+        activePlayer = player;
+        activeCapture = capture;
 
         await vscode.workspace.fs.createDirectory(context.globalStorageUri);
         tmpMp4Path = path.join(context.globalStorageUri.fsPath, `gecho-replay-${Date.now()}.mp4`);
-        await activeCapture.start(tmpMp4Path);
-        await activeCapture.waitForReady();
-        await activePlayer.play(echo, getConfig().replay);
-        const mp4Path = await activeCapture?.stop(getConfig().recording.stopTimeoutMs);
+        await capture.start(tmpMp4Path);
+        await capture.waitForReady(getConfig().recording.startupTimeoutMs);
+        await player.play(echo, getConfig().replay);
+        const mp4Path = await capture.stop(getConfig().recording.stopTimeoutMs);
 
         activePlayer = undefined;
         activeCapture = undefined;
@@ -436,7 +445,7 @@ export function activate(context: vscode.ExtensionContext): void {
         await vscode.window.withProgress(
           { location: vscode.ProgressLocation.Notification, title: outputFormat === 'gif' ? 'gEcho: Converting to GIF...' : `gEcho: Saving ${outputFormat.toUpperCase()}...`, cancellable: false },
           async () => {
-            await convertOutput(mp4Path!, saveUri.fsPath, outputFormat);
+            await convertOutput(mp4Path, saveUri.fsPath, outputFormat);
           }
         );
 

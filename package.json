@@ -85,12 +85,12 @@
       "explorer/context": [
         {
           "command": "gecho.replayEchoFile",
-          "when": "resourceExtname == '.json' && resourceFilename =~ /\\.gecho\\.json$/",
+          "when": "resourceExtname == '.json' && resourceFilename =~ /\\.(echo|gecho)\\.json$/",
           "group": "navigation"
         },
         {
           "command": "gecho.replayEchoFileAsGif",
-          "when": "resourceExtname == '.json' && resourceFilename =~ /\\.gecho\\.json$/",
+          "when": "resourceExtname == '.json' && resourceFilename =~ /\\.(echo|gecho)\\.json$/",
           "group": "navigation"
         }
       ],
