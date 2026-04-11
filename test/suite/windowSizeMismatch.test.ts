@@ -8,12 +8,12 @@ import type { Echo } from '../../src/types/echo.js';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const platformImpl = require('../../src/platform/platform.js') as typeof import('../../src/platform/platform.js');
 
-function makeEcho(windowSize?: { width: number; height: number }): Echo {
+function makeEcho(windowSize?: { width: number; height: number } | any): Echo {
   return {
     version: '1.0',
     metadata: { name: 'test', windowSize },
     steps: [],
-  };
+  } as Echo;
 }
 
 describe('checkWindowSizeMismatch', () => {
@@ -35,6 +35,24 @@ describe('checkWindowSizeMismatch', () => {
 
   it('returns true when echo has no windowSize in metadata', async () => {
     const echo = makeEcho(undefined);
+    const result = await checkWindowSizeMismatch(echo, false);
+    assert.strictEqual(result, true);
+  });
+
+  it('returns true when windowSize has non-numeric width', async () => {
+    const echo = makeEcho({ width: 'bad', height: 1080 });
+    const result = await checkWindowSizeMismatch(echo, false);
+    assert.strictEqual(result, true);
+  });
+
+  it('returns true when windowSize has NaN height', async () => {
+    const echo = makeEcho({ width: 1920, height: NaN });
+    const result = await checkWindowSizeMismatch(echo, false);
+    assert.strictEqual(result, true);
+  });
+
+  it('returns true when windowSize has Infinity width', async () => {
+    const echo = makeEcho({ width: Infinity, height: 1080 });
     const result = await checkWindowSizeMismatch(echo, false);
     assert.strictEqual(result, true);
   });
@@ -61,6 +79,7 @@ describe('checkWindowSizeMismatch', () => {
     };
     const echo = makeEcho({ width: 1920, height: 1080 });
     await checkWindowSizeMismatch(echo, false);
+    assert.ok(warningMessage.startsWith('gEcho:'), 'Warning should have gEcho: prefix');
     assert.ok(warningMessage.includes('1920'), 'Warning should include echo width');
     assert.ok(warningMessage.includes('1080'), 'Warning should include echo height');
     assert.ok(warningMessage.includes(`${1920 + WINDOW_SIZE_TOLERANCE_PX + 1}`), 'Warning should include current width');

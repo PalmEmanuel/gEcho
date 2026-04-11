@@ -23,6 +23,12 @@ export async function checkWindowSizeMismatch(echo: Echo, isGifMode: boolean): P
   const targetSize = echo.metadata.windowSize;
   if (!targetSize) { return true; }
 
+  // Treat malformed windowSize (non-finite numbers) as absent — skip the check.
+  if (typeof targetSize.width !== 'number' || typeof targetSize.height !== 'number'
+      || !Number.isFinite(targetSize.width) || !Number.isFinite(targetSize.height)) {
+    return true;
+  }
+
   clearWindowInfoCache();
   const bounds = await getWindowBounds();
 
@@ -36,7 +42,7 @@ export async function checkWindowSizeMismatch(echo: Echo, isGifMode: boolean): P
     ? ' GIF output will reflect the actual window size, not the echo\'s target.'
     : '';
   const choice = await vscode.window.showWarningMessage(
-    `This echo was recorded at ${targetSize.width}×${targetSize.height}. Current window is ${bounds.width}×${bounds.height}. Replay may look wrong.${detail}`,
+    `gEcho: This echo was recorded at ${targetSize.width}×${targetSize.height}. Current window is ${bounds.width}×${bounds.height}. Replay may look wrong.${detail}`,
     'Continue',
     'Cancel'
   );
