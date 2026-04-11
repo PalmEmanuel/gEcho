@@ -36,15 +36,29 @@ const vscodeStub = {
     workspaceFolders: undefined,
   },
   window: {
-    showWarningMessage: (_msg: string) => Promise.resolve(undefined),
+    showWarningMessage: (_msg: string, ..._actions: string[]): Promise<string | undefined> =>
+      Promise.resolve(undefined),
+    showInformationMessage: (_msg: string, ..._actions: string[]): Promise<string | undefined> =>
+      Promise.resolve(undefined),
+    showErrorMessage: (_msg: string, ..._actions: string[]): Promise<string | undefined> =>
+      Promise.resolve(undefined),
+    withProgress: async <T>(
+      _opts: unknown,
+      cb: (progress: { report: (v: { message?: string }) => void }) => Promise<T>
+    ): Promise<T> => cb({ report: () => {} }),
     showTextDocument: () => Promise.resolve(undefined),
     onDidChangeTextEditorSelection: () => ({ dispose: () => {} }),
     onDidChangeActiveTextEditor: () => ({ dispose: () => {} }),
     activeTextEditor: undefined,
   },
+  env: {
+    openExternal: (_uri: unknown): Promise<boolean> => Promise.resolve(true),
+  },
   Uri: {
     file: (p: string) => ({ fsPath: p, toString: () => `file://${p}` }),
+    parse: (s: string) => ({ toString: () => s }),
   },
+  ProgressLocation: { Notification: 15, SourceControl: 1, Window: 10 },
   commands: {
     executeCommand: () => Promise.resolve(undefined),
   },

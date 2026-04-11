@@ -14,11 +14,15 @@ export function getConfig() {
     replay: {
       speed: cfg.get<number>('replay.speed', 1.0),
       captureGif: false,
+      cancelOnInput: cfg.get<boolean>('replay.cancelOnInput', true),
     } satisfies ReplayConfig,
     recording: {
       startupTimeoutMs: cfg.get<number>('recording.startupTimeoutMs', 20_000),
       stopTimeoutMs: cfg.get<number>('recording.stopTimeoutMs', 15_000),
       outputFormat: cfg.get<'gif' | 'mp4' | 'webm'>('recording.outputFormat', 'gif'),
+    },
+    countdown: {
+      seconds: cfg.get<number>('countdown.seconds', 3),
     },
   };
 }

@@ -13,40 +13,48 @@ Thank you for contributing! This document outlines our contribution and testing 
 
 ## Test Types
 
-gEcho has two test tiers:
+gEcho has three test tiers:
 
-### Unit Tests
+### Plain-Mocha Tests
 Run with: `npx mocha --config .mocharc.json` (after `npm run compile`)
 
-- Pure-function tests
-- ffmpeg always mocked
-- No VS Code API required
-- Fast, isolated test suite
+- Pure-function and isolated module tests
+- Most tests mock ffmpeg; tests under `test/suite/integration/` may invoke real ffmpeg when available and self-skip when it is not
+- No VS Code electron runner required for most tests
+- Fast, well-isolated
 
-### VS Code Integration Tests
+### VS Code Extension Host Tests
 Run with: `npm test`
 
 - Require VS Code electron runner
 - Test command activation and extension lifecycle
 - For features that depend on VS Code APIs
 
+### VS Code Extension Host Integration Tests
+Run with: `npm run test:integration`
+
+- Require VS Code electron runner
+- End-to-end integration scenarios (GIF pipeline, screen capture, echo replay)
+- May use real ffmpeg; tests self-skip when ffmpeg or a display is unavailable
+
 ## Test Location & Naming
 
-Tests live in `test/suite/`:
-- Unit tests: `*.test.ts` files at `test/suite/`
-- Integration tests: `test/suite/integration/`
+- **Plain-Mocha tests**: `test/suite/*.test.ts` and `test/suite/integration/`
+- **Extension Host tests**: `test/suite/` (run via `npm test`)
+- **Extension Host integration tests**: `test/integration/`
 
 ## Key Conventions
 
-1. **vscodeMock import** — If your test transitively loads source modules that import VS Code, **import `test/suite/integration/vscodeMock.js` first**:
+1. **vscodeMock import** — If your Mocha test transitively loads source modules that import VS Code, **`./vscodeMock.js` must be the first import**:
    ```typescript
-   import './vscodeMock';
+   import './vscodeMock.js';
    // ...rest of imports
    ```
+   The mock lives at `test/suite/integration/vscodeMock.ts` and is imported as `'./vscodeMock.js'` from files in that directory.
 
 2. **File extensions** — Use `.js` on all local imports (Node16 module resolution)
 
-3. **ffmpeg mocking** — ffmpeg must always be mocked in unit tests. Never require a real ffmpeg binary.
+3. **ffmpeg usage** — Unit tests must not require a real ffmpeg binary. Integration tests may use real ffmpeg but must self-skip when it is unavailable (e.g. check `which ffmpeg` or catch `ENOENT`).
 
 ## Build & Lint
 
@@ -60,8 +68,9 @@ Tests live in `test/suite/`:
 3. Write code and tests
 4. Run `npm run compile` to verify TypeScript
 5. Run `npm run lint` to check style
-6. Run `npx mocha --config .mocharc.json` to verify unit tests
-7. Run `npm test` to verify integration tests
-8. Submit a PR
+6. Run `npx mocha --config .mocharc.json` to verify plain-Mocha tests
+7. Run `npm test` to verify Extension Host tests
+8. Run `npm run test:integration` to verify Extension Host integration tests
+9. Submit a PR
 
 Questions? Open an issue or check the [README](README.md).

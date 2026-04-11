@@ -7,6 +7,19 @@ import * as os from 'node:os';
 import { convertOutput } from '../../src/converter/outputConverter.js';
 import { mockConfigValues, clearMockConfig } from './integration/vscodeMock.js';
 
+/** Create an OS-appropriate wrapper script that delegates to a Node.js fixture. */
+async function createFfmpegWrapper(dir: string, name: string, fixturePath: string): Promise<string> {
+  if (process.platform === 'win32') {
+    const wrapperPath = path.join(dir, `${name}.cmd`);
+    await fs.writeFile(wrapperPath, `@echo off\nnode "${fixturePath}" %*\n`);
+    return wrapperPath;
+  } else {
+    const wrapperPath = path.join(dir, `${name}.sh`);
+    await fs.writeFile(wrapperPath, `#!/bin/sh\nexec node "${fixturePath}" "$@"\n`, { mode: 0o755 });
+    return wrapperPath;
+  }
+}
+
 describe('outputConverter', () => {
   let tempDir: string;
   let tempMp4Path: string;
@@ -58,24 +71,12 @@ describe('outputConverter', () => {
   });
 
   describe('gif format', () => {
-    it('delegates to GifConverter and consumes the mp4 file', async () => {
+    it('rejects with sanitization error for invalid ffmpeg path before conversion starts', async () => {
       const destPath = path.join(tempDir, 'output.gif');
-      
-      // GifConverter requires ffmpeg - use a fake one for this test
-      const fixturePath = path.join(__dirname, 'fixtures', 'fake-ffmpeg-success.js');
-      mockConfigValues['ffmpegPath'] = process.execPath; // Use node as the "ffmpeg" binary
-      
-      // This will attempt the GifConverter two-pass process.
-      // We can't fully mock it without deeper intervention, so we test
-      // that it attempts the conversion. For a real mock we'd need to
-      // stub the spawn calls, but we're testing integration behavior.
-      
-      // Actually, GifConverter will spawn node with ffmpeg args, which will fail.
-      // Let's just verify the error propagation path instead by using
-      // an invalid ffmpeg path that triggers the sanitization error.
-      
+
+      // GIF conversion must sanitize the configured ffmpeg path before spawning.
       mockConfigValues['ffmpegPath'] = 'bad;path';
-      
+
       await assert.rejects(
         async () => convertOutput(tempMp4Path, destPath, 'gif'),
         /gEcho: Invalid ffmpeg path/
@@ -123,12 +124,7 @@ describe('outputConverter', () => {
     it('resolves when ffmpeg exits with code 0', async () => {
       const destPath = path.join(tempDir, 'output.webm');
       
-      // Create a wrapper script that calls node with our fixture
-      const wrapperPath = path.join(tempDir, 'ffmpeg-wrapper.sh');
-      
-      // Write a shell wrapper (Unix-style, works on macOS/Linux)
-      await fs.writeFile(wrapperPath, `#!/bin/sh\nexec node "${fixtureSuccessPath}" "$@"\n`, { mode: 0o755 });
-      
+      const wrapperPath = await createFfmpegWrapper(tempDir, 'ffmpeg-wrapper', fixtureSuccessPath);
       mockConfigValues['ffmpegPath'] = wrapperPath;
       
       // Should resolve without error
@@ -138,12 +134,7 @@ describe('outputConverter', () => {
     it('rejects with exit code and stderr when ffmpeg fails', async () => {
       const destPath = path.join(tempDir, 'output.webm');
       
-      // Create a wrapper script that calls node with our failure fixture
-      const wrapperPath = path.join(tempDir, 'ffmpeg-wrapper-fail.sh');
-      
-      // Write a shell wrapper (Unix-style, works on macOS/Linux)
-      await fs.writeFile(wrapperPath, `#!/bin/sh\nexec node "${fixtureFailPath}" "$@"\n`, { mode: 0o755 });
-      
+      const wrapperPath = await createFfmpegWrapper(tempDir, 'ffmpeg-wrapper-fail', fixtureFailPath);
       mockConfigValues['ffmpegPath'] = wrapperPath;
       
       await assert.rejects(
@@ -160,12 +151,7 @@ describe('outputConverter', () => {
     it('includes last 500 chars of stderr in error message', async () => {
       const destPath = path.join(tempDir, 'output.webm');
       
-      // Create a wrapper script for stderr test
-      const wrapperPath = path.join(tempDir, 'ffmpeg-wrapper-stderr.sh');
-      
-      // Write a shell wrapper (Unix-style, works on macOS/Linux)
-      await fs.writeFile(wrapperPath, `#!/bin/sh\nexec node "${fixtureFailPath}" "$@"\n`, { mode: 0o755 });
-      
+      const wrapperPath = await createFfmpegWrapper(tempDir, 'ffmpeg-wrapper-stderr', fixtureFailPath);
       mockConfigValues['ffmpegPath'] = wrapperPath;
       
       await assert.rejects(

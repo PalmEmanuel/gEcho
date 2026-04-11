@@ -2,7 +2,7 @@ import type { StepType } from './echo.js';
 
 export type RecordingMode = 'echo' | 'gif' | 'combined';
 
-export type RecordingState = 'idle' | 'starting-gif' | 'recording' | 'recording-gif' | 'saving-gif' | 'replaying' | 'replaying-gif';
+export type RecordingState = 'idle' | 'countdown' | 'starting-gif' | 'recording' | 'recording-gif' | 'saving-gif' | 'replaying' | 'replaying-gif';
 
 export interface RecordingSession {
   mode: RecordingMode;
@@ -19,6 +19,7 @@ export interface GifConfig {
 export interface ReplayConfig {
   speed: number;
   captureGif: boolean;
+  cancelOnInput?: boolean;
 }
 
 export type Platform = 'darwin' | 'linux' | 'win32';

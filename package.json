@@ -111,6 +111,11 @@
           "default": 1.0,
           "description": "Replay speed multiplier."
         },
+        "gecho.replay.cancelOnInput": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically cancel an active replay when user input is detected."
+        },
         "gecho.recording.startupTimeoutMs": {
           "type": "number",
           "default": 20000,
@@ -139,6 +144,12 @@
             "WebM video (VP9, smaller file size)"
           ],
           "description": "Output format for recordings. 'gif' produces an animated GIF. 'mp4' saves the raw capture without re-encoding. 'webm' re-encodes with VP9."
+        },
+        "gecho.countdown.seconds": {
+          "type": "integer",
+          "default": 3,
+          "minimum": 0,
+          "description": "Seconds to count down before GIF recording or replay-as-GIF begins. Set to 0 to disable."
         }
       }
     },
