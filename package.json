@@ -71,8 +71,40 @@
         "command": "gecho.cancelReplay",
         "title": "gEcho: Cancel Replay",
         "category": "gEcho"
+      },
+      {
+        "command": "gecho.replayEchoFile",
+        "title": "gEcho: Replay Echo from File"
+      },
+      {
+        "command": "gecho.replayEchoFileAsGif",
+        "title": "gEcho: Replay Echo from File as GIF"
       }
     ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "gecho.replayEchoFile",
+          "when": "resourceExtname == '.json' && resourceFilename =~ /\\.gecho\\.json$/",
+          "group": "navigation"
+        },
+        {
+          "command": "gecho.replayEchoFileAsGif",
+          "when": "resourceExtname == '.json' && resourceFilename =~ /\\.gecho\\.json$/",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "gecho.replayEchoFile",
+          "when": "false"
+        },
+        {
+          "command": "gecho.replayEchoFileAsGif",
+          "when": "false"
+        }
+      ]
+    },
     "configuration": {
       "title": "gEcho",
       "properties": {
