@@ -157,7 +157,7 @@
       {
         "id": "json",
         "extensions": [
-          ".gecho.json"
+          ".echo.json"
         ],
         "aliases": [
           "gEcho Echo"
@@ -166,7 +166,7 @@
     ],
     "jsonValidation": [
       {
-        "fileMatch": "*.gecho.json",
+        "fileMatch": "*.echo.json",
         "url": "./schemas/gecho-v1.schema.json"
       }
     ]

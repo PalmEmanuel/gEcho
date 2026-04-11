@@ -112,7 +112,7 @@ Common issues and how to resolve them.
 
 ## Echo Validation Errors
 
-**Symptom:** Red squiggles appear in your `.gecho.json` file, or replay fails with "Invalid echo format."
+**Symptom:** Red squiggles appear in your `.echo.json` file, or replay fails with "Invalid echo format."
 
 **Common causes and fixes:**
 

@@ -54,7 +54,7 @@ export function activate(context: vscode.ExtensionContext): void {
       const items: (vscode.QuickPickItem & { command: string })[] = [
         { label: '$(record) Start Echo Recording', description: 'Record keystrokes as an echo', command: 'gecho.startEchoRecording' },
         { label: '$(device-camera-video) Start GIF Recording', description: 'Capture screen to GIF', command: 'gecho.startGifRecording' },
-        { label: '$(play) Replay Echo', description: 'Execute a .gecho.json echo', command: 'gecho.replayEcho' },
+        { label: '$(play) Replay Echo', description: 'Execute a .echo.json echo', command: 'gecho.replayEcho' },
         { label: '$(play) Replay Echo as GIF', description: 'Execute echo and capture GIF', command: 'gecho.replayAsGif' },
       ];
       const pick = await vscode.window.showQuickPick(items, { placeHolder: 'gEcho — choose an action' });
@@ -125,7 +125,7 @@ export function activate(context: vscode.ExtensionContext): void {
         setState('idle');
 
         const uri = await vscode.window.showSaveDialog({
-          filters: { 'gEcho Echo': ['gecho.json'] },
+          filters: { 'gEcho Echo': ['echo.json'] },
           saveLabel: 'Save Echo',
         });
         if (!uri) { return; }
@@ -133,7 +133,7 @@ export function activate(context: vscode.ExtensionContext): void {
         const echo: Echo = {
           version: ECHO_VERSION,
           metadata: {
-            name: path.basename(uri.fsPath, '.gecho.json'),
+            name: path.basename(uri.fsPath, '.echo.json'),
             created: new Date().toISOString(),
           },
           steps,
@@ -266,7 +266,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       try {
         const uris = await vscode.window.showOpenDialog({
-          filters: { 'gEcho Echo': ['gecho.json'] },
+          filters: { 'gEcho Echo': ['echo.json'] },
           canSelectMany: false,
           openLabel: 'Open Echo',
         });
@@ -300,7 +300,7 @@ export function activate(context: vscode.ExtensionContext): void {
       let tmpMp4Path: string | undefined;
       try {
         const uris = await vscode.window.showOpenDialog({
-          filters: { 'gEcho Echo': ['gecho.json'] },
+          filters: { 'gEcho Echo': ['echo.json'] },
           canSelectMany: false,
           openLabel: 'Open Echo',
         });

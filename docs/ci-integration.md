@@ -10,7 +10,7 @@ gEcho echoes can be replayed in CI/CD pipelines to generate GIFs automatically. 
 
 1. Record an echo locally with gEcho.
 2. Run **gEcho: Replay Echo as GIF** locally to produce the GIF.
-3. Commit both the `.gecho.json` echo and the generated `.gif` to your repository.
+3. Commit both the `.echo.json` echo and the generated `.gif` to your repository.
 4. Reference the committed GIF in your README or docs — no CI execution step is needed.
 
 This is the reliable path for keeping demo GIFs in sync with your codebase today.
@@ -20,7 +20,7 @@ This is the reliable path for keeping demo GIFs in sync with your codebase today
 When a non-interactive replay command is implemented, the workflow will be:
 
 1. Record an echo locally (once)
-2. Commit the `.gecho.json` file to your repository
+2. Commit the `.echo.json` file to your repository
 3. In CI, install the gEcho extension and replay the echo as a GIF
 4. Use the generated GIF in your README, docs, or release notes
 
