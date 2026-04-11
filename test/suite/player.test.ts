@@ -333,7 +333,9 @@ describe('EchoPlayer', () => {
         (vscode.commands as any).executeCommand = orig;
       }
     });
+  });
 
+  describe('cancelOnInput', () => {
     it('stop() during a long wait step resolves promptly', async () => {
       const player = new EchoPlayer();
       const start = Date.now();
@@ -351,9 +353,7 @@ describe('EchoPlayer', () => {
       const elapsed = Date.now() - start;
       assert.ok(elapsed < 1000, `Expected play() to resolve promptly after stop(), took ${elapsed}ms`);
     });
-  });
 
-  describe('cancelOnInput', () => {
     it('Mouse selection change triggers stop() when cancelOnInput is true', async () => {
       let selectionHandler: ((e: vscode.TextEditorSelectionChangeEvent) => void) | undefined;
       const origOnSelection = (vscode.window as any).onDidChangeTextEditorSelection;

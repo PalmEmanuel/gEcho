@@ -239,7 +239,7 @@ export class EchoPlayer {
   /**
    * Wait until VS Code is "idle" — no document changes for `quietMs` milliseconds.
    * Uses a hard cap of 30 seconds to prevent infinite waits.
-   * Resolves immediately if the player is stopped via cancelPromise.
+   * Resolves early if the player is stopped via cancelPromise.
    */
   private waitForIdle(quietMs: number): Promise<void> {
     const maxWaitMs = 30_000;
