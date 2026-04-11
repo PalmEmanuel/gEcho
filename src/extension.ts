@@ -9,9 +9,26 @@ import { readEcho, writeEcho } from './echo/index.js';
 import { createStatusBar, updateStatusBar, runCountdown } from './ui/index.js';
 import { getConfig } from './config.js';
 import type { RecordingState, Echo } from './types/index.js';
-import { ECHO_VERSION } from './types/index.js';
+import { ECHO_VERSION, ECHO_FILE_EXTENSION } from './types/index.js';
 import { checkDependencies } from './dependencies.js';
 import { getWindowBounds, clearWindowInfoCache } from './platform/index.js';
+
+/** Filter extension for VS Code file dialogs, derived from ECHO_FILE_EXTENSION (strips leading dot). */
+const ECHO_FILTER_EXT = ECHO_FILE_EXTENSION.slice(1);
+
+/**
+ * Ensure the file path ends with the correct echo extension.
+ * Some platforms may only append `.json` instead of `.echo.json` from the save dialog filter.
+ */
+export function ensureEchoExtension(filePath: string): string {
+  if (filePath.endsWith(ECHO_FILE_EXTENSION)) {
+    return filePath;
+  }
+  if (filePath.endsWith('.json')) {
+    return filePath.slice(0, -'.json'.length) + ECHO_FILE_EXTENSION;
+  }
+  return filePath + ECHO_FILE_EXTENSION;
+}
 
 export const WINDOW_SIZE_TOLERANCE_PX = 50;
 
@@ -91,7 +108,7 @@ export function activate(context: vscode.ExtensionContext): void {
       const items: (vscode.QuickPickItem & { command: string })[] = [
         { label: '$(record) Start Echo Recording', description: 'Record keystrokes as an echo', command: 'gecho.startEchoRecording' },
         { label: '$(device-camera-video) Start GIF Recording', description: 'Capture screen to GIF', command: 'gecho.startGifRecording' },
-        { label: '$(play) Replay Echo', description: 'Execute a .gecho.json echo', command: 'gecho.replayEcho' },
+        { label: '$(play) Replay Echo', description: 'Execute a .echo.json echo', command: 'gecho.replayEcho' },
         { label: '$(play) Replay Echo as GIF', description: 'Execute echo and capture GIF', command: 'gecho.replayAsGif' },
       ];
       const pick = await vscode.window.showQuickPick(items, { placeHolder: 'gEcho — choose an action' });
@@ -162,21 +179,22 @@ export function activate(context: vscode.ExtensionContext): void {
         setState('idle');
 
         const uri = await vscode.window.showSaveDialog({
-          filters: { 'gEcho Echo': ['gecho.json'] },
+          filters: { 'gEcho Echo': [ECHO_FILTER_EXT] },
           saveLabel: 'Save Echo',
         });
         if (!uri) { return; }
 
+        const savePath = ensureEchoExtension(uri.fsPath);
         const echo: Echo = {
           version: ECHO_VERSION,
           metadata: {
-            name: path.basename(uri.fsPath, '.gecho.json'),
+            name: path.basename(savePath, ECHO_FILE_EXTENSION),
             created: new Date().toISOString(),
           },
           steps,
         };
-        await writeEcho(echo, uri.fsPath);
-        vscode.window.showInformationMessage(`gEcho: Echo saved to ${uri.fsPath}`);
+        await writeEcho(echo, savePath);
+        vscode.window.showInformationMessage(`gEcho: Echo saved to ${savePath}`);
       } catch (err) {
         setState('idle');
         activeRecorder = undefined;
@@ -303,7 +321,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       try {
         const uris = await vscode.window.showOpenDialog({
-          filters: { 'gEcho Echo': ['gecho.json'] },
+          filters: { 'gEcho Echo': [ECHO_FILTER_EXT, 'gecho.json'] },
           canSelectMany: false,
           openLabel: 'Open Echo',
         });
@@ -340,7 +358,7 @@ export function activate(context: vscode.ExtensionContext): void {
       let tmpMp4Path: string | undefined;
       try {
         const uris = await vscode.window.showOpenDialog({
-          filters: { 'gEcho Echo': ['gecho.json'] },
+          filters: { 'gEcho Echo': [ECHO_FILTER_EXT, 'gecho.json'] },
           canSelectMany: false,
           openLabel: 'Open Echo',
         });

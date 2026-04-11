@@ -18,8 +18,8 @@ describe('Constants', () => {
     assert.strictEqual(ECHO_VERSION, '1.0');
   });
 
-  it("ECHO_FILE_EXTENSION is '.gecho.json'", () => {
-    assert.strictEqual(ECHO_FILE_EXTENSION, '.gecho.json');
+  it("ECHO_FILE_EXTENSION is '.echo.json'", () => {
+    assert.strictEqual(ECHO_FILE_EXTENSION, '.echo.json');
   });
 });
 

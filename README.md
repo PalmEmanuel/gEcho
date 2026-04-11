@@ -32,7 +32,7 @@ gEcho is a VS Code extension with two recording modes:
 2. Run **gEcho: Start Echo Recording**
 3. Perform your demo actions in VS Code — type code, open files, use the terminal
 4. Run **gEcho: Stop Echo Recording**
-5. Save the echo as `my-demo.gecho.json`
+5. Save the echo as `my-demo.echo.json`
 
 ### Record a GIF Directly
 
@@ -43,7 +43,7 @@ gEcho is a VS Code extension with two recording modes:
 
 ### Replay an Echo as GIF
 
-1. Open a `.gecho.json` echo
+1. Open a `.echo.json` echo
 2. Run **gEcho: Replay as GIF**
 3. gEcho replays your recorded actions while capturing the screen
 4. Output: a reproducible, pixel-perfect GIF
@@ -52,7 +52,7 @@ gEcho is a VS Code extension with two recording modes:
 
 ## Echo Format
 
-Echoes are human-readable JSON files with a `.gecho.json` extension:
+Echoes are human-readable JSON files with a `.echo.json` extension:
 
 ```jsonc
 {
@@ -170,7 +170,7 @@ Echoes can be replayed in CI to generate GIFs automatically:
 - name: Generate demo GIFs
   run: |
     code --install-extension gecho.vsix
-    code --command gecho.replayAsGif echoes/demo.gecho.json
+    code --command gecho.replayAsGif echoes/demo.echo.json
 ```
 
 For scenarios requiring authentication (e.g., Copilot Chat), run gEcho locally where credentials are available, then commit the generated GIFs.

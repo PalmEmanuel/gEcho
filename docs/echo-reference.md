@@ -1,6 +1,6 @@
 # Echo Format Reference
 
-gEcho echoes are human-readable JSON files with a `.gecho.json` extension. They describe a sequence of VS Code interactions that can be replayed deterministically.
+gEcho echoes are human-readable JSON files with a `.echo.json` extension. They describe a sequence of VS Code interactions that can be replayed deterministically.
 
 ## File Structure
 
@@ -228,11 +228,11 @@ Scrolls the active editor up or down by a specified number of lines.
 
 ## JSON Schema
 
-gEcho ships with a JSON Schema at `schemas/gecho-v1.schema.json`. VS Code automatically validates `.gecho.json` files against this schema, providing IntelliSense, auto-completion, and error highlighting as you edit echoes.
+gEcho ships with a JSON Schema at `schemas/gecho-v1.schema.json`. VS Code automatically validates `.echo.json` files against this schema, providing IntelliSense, auto-completion, and error highlighting as you edit echoes.
 
 ## Example Echo
 
-A complete example echo demonstrating all step types is available at [`echoes/example.gecho.json`](../echoes/example.gecho.json).
+A complete example echo demonstrating all step types is available at [`echoes/example.echo.json`](../echoes/example.echo.json).
 
 ```jsonc
 {

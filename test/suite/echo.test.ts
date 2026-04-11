@@ -101,7 +101,7 @@ describe('echo roundtrip', () => {
 
   it('writes and reads back an echo', async () => {
     const echo = makeEcho();
-    const filePath = path.join(tmpDir, 'test.gecho.json');
+    const filePath = path.join(tmpDir, 'test.echo.json');
     await writeEcho(echo, filePath);
     const result = await readEcho(filePath);
     assert.deepStrictEqual(result, echo);
@@ -109,20 +109,20 @@ describe('echo roundtrip', () => {
 
   it('preserves all step types through roundtrip', async () => {
     const echo = makeFullEcho();
-    const filePath = path.join(tmpDir, 'full.gecho.json');
+    const filePath = path.join(tmpDir, 'full.echo.json');
     await writeEcho(echo, filePath);
     const result = await readEcho(filePath);
     assert.deepStrictEqual(result, echo);
   });
 
   it('throws on reading invalid JSON file', async () => {
-    const filePath = path.join(tmpDir, 'bad.gecho.json');
+    const filePath = path.join(tmpDir, 'bad.echo.json');
     await fs.writeFile(filePath, 'this is not json', 'utf8');
     await assert.rejects(() => readEcho(filePath));
   });
 
   it('throws on reading valid JSON that fails validation', async () => {
-    const filePath = path.join(tmpDir, 'invalid.gecho.json');
+    const filePath = path.join(tmpDir, 'invalid.echo.json');
     await fs.writeFile(filePath, JSON.stringify({ not: 'an echo' }), 'utf8');
     await assert.rejects(() => readEcho(filePath));
   });

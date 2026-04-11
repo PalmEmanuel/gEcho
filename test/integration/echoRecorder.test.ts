@@ -28,7 +28,7 @@ describe('EchoRecorder integration — record → write → reload', function ()
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
   });
 
-  it('captures real typing events, writes a valid .gecho.json, and reloads it correctly', async function () {
+  it('captures real typing events, writes a valid .echo.json, and reloads it correctly', async function () {
     const doc = await vscode.workspace.openTextDocument({ content: '', language: 'plaintext' });
     await vscode.window.showTextDocument(doc);
 
@@ -57,7 +57,7 @@ describe('EchoRecorder integration — record → write → reload', function ()
       steps,
     };
 
-    const filePath = path.join(tmpDir, 'recording.gecho.json');
+    const filePath = path.join(tmpDir, 'recording.echo.json');
     await writeEcho(echo, filePath);
 
     // Verify the file exists and parses as a valid echo
@@ -87,7 +87,7 @@ describe('EchoRecorder integration — record → write → reload', function ()
     };
 
     // Write and reload to test the full roundtrip path, not just in-memory
-    const filePath = path.join(tmpDir, 'replay-roundtrip.gecho.json');
+    const filePath = path.join(tmpDir, 'replay-roundtrip.echo.json');
     await writeEcho(echo, filePath);
     const reloaded = await readEcho(filePath);
 

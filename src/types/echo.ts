@@ -70,4 +70,4 @@ export interface Echo {
 }
 
 export const ECHO_VERSION = '1.0';
-export const ECHO_FILE_EXTENSION = '.gecho.json';
+export const ECHO_FILE_EXTENSION = '.echo.json';
