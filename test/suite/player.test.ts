@@ -410,13 +410,9 @@ describe('EchoPlayer', () => {
           ],
         }, { speed: 1.0, captureGif: false, cancelOnInput: true });
 
-        // Wait for play() to start, then fire Keyboard change.
-        // During a wait step isExecutingStep is true, so Keyboard is ignored.
-        // But Mouse still cancels (tested separately). Here we verify
-        // that Keyboard changes only cancel between steps.
+        // During a wait step isExecutingStep is true, so Keyboard changes
+        // are ignored. Mouse clicks always cancel regardless of step state.
         await new Promise<void>(r => setTimeout(r, 30));
-        // First, stop via mouse (which always cancels), to prove the
-        // mechanism works; then re-test keyboard between steps below.
         selectionHandler?.({ kind: vscode.TextEditorSelectionChangeKind.Mouse } as vscode.TextEditorSelectionChangeEvent);
         await playPromise;
 
