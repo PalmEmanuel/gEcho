@@ -22,9 +22,19 @@ export function isFfmpegAvailable(ffmpegPath?: string): Promise<boolean> {
  * Checks for required external dependencies (currently only ffmpeg). When
  * ffmpeg is missing, prompts the user to either install it automatically via
  * the platform package manager or open the download page.
+ *
+ * `checkFn` and `installFn` are injectable for testing; production code uses
+ * the real implementations by default.
  */
-export async function checkDependencies(context: vscode.ExtensionContext): Promise<void> {
-  const available = await isFfmpegAvailable();
+export async function checkDependencies(
+  context: vscode.ExtensionContext,
+  checkFn: (ffmpegPath?: string) => Promise<boolean> = isFfmpegAvailable,
+  installFn: (
+    ctx: vscode.ExtensionContext,
+    progress: vscode.Progress<{ message?: string }>
+  ) => Promise<InstallResult> = autoInstallFfmpeg
+): Promise<void> {
+  const available = await checkFn();
   if (!available) {
     const action = await vscode.window.showWarningMessage(
       'gEcho: ffmpeg was not found. GIF recording and conversion require ffmpeg.',
@@ -38,7 +48,7 @@ export async function checkDependencies(context: vscode.ExtensionContext): Promi
     }
 
     if (action === 'Install automatically') {
-      let result: InstallResult = { success: false, reason: 'Install was cancelled.' };
+      let result: InstallResult = { success: false, reason: 'Installation did not complete.' };
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
@@ -46,12 +56,12 @@ export async function checkDependencies(context: vscode.ExtensionContext): Promi
           cancellable: false,
         },
         async (progress) => {
-          result = await autoInstallFfmpeg(context, progress);
+          result = await installFn(context, progress);
         }
       );
 
       if (result.success) {
-        const verified = await isFfmpegAvailable();
+        const verified = await checkFn();
         if (verified) {
           vscode.window.showInformationMessage('gEcho: ffmpeg installed successfully.');
         } else {
