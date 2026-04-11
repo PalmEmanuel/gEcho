@@ -130,6 +130,21 @@
           "maximum": 60000,
           "description": "How long (ms) to wait for ffmpeg to stop gracefully before sending SIGKILL. Increase this if recordings fail to save on slow machines — AVFoundation on macOS can take several seconds to tear down the capture session."
         },
+        "gecho.recording.outputFormat": {
+          "type": "string",
+          "default": "gif",
+          "enum": [
+            "gif",
+            "mp4",
+            "webm"
+          ],
+          "enumDescriptions": [
+            "Animated GIF (default, best compatibility)",
+            "MP4 video (H.264, no re-encode — fastest)",
+            "WebM video (VP9, smaller file size)"
+          ],
+          "description": "Output format for recordings. 'gif' produces an animated GIF. 'mp4' saves the raw capture without re-encoding. 'webm' re-encodes with VP9."
+        },
         "gecho.countdown.seconds": {
           "type": "integer",
           "default": 3,

@@ -4,7 +4,7 @@ import { unlink } from 'node:fs/promises';
 import { EchoRecorder } from './recording/index.js';
 import { EchoPlayer } from './replay/index.js';
 import { ScreenCapture, checkScreenRecordingPermission } from './screen/index.js';
-import { GifConverter } from './converter/index.js';
+import { convertOutput, resolveOutputFormat, OUTPUT_FORMAT_META } from './converter/index.js';
 import { readEcho, writeEcho } from './echo/index.js';
 import { createStatusBar, updateStatusBar, runCountdown } from './ui/index.js';
 import { getConfig } from './config.js';
@@ -221,26 +221,28 @@ export function activate(context: vscode.ExtensionContext): void {
       }
 
       try {
+        const outputFormat = resolveOutputFormat(getConfig().recording.outputFormat);
+        const meta = OUTPUT_FORMAT_META[outputFormat];
         const saveUri = await vscode.window.showSaveDialog({
-          filters: { 'GIF Image': ['gif'] },
-          saveLabel: 'Save GIF',
-          defaultUri: vscode.Uri.file(mp4Path.replace('.mp4', '.gif')),
+          filters: { [meta.filterKey]: [meta.ext] },
+          saveLabel: meta.label,
+          defaultUri: vscode.Uri.file(mp4Path.replace('.mp4', `.${meta.ext}`)),
         });
         if (!saveUri) {
           await unlink(mp4Path).catch(() => undefined);
           return;
         }
 
+        const progressTitle = outputFormat === 'gif' ? 'gEcho: Converting to GIF...' : `gEcho: Saving ${outputFormat.toUpperCase()}...`;
         await vscode.window.withProgress(
-          { location: vscode.ProgressLocation.Notification, title: 'gEcho: Converting to GIF...', cancellable: false },
+          { location: vscode.ProgressLocation.Notification, title: progressTitle, cancellable: false },
           async () => {
-            const converter = new GifConverter();
-            await converter.convert(mp4Path, saveUri.fsPath);
+            await convertOutput(mp4Path, saveUri.fsPath, outputFormat);
           }
         );
 
         const choice = await vscode.window.showInformationMessage(
-          `gEcho: GIF saved to ${saveUri.fsPath}`,
+          `gEcho: Recording saved to ${saveUri.fsPath}`,
           'Reveal in Explorer'
         );
         if (choice === 'Reveal in Explorer') {
@@ -249,7 +251,7 @@ export function activate(context: vscode.ExtensionContext): void {
       } catch (err) {
         await unlink(mp4Path).catch(() => undefined);
         vscode.window.showErrorMessage(
-          `gEcho: GIF conversion failed — ${err instanceof Error ? err.message : String(err)}`
+          `gEcho: Conversion failed — ${err instanceof Error ? err.message : String(err)}`
         );
       }
     })
@@ -304,9 +306,11 @@ export function activate(context: vscode.ExtensionContext): void {
         });
         if (!uris || uris.length === 0) { return; }
 
+        const outputFormat = resolveOutputFormat(getConfig().recording.outputFormat);
+        const meta = OUTPUT_FORMAT_META[outputFormat];
         const saveUri = await vscode.window.showSaveDialog({
-          filters: { 'GIF Image': ['gif'] },
-          saveLabel: 'Save GIF',
+          filters: { [meta.filterKey]: [meta.ext] },
+          saveLabel: meta.label,
         });
         if (!saveUri) { return; }
 
@@ -345,14 +349,13 @@ export function activate(context: vscode.ExtensionContext): void {
         setState('idle');
 
         await vscode.window.withProgress(
-          { location: vscode.ProgressLocation.Notification, title: 'gEcho: Converting to GIF...', cancellable: false },
+          { location: vscode.ProgressLocation.Notification, title: outputFormat === 'gif' ? 'gEcho: Converting to GIF...' : `gEcho: Saving ${outputFormat.toUpperCase()}...`, cancellable: false },
           async () => {
-            const converter = new GifConverter();
-            await converter.convert(mp4Path!, saveUri.fsPath);
+            await convertOutput(mp4Path!, saveUri.fsPath, outputFormat);
           }
         );
 
-        vscode.window.showInformationMessage(`gEcho: GIF saved to ${saveUri.fsPath}`);
+        vscode.window.showInformationMessage(`gEcho: Recording saved to ${saveUri.fsPath}`);
       } catch (err) {
         if (activeCapture) {
           try { await activeCapture?.stop(getConfig().recording.stopTimeoutMs); } catch { /* ignore */ }

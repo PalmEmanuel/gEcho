@@ -19,6 +19,7 @@ export function getConfig() {
     recording: {
       startupTimeoutMs: cfg.get<number>('recording.startupTimeoutMs', 20_000),
       stopTimeoutMs: cfg.get<number>('recording.stopTimeoutMs', 15_000),
+      outputFormat: cfg.get<'gif' | 'mp4' | 'webm'>('recording.outputFormat', 'gif'),
     },
     countdown: {
       seconds: cfg.get<number>('countdown.seconds', 3),
