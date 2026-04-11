@@ -7,32 +7,25 @@ function makeStatusBar(): vscode.StatusBarItem {
   return { text: '' } as unknown as vscode.StatusBarItem;
 }
 
+// Shared noop disposable — returned by onCancellationRequested registrations
+const NOOP_DISPOSABLE = { dispose: () => { /* noop */ } } as unknown as vscode.Disposable;
+
 // Minimal CancellationTokenSource stub that does not depend on the real VS Code runtime.
 // runCountdown only uses token.isCancellationRequested and token.onCancellationRequested.
 class FakeTokenSource {
-  private _cancelled = false;
   private _listeners: (() => void)[] = [];
 
   readonly token = {
-    get isCancellationRequested() { return false; }, // overridden below
+    isCancellationRequested: false,
     onCancellationRequested: (listener: () => void): vscode.Disposable => {
       this._listeners.push(listener);
-      return { dispose: () => { /* noop */ } } as vscode.Disposable;
+      return NOOP_DISPOSABLE;
     },
   } as unknown as vscode.CancellationToken;
 
-  constructor() {
-    // Give token a mutable isCancellationRequested backed by _cancelled.
-    Object.defineProperty(this.token, 'isCancellationRequested', {
-      get: () => this._cancelled,
-      enumerable: true,
-      configurable: true,
-    });
-  }
-
   cancel(): void {
-    if (!this._cancelled) {
-      this._cancelled = true;
+    if (!(this.token as unknown as { isCancellationRequested: boolean }).isCancellationRequested) {
+      (this.token as unknown as { isCancellationRequested: boolean }).isCancellationRequested = true;
       for (const l of this._listeners) { l(); }
     }
   }
