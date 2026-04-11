@@ -55,7 +55,7 @@ async function promptSpeedOverride(): Promise<number | undefined> {
     return Number(input);
   }
 
-  return parseFloat(pick.label);
+  return parseFloat(pick.label.replace('×', ''));
 }
 
 export function activate(context: vscode.ExtensionContext): void {
