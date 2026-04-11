@@ -1,8 +1,12 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import { checkWindowSizeMismatch, WINDOW_SIZE_TOLERANCE_PX } from '../../src/extension.js';
-import * as platform from '../../src/platform/index.js';
 import type { Echo } from '../../src/types/echo.js';
+
+// Use require() to get the raw CJS exports object from platform.js — its
+// properties are writable, unlike the getter-only re-exports in index.js.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const platformImpl = require('../../src/platform/platform.js') as typeof import('../../src/platform/platform.js');
 
 function makeEcho(windowSize?: { width: number; height: number }): Echo {
   return {
@@ -13,19 +17,19 @@ function makeEcho(windowSize?: { width: number; height: number }): Echo {
 }
 
 describe('checkWindowSizeMismatch', () => {
-  let origGetWindowBounds: typeof platform.getWindowBounds;
-  let origClearCache: typeof platform.clearWindowInfoCache;
+  let origGetWindowBounds: typeof platformImpl.getWindowBounds;
+  let origClearCache: typeof platformImpl.clearWindowInfoCache;
   let origShowWarning: typeof vscode.window.showWarningMessage;
 
   beforeEach(() => {
-    origGetWindowBounds = platform.getWindowBounds;
-    origClearCache = platform.clearWindowInfoCache;
+    origGetWindowBounds = platformImpl.getWindowBounds;
+    origClearCache = platformImpl.clearWindowInfoCache;
     origShowWarning = vscode.window.showWarningMessage;
   });
 
   afterEach(() => {
-    (platform as any).getWindowBounds = origGetWindowBounds;
-    (platform as any).clearWindowInfoCache = origClearCache;
+    platformImpl.getWindowBounds = origGetWindowBounds;
+    platformImpl.clearWindowInfoCache = origClearCache;
     (vscode.window as any).showWarningMessage = origShowWarning;
   });
 
@@ -36,20 +40,20 @@ describe('checkWindowSizeMismatch', () => {
   });
 
   it('returns true when window size is within tolerance', async () => {
-    (platform as any).getWindowBounds = async () => ({
+    platformImpl.getWindowBounds = (async () => ({
       x: 0, y: 0, width: 1920 + WINDOW_SIZE_TOLERANCE_PX, height: 1080 - WINDOW_SIZE_TOLERANCE_PX,
-    });
-    (platform as any).clearWindowInfoCache = () => {};
+    })) as typeof platformImpl.getWindowBounds;
+    platformImpl.clearWindowInfoCache = () => {};
     const echo = makeEcho({ width: 1920, height: 1080 });
     const result = await checkWindowSizeMismatch(echo, false);
     assert.strictEqual(result, true);
   });
 
   it('shows warning when width differs by more than tolerance', async () => {
-    (platform as any).getWindowBounds = async () => ({
+    platformImpl.getWindowBounds = (async () => ({
       x: 0, y: 0, width: 1920 + WINDOW_SIZE_TOLERANCE_PX + 1, height: 1080,
-    });
-    (platform as any).clearWindowInfoCache = () => {};
+    })) as typeof platformImpl.getWindowBounds;
+    platformImpl.clearWindowInfoCache = () => {};
     let warningMessage = '';
     (vscode.window as any).showWarningMessage = async (msg: string) => {
       warningMessage = msg;
@@ -63,10 +67,10 @@ describe('checkWindowSizeMismatch', () => {
   });
 
   it('shows warning when height differs by more than tolerance', async () => {
-    (platform as any).getWindowBounds = async () => ({
+    platformImpl.getWindowBounds = (async () => ({
       x: 0, y: 0, width: 1440, height: 900 + WINDOW_SIZE_TOLERANCE_PX + 1,
-    });
-    (platform as any).clearWindowInfoCache = () => {};
+    })) as typeof platformImpl.getWindowBounds;
+    platformImpl.clearWindowInfoCache = () => {};
     let warningMessage = '';
     (vscode.window as any).showWarningMessage = async (msg: string) => {
       warningMessage = msg;
@@ -79,10 +83,10 @@ describe('checkWindowSizeMismatch', () => {
   });
 
   it('returns true when user clicks Continue', async () => {
-    (platform as any).getWindowBounds = async () => ({
+    platformImpl.getWindowBounds = (async () => ({
       x: 0, y: 0, width: 1920, height: 1080,
-    });
-    (platform as any).clearWindowInfoCache = () => {};
+    })) as typeof platformImpl.getWindowBounds;
+    platformImpl.clearWindowInfoCache = () => {};
     (vscode.window as any).showWarningMessage = async () => 'Continue';
     const echo = makeEcho({ width: 1440, height: 900 });
     const result = await checkWindowSizeMismatch(echo, false);
@@ -90,10 +94,10 @@ describe('checkWindowSizeMismatch', () => {
   });
 
   it('returns false when user clicks Cancel', async () => {
-    (platform as any).getWindowBounds = async () => ({
+    platformImpl.getWindowBounds = (async () => ({
       x: 0, y: 0, width: 1920, height: 1080,
-    });
-    (platform as any).clearWindowInfoCache = () => {};
+    })) as typeof platformImpl.getWindowBounds;
+    platformImpl.clearWindowInfoCache = () => {};
     (vscode.window as any).showWarningMessage = async () => 'Cancel';
     const echo = makeEcho({ width: 1440, height: 900 });
     const result = await checkWindowSizeMismatch(echo, false);
@@ -101,10 +105,10 @@ describe('checkWindowSizeMismatch', () => {
   });
 
   it('returns false when user dismisses the dialog', async () => {
-    (platform as any).getWindowBounds = async () => ({
+    platformImpl.getWindowBounds = (async () => ({
       x: 0, y: 0, width: 1920, height: 1080,
-    });
-    (platform as any).clearWindowInfoCache = () => {};
+    })) as typeof platformImpl.getWindowBounds;
+    platformImpl.clearWindowInfoCache = () => {};
     (vscode.window as any).showWarningMessage = async () => undefined;
     const echo = makeEcho({ width: 1440, height: 900 });
     const result = await checkWindowSizeMismatch(echo, false);
@@ -112,10 +116,10 @@ describe('checkWindowSizeMismatch', () => {
   });
 
   it('includes GIF detail in warning when isGifMode is true', async () => {
-    (platform as any).getWindowBounds = async () => ({
+    platformImpl.getWindowBounds = (async () => ({
       x: 0, y: 0, width: 1920, height: 1080,
-    });
-    (platform as any).clearWindowInfoCache = () => {};
+    })) as typeof platformImpl.getWindowBounds;
+    platformImpl.clearWindowInfoCache = () => {};
     let warningMessage = '';
     (vscode.window as any).showWarningMessage = async (msg: string) => {
       warningMessage = msg;
@@ -130,10 +134,10 @@ describe('checkWindowSizeMismatch', () => {
   });
 
   it('does not include GIF detail when isGifMode is false', async () => {
-    (platform as any).getWindowBounds = async () => ({
+    platformImpl.getWindowBounds = (async () => ({
       x: 0, y: 0, width: 1920, height: 1080,
-    });
-    (platform as any).clearWindowInfoCache = () => {};
+    })) as typeof platformImpl.getWindowBounds;
+    platformImpl.clearWindowInfoCache = () => {};
     let warningMessage = '';
     (vscode.window as any).showWarningMessage = async (msg: string) => {
       warningMessage = msg;
