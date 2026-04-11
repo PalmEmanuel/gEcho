@@ -1,5 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
+import { ensureEchoExtension } from '../../src/extension.js';
 
 describe('Extension Tests', () => {
   it('Extension should be present', () => {
@@ -64,6 +65,28 @@ describe('Extension Tests', () => {
       } finally {
         (vscode.window as any).showOpenDialog = origDialog;
       }
+    });
+  });
+
+  describe('ensureEchoExtension', () => {
+    it('returns path unchanged when it already ends with .echo.json', () => {
+      assert.strictEqual(ensureEchoExtension('/tmp/demo.echo.json'), '/tmp/demo.echo.json');
+    });
+
+    it('replaces .json with .echo.json when path ends with .json', () => {
+      assert.strictEqual(ensureEchoExtension('/tmp/demo.json'), '/tmp/demo.echo.json');
+    });
+
+    it('appends .echo.json when path has no recognized extension', () => {
+      assert.strictEqual(ensureEchoExtension('/tmp/demo'), '/tmp/demo.echo.json');
+    });
+
+    it('handles bare filename with .json', () => {
+      assert.strictEqual(ensureEchoExtension('myfile.json'), 'myfile.echo.json');
+    });
+
+    it('does not double-append when already correct', () => {
+      assert.strictEqual(ensureEchoExtension('test.echo.json'), 'test.echo.json');
     });
   });
 });
