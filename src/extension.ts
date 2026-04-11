@@ -6,7 +6,7 @@ import { EchoPlayer } from './replay/index.js';
 import { ScreenCapture, checkScreenRecordingPermission } from './screen/index.js';
 import { GifConverter } from './converter/index.js';
 import { readEcho, writeEcho } from './echo/index.js';
-import { createStatusBar, updateStatusBar } from './ui/index.js';
+import { createStatusBar, updateStatusBar, runCountdown } from './ui/index.js';
 import { getConfig } from './config.js';
 import type { RecordingState, Echo } from './types/index.js';
 import { ECHO_VERSION } from './types/index.js';
@@ -16,6 +16,7 @@ let currentState: RecordingState = 'idle';
 let activeRecorder: EchoRecorder | undefined;
 let activePlayer: EchoPlayer | undefined;
 let activeCapture: ScreenCapture | undefined;
+let activeCountdownSource: vscode.CancellationTokenSource | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
   // Check for required external dependencies (e.g. ffmpeg) in the background
@@ -65,6 +66,11 @@ export function activate(context: vscode.ExtensionContext): void {
   // gecho.cancelReplay
   context.subscriptions.push(
     vscode.commands.registerCommand('gecho.cancelReplay', () => {
+      if (activeCountdownSource) {
+        activeCountdownSource.cancel();
+        activeCountdownSource.dispose();
+        activeCountdownSource = undefined;
+      }
       if (activePlayer) {
         activePlayer.stop();
       }
@@ -152,6 +158,22 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       try {
+        setState('countdown');
+        const countdownSource = new vscode.CancellationTokenSource();
+        activeCountdownSource = countdownSource;
+        let proceeded: boolean;
+        try {
+          proceeded = await runCountdown(getConfig().countdown.seconds, statusBar, countdownSource.token);
+        } finally {
+          countdownSource.dispose();
+          if (activeCountdownSource === countdownSource) {
+            activeCountdownSource = undefined;
+          }
+        }
+        if (!proceeded) {
+          setState('idle');
+          return;
+        }
         setState('starting-gif');
         activeCapture = new ScreenCapture();
         await vscode.workspace.fs.createDirectory(context.globalStorageUri);
@@ -289,6 +311,24 @@ export function activate(context: vscode.ExtensionContext): void {
         if (!saveUri) { return; }
 
         const echo = await readEcho(uris[0].fsPath);
+
+        setState('countdown');
+        const countdownSource = new vscode.CancellationTokenSource();
+        activeCountdownSource = countdownSource;
+        let proceeded: boolean;
+        try {
+          proceeded = await runCountdown(getConfig().countdown.seconds, statusBar, countdownSource.token);
+        } finally {
+          countdownSource.dispose();
+          if (activeCountdownSource === countdownSource) {
+            activeCountdownSource = undefined;
+          }
+        }
+        if (!proceeded) {
+          setState('idle');
+          return;
+        }
+
         setState('replaying-gif');
         activePlayer = new EchoPlayer();
         activeCapture = new ScreenCapture();
@@ -335,6 +375,11 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export function deactivate(): void {
+  if (activeCountdownSource) {
+    activeCountdownSource.cancel();
+    activeCountdownSource.dispose();
+    activeCountdownSource = undefined;
+  }
   if (activeCapture) {
     activeCapture.stop(getConfig().recording.stopTimeoutMs).catch(() => undefined);
     activeCapture = undefined;
