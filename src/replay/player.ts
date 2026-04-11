@@ -31,12 +31,20 @@ export class EchoPlayer {
   private cancelled = false;
   private isExecutingStep = false;
   private inputListeners: vscode.Disposable[] = [];
+  private cancelResolve: (() => void) | undefined;
+  private cancelPromise: Promise<void> = Promise.resolve();
 
   async play(echo: Echo, config?: ReplayConfig): Promise<void> {
     if (this.cancelled) { return; }
     this.cancelled = false;
+    this.cancelPromise = new Promise<void>(resolve => {
+      this.cancelResolve = resolve;
+    });
     const speed = Math.max(config?.speed ?? 1.0, 0.1);
-    const cancelOnInput = config?.cancelOnInput ?? true;
+    const cancelOnInput =
+      config?.cancelOnInput ??
+      vscode.workspace.getConfiguration('gecho').get<boolean>('replay.cancelOnInput') ??
+      true;
 
     if (cancelOnInput) {
       this.inputListeners.push(
@@ -55,9 +63,8 @@ export class EchoPlayer {
         vscode.window.onDidChangeTextEditorSelection(e => {
           const kind = e.kind;
           if (
-            !this.isExecutingStep &&
-            (kind === vscode.TextEditorSelectionChangeKind.Mouse ||
-              kind === vscode.TextEditorSelectionChangeKind.Keyboard)
+            kind === vscode.TextEditorSelectionChangeKind.Mouse ||
+            kind === vscode.TextEditorSelectionChangeKind.Keyboard
           ) {
             this.stop();
           }
@@ -211,6 +218,7 @@ export class EchoPlayer {
 
   stop(): void {
     this.cancelled = true;
+    this.cancelResolve?.();
     this.disposeInputListeners();
   }
 
@@ -222,34 +230,41 @@ export class EchoPlayer {
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise<void>(r => setTimeout(r, ms));
+    return Promise.race([
+      new Promise<void>(r => setTimeout(r, ms)),
+      this.cancelPromise,
+    ]);
   }
 
   /**
    * Wait until VS Code is "idle" — no document changes for `quietMs` milliseconds.
    * Uses a hard cap of 30 seconds to prevent infinite waits.
+   * Resolves immediately if the player is stopped via cancelPromise.
    */
   private waitForIdle(quietMs: number): Promise<void> {
     const maxWaitMs = 30_000;
-    return new Promise<void>(resolve => {
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      const startIdle = () => {
-        timer = setTimeout(() => {
+    return Promise.race([
+      this.cancelPromise,
+      new Promise<void>(resolve => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const startIdle = () => {
+          timer = setTimeout(() => {
+            disposable.dispose();
+            clearTimeout(hardCap);
+            resolve();
+          }, quietMs);
+        };
+        const disposable = vscode.workspace.onDidChangeTextDocument(() => {
+          if (timer !== undefined) { clearTimeout(timer); }
+          startIdle();
+        });
+        const hardCap = setTimeout(() => {
+          if (timer !== undefined) { clearTimeout(timer); }
           disposable.dispose();
-          clearTimeout(hardCap);
           resolve();
-        }, quietMs);
-      };
-      const disposable = vscode.workspace.onDidChangeTextDocument(() => {
-        if (timer !== undefined) { clearTimeout(timer); }
+        }, maxWaitMs);
         startIdle();
-      });
-      const hardCap = setTimeout(() => {
-        if (timer !== undefined) { clearTimeout(timer); }
-        disposable.dispose();
-        resolve();
-      }, maxWaitMs);
-      startIdle();
-    });
+      }),
+    ]);
   }
 }

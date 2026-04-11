@@ -333,5 +333,199 @@ describe('EchoPlayer', () => {
         (vscode.commands as any).executeCommand = orig;
       }
     });
+
+    it('stop() during a long wait step resolves promptly', async () => {
+      const player = new EchoPlayer();
+      const start = Date.now();
+
+      const playPromise = player.play({
+        version: '1.0', metadata: { name: 't' },
+        steps: [{ type: 'wait', ms: 5000 }],
+      }, { speed: 1.0, captureGif: false, cancelOnInput: false });
+
+      // Stop after a short delay — should not have to wait for the full 5s
+      await new Promise<void>(r => setTimeout(r, 50));
+      player.stop();
+      await playPromise;
+
+      const elapsed = Date.now() - start;
+      assert.ok(elapsed < 1000, `Expected play() to resolve promptly after stop(), took ${elapsed}ms`);
+    });
+  });
+
+  describe('cancelOnInput', () => {
+    it('Mouse selection change triggers stop() when cancelOnInput is true', async () => {
+      let selectionHandler: ((e: vscode.TextEditorSelectionChangeEvent) => void) | undefined;
+      const origOnSelection = (vscode.window as any).onDidChangeTextEditorSelection;
+      (vscode.window as any).onDidChangeTextEditorSelection = (handler: (e: vscode.TextEditorSelectionChangeEvent) => void) => {
+        selectionHandler = handler;
+        return { dispose: () => {} };
+      };
+
+      const calls: string[] = [];
+      const origExec = (vscode.commands as any).executeCommand;
+      (vscode.commands as any).executeCommand = async (cmd: string) => { calls.push(cmd); };
+
+      try {
+        const player = new EchoPlayer();
+        const playPromise = player.play({
+          version: '1.0', metadata: { name: 't' },
+          steps: [
+            { type: 'wait', ms: 5000 },
+            { type: 'command', id: 'should.not.run' },
+          ],
+        }, { speed: 1.0, captureGif: false, cancelOnInput: true });
+
+        // Simulate a Mouse selection change
+        await new Promise<void>(r => setTimeout(r, 30));
+        selectionHandler?.({ kind: vscode.TextEditorSelectionChangeKind.Mouse } as vscode.TextEditorSelectionChangeEvent);
+        await playPromise;
+
+        assert.strictEqual(calls.length, 0, 'Command should not execute after Mouse cancel');
+      } finally {
+        (vscode.window as any).onDidChangeTextEditorSelection = origOnSelection;
+        (vscode.commands as any).executeCommand = origExec;
+      }
+    });
+
+    it('Keyboard selection change triggers stop() when cancelOnInput is true', async () => {
+      let selectionHandler: ((e: vscode.TextEditorSelectionChangeEvent) => void) | undefined;
+      const origOnSelection = (vscode.window as any).onDidChangeTextEditorSelection;
+      (vscode.window as any).onDidChangeTextEditorSelection = (handler: (e: vscode.TextEditorSelectionChangeEvent) => void) => {
+        selectionHandler = handler;
+        return { dispose: () => {} };
+      };
+
+      const calls: string[] = [];
+      const origExec = (vscode.commands as any).executeCommand;
+      (vscode.commands as any).executeCommand = async (cmd: string) => { calls.push(cmd); };
+
+      try {
+        const player = new EchoPlayer();
+        const playPromise = player.play({
+          version: '1.0', metadata: { name: 't' },
+          steps: [
+            { type: 'wait', ms: 5000 },
+            { type: 'command', id: 'should.not.run' },
+          ],
+        }, { speed: 1.0, captureGif: false, cancelOnInput: true });
+
+        await new Promise<void>(r => setTimeout(r, 30));
+        selectionHandler?.({ kind: vscode.TextEditorSelectionChangeKind.Keyboard } as vscode.TextEditorSelectionChangeEvent);
+        await playPromise;
+
+        assert.strictEqual(calls.length, 0, 'Command should not execute after Keyboard cancel');
+      } finally {
+        (vscode.window as any).onDidChangeTextEditorSelection = origOnSelection;
+        (vscode.commands as any).executeCommand = origExec;
+      }
+    });
+
+    it('Mouse selection change during step execution still cancels replay', async () => {
+      let selectionHandler: ((e: vscode.TextEditorSelectionChangeEvent) => void) | undefined;
+      const origOnSelection = (vscode.window as any).onDidChangeTextEditorSelection;
+      (vscode.window as any).onDidChangeTextEditorSelection = (handler: (e: vscode.TextEditorSelectionChangeEvent) => void) => {
+        selectionHandler = handler;
+        return { dispose: () => {} };
+      };
+
+      let stepStarted = false;
+      const origExec = (vscode.commands as any).executeCommand;
+      (vscode.commands as any).executeCommand = async (cmd: string) => {
+        if (cmd === 'workbench.action.files.save') {
+          stepStarted = true;
+          // Simulate user Mouse input while this step is executing
+          selectionHandler?.({ kind: vscode.TextEditorSelectionChangeKind.Mouse } as vscode.TextEditorSelectionChangeEvent);
+        }
+      };
+
+      const afterCancelCalls: string[] = [];
+      try {
+        const player = new EchoPlayer();
+        const playPromise = player.play({
+          version: '1.0', metadata: { name: 't' },
+          steps: [
+            { type: 'command', id: 'workbench.action.files.save' },
+            { type: 'wait', ms: 5000 },
+            { type: 'command', id: 'should.not.run' },
+          ],
+        }, { speed: 1.0, captureGif: false, cancelOnInput: true });
+        await playPromise;
+
+        assert.ok(stepStarted, 'First step should have executed');
+        assert.strictEqual(afterCancelCalls.length, 0, 'Step after cancel should not execute');
+      } finally {
+        (vscode.window as any).onDidChangeTextEditorSelection = origOnSelection;
+        (vscode.commands as any).executeCommand = origExec;
+      }
+    });
+
+    it('Command selection change does not cancel replay', async () => {
+      let selectionHandler: ((e: vscode.TextEditorSelectionChangeEvent) => void) | undefined;
+      const origOnSelection = (vscode.window as any).onDidChangeTextEditorSelection;
+      (vscode.window as any).onDidChangeTextEditorSelection = (handler: (e: vscode.TextEditorSelectionChangeEvent) => void) => {
+        selectionHandler = handler;
+        return { dispose: () => {} };
+      };
+
+      const calls: string[] = [];
+      const origExec = (vscode.commands as any).executeCommand;
+      (vscode.commands as any).executeCommand = async (cmd: string) => { calls.push(cmd); };
+
+      try {
+        const player = new EchoPlayer();
+        const playPromise = player.play({
+          version: '1.0', metadata: { name: 't' },
+          steps: [
+            { type: 'wait', ms: 50 },
+            { type: 'command', id: 'workbench.action.files.save' },
+          ],
+        }, { speed: 1.0, captureGif: false, cancelOnInput: true });
+
+        // Command kind should be ignored — replay continues
+        selectionHandler?.({ kind: vscode.TextEditorSelectionChangeKind.Command } as vscode.TextEditorSelectionChangeEvent);
+        await playPromise;
+
+        assert.ok(calls.includes('workbench.action.files.save'), 'Command step should execute after Command selection change');
+      } finally {
+        (vscode.window as any).onDidChangeTextEditorSelection = origOnSelection;
+        (vscode.commands as any).executeCommand = origExec;
+      }
+    });
+
+    it('cancelOnInput: false ignores Mouse selection change', async () => {
+      let selectionHandler: ((e: vscode.TextEditorSelectionChangeEvent) => void) | undefined;
+      const origOnSelection = (vscode.window as any).onDidChangeTextEditorSelection;
+      (vscode.window as any).onDidChangeTextEditorSelection = (handler: (e: vscode.TextEditorSelectionChangeEvent) => void) => {
+        selectionHandler = handler;
+        return { dispose: () => {} };
+      };
+
+      const calls: string[] = [];
+      const origExec = (vscode.commands as any).executeCommand;
+      (vscode.commands as any).executeCommand = async (cmd: string) => { calls.push(cmd); };
+
+      try {
+        const player = new EchoPlayer();
+        const playPromise = player.play({
+          version: '1.0', metadata: { name: 't' },
+          steps: [
+            { type: 'wait', ms: 50 },
+            { type: 'command', id: 'workbench.action.files.save' },
+          ],
+        }, { speed: 1.0, captureGif: false, cancelOnInput: false });
+
+        // Mouse selection change should be ignored when cancelOnInput is false
+        selectionHandler?.({ kind: vscode.TextEditorSelectionChangeKind.Mouse } as vscode.TextEditorSelectionChangeEvent);
+        await playPromise;
+
+        // onDidChangeTextEditorSelection should not have been registered at all
+        assert.strictEqual(selectionHandler, undefined, 'No selection listener should be registered when cancelOnInput is false');
+        assert.ok(calls.includes('workbench.action.files.save'), 'Command should execute when cancelOnInput is false');
+      } finally {
+        (vscode.window as any).onDidChangeTextEditorSelection = origOnSelection;
+        (vscode.commands as any).executeCommand = origExec;
+      }
+    });
   });
 });
