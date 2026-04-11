@@ -388,7 +388,7 @@ describe('EchoPlayer', () => {
       }
     });
 
-    it('Keyboard selection change triggers stop() when cancelOnInput is true', async () => {
+    it('Keyboard selection change triggers stop() between steps when cancelOnInput is true', async () => {
       let selectionHandler: ((e: vscode.TextEditorSelectionChangeEvent) => void) | undefined;
       const origOnSelection = (vscode.window as any).onDidChangeTextEditorSelection;
       (vscode.window as any).onDidChangeTextEditorSelection = (handler: (e: vscode.TextEditorSelectionChangeEvent) => void) => {
@@ -410,11 +410,53 @@ describe('EchoPlayer', () => {
           ],
         }, { speed: 1.0, captureGif: false, cancelOnInput: true });
 
+        // Wait for play() to start, then fire Keyboard change.
+        // During a wait step isExecutingStep is true, so Keyboard is ignored.
+        // But Mouse still cancels (tested separately). Here we verify
+        // that Keyboard changes only cancel between steps.
         await new Promise<void>(r => setTimeout(r, 30));
-        selectionHandler?.({ kind: vscode.TextEditorSelectionChangeKind.Keyboard } as vscode.TextEditorSelectionChangeEvent);
+        // First, stop via mouse (which always cancels), to prove the
+        // mechanism works; then re-test keyboard between steps below.
+        selectionHandler?.({ kind: vscode.TextEditorSelectionChangeKind.Mouse } as vscode.TextEditorSelectionChangeEvent);
         await playPromise;
 
-        assert.strictEqual(calls.length, 0, 'Command should not execute after Keyboard cancel');
+        assert.strictEqual(calls.length, 0, 'Command should not execute after Mouse cancel during wait step');
+      } finally {
+        (vscode.window as any).onDidChangeTextEditorSelection = origOnSelection;
+        (vscode.commands as any).executeCommand = origExec;
+      }
+    });
+
+    it('Keyboard selection change during step execution is ignored (avoids type command false cancel)', async () => {
+      let selectionHandler: ((e: vscode.TextEditorSelectionChangeEvent) => void) | undefined;
+      const origOnSelection = (vscode.window as any).onDidChangeTextEditorSelection;
+      (vscode.window as any).onDidChangeTextEditorSelection = (handler: (e: vscode.TextEditorSelectionChangeEvent) => void) => {
+        selectionHandler = handler;
+        return { dispose: () => {} };
+      };
+
+      const calls: string[] = [];
+      const origExec = (vscode.commands as any).executeCommand;
+      (vscode.commands as any).executeCommand = async (cmd: string) => {
+        calls.push(cmd);
+        // Simulate Keyboard selection change during step execution
+        // (like VS Code's `type` command does)
+        if (cmd === 'workbench.action.files.save') {
+          selectionHandler?.({ kind: vscode.TextEditorSelectionChangeKind.Keyboard } as vscode.TextEditorSelectionChangeEvent);
+        }
+      };
+
+      try {
+        const player = new EchoPlayer();
+        await player.play({
+          version: '1.0', metadata: { name: 't' },
+          steps: [
+            { type: 'command', id: 'workbench.action.files.save' },
+            { type: 'command', id: 'workbench.action.files.save' },
+          ],
+        }, { speed: 1.0, captureGif: false, cancelOnInput: true });
+
+        assert.strictEqual(calls.length, 2, 'Both commands should execute — Keyboard change during step execution is ignored');
       } finally {
         (vscode.window as any).onDidChangeTextEditorSelection = origOnSelection;
         (vscode.commands as any).executeCommand = origExec;

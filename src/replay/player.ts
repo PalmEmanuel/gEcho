@@ -62,9 +62,14 @@ export class EchoPlayer {
         }),
         vscode.window.onDidChangeTextEditorSelection(e => {
           const kind = e.kind;
-          if (
-            kind === vscode.TextEditorSelectionChangeKind.Mouse ||
-            kind === vscode.TextEditorSelectionChangeKind.Keyboard
+          // Mouse clicks always cancel — even mid-step (user clearly wants control).
+          // Keyboard selection changes only cancel outside step execution because
+          // VS Code's programmatic `type` command produces Keyboard-kind changes.
+          if (kind === vscode.TextEditorSelectionChangeKind.Mouse) {
+            this.stop();
+          } else if (
+            kind === vscode.TextEditorSelectionChangeKind.Keyboard &&
+            !this.isExecutingStep
           ) {
             this.stop();
           }
