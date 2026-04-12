@@ -19,6 +19,8 @@ describe('Extension Tests', () => {
       'gecho.stopGifRecording',
       'gecho.replayEcho',
       'gecho.replayAsGif',
+      'gecho.replayEchoFile',
+      'gecho.replayEchoFileAsGif',
     ];
     for (const cmd of expected) {
       assert.ok(all.includes(cmd), `Command ${cmd} should be registered`);

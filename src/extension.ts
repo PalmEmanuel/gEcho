@@ -348,6 +348,128 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
+  // gecho.replayEchoFile — replay echo from URI (explorer context menu)
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gecho.replayEchoFile', async (uri: vscode.Uri) => {
+      if (currentState !== 'idle') {
+        vscode.window.showWarningMessage(`gEcho: Cannot replay while ${currentState}.`);
+        return;
+      }
+      if (!uri) {
+        vscode.window.showWarningMessage('gEcho: No file URI provided.');
+        return;
+      }
+      try {
+        const echo = await readEcho(uri.fsPath);
+
+        if (!await checkWindowSizeMismatch(echo, false)) { return; }
+
+        setState('replaying');
+        activePlayer = new EchoPlayer();
+
+        await activePlayer.play(echo, getConfig().replay);
+
+        activePlayer = undefined;
+        setState('idle');
+      } catch (err) {
+        activePlayer = undefined;
+        setState('idle');
+        vscode.window.showErrorMessage(
+          `gEcho: Replay failed — ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+    })
+  );
+
+  // gecho.replayEchoFileAsGif — replay echo as GIF from URI (explorer context menu)
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gecho.replayEchoFileAsGif', async (uri: vscode.Uri) => {
+      if (currentState !== 'idle') {
+        vscode.window.showWarningMessage(`gEcho: Cannot replay while ${currentState}.`);
+        return;
+      }
+      if (!uri) {
+        vscode.window.showWarningMessage('gEcho: No file URI provided.');
+        return;
+      }
+      let tmpMp4Path: string | undefined;
+      try {
+        const outputFormat = resolveOutputFormat(getConfig().recording.outputFormat);
+        const meta = OUTPUT_FORMAT_META[outputFormat];
+        const echoBaseName = path.basename(uri.fsPath, ECHO_FILE_EXTENSION);
+        const saveUri = await vscode.window.showSaveDialog({
+          filters: { [meta.filterKey]: [meta.ext] },
+          saveLabel: meta.label,
+          defaultUri: vscode.Uri.file(path.join(path.dirname(uri.fsPath), `${echoBaseName}.${meta.ext}`)),
+        });
+        if (!saveUri) { return; }
+
+        const echo = await readEcho(uri.fsPath);
+
+        if (!await checkWindowSizeMismatch(echo, true)) { return; }
+
+        setState('countdown');
+        const countdownSource = new vscode.CancellationTokenSource();
+        activeCountdownSource = countdownSource;
+        let proceeded: boolean;
+        try {
+          proceeded = await runCountdown(getConfig().countdown.seconds, statusBar, countdownSource.token);
+        } finally {
+          countdownSource.dispose();
+          if (activeCountdownSource === countdownSource) {
+            activeCountdownSource = undefined;
+          }
+        }
+        if (!proceeded) {
+          setState('idle');
+          return;
+        }
+
+        setState('replaying-gif');
+        const player = new EchoPlayer();
+        const capture = new ScreenCapture();
+        activePlayer = player;
+        activeCapture = capture;
+
+        await vscode.workspace.fs.createDirectory(context.globalStorageUri);
+        tmpMp4Path = path.join(context.globalStorageUri.fsPath, `gecho-replay-${Date.now()}.mp4`);
+        await capture.start(tmpMp4Path);
+        await capture.waitForReady(getConfig().recording.startupTimeoutMs);
+        await player.play(echo, getConfig().replay);
+        const mp4Path = await capture.stop(getConfig().recording.stopTimeoutMs);
+
+        activePlayer = undefined;
+        activeCapture = undefined;
+        setState('idle');
+
+        await vscode.window.withProgress(
+          { location: vscode.ProgressLocation.Notification, title: outputFormat === 'gif' ? 'gEcho: Converting to GIF...' : `gEcho: Saving ${outputFormat.toUpperCase()}...`, cancellable: false },
+          async () => {
+            await convertOutput(mp4Path, saveUri.fsPath, outputFormat);
+          }
+        );
+
+        vscode.window.showInformationMessage(`gEcho: Recording saved to ${saveUri.fsPath}`);
+      } catch (err) {
+        if (activeCapture) {
+          try { await activeCapture?.stop(getConfig().recording.stopTimeoutMs); } catch { /* ignore */ }
+        }
+        if (tmpMp4Path) {
+          await unlink(tmpMp4Path).catch(() => undefined);
+        }
+        activePlayer = undefined;
+        activeCapture = undefined;
+        setState('idle');
+        const msg = err instanceof Error ? err.message : String(err);
+        const isPermissionError = /permission not granted|screen recording|not authorized/i.test(msg);
+        const hint = process.platform === 'darwin' && isPermissionError
+          ? ' Go to System Settings → Privacy & Security → Screen Recording and enable VS Code.'
+          : '';
+        vscode.window.showErrorMessage(`gEcho: Replay as GIF failed — ${msg}${hint}`);
+      }
+    })
+  );
+
   // gecho.replayAsGif
   context.subscriptions.push(
     vscode.commands.registerCommand('gecho.replayAsGif', async () => {
