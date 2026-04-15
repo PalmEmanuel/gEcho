@@ -1,5 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import type { Echo } from '../types/index.js';
+import { isFocusTarget } from '../types/index.js';
 
 export async function readEcho(filePath: string): Promise<Echo> {
   const raw = await readFile(filePath, 'utf-8');
@@ -72,6 +73,8 @@ function isValidStep(step: unknown): boolean {
     case 'scroll':
       return typeof s['lines'] === 'number' &&
              (s['direction'] === 'up' || s['direction'] === 'down');
+    case 'focus':
+      return isFocusTarget(s['target']);
     default:
       return false;
   }
