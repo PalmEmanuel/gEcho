@@ -9,6 +9,3 @@ resources/bin/darwin/gecho-helper binary
 
 # GitHub Agentic Workflows — lock files are generated, not hand-edited
 .github/workflows/*.lock.yml linguist-generated=true merge=ours
-
-
-.github/workflows/*.lock.yml linguist-generated=true merge=ours
