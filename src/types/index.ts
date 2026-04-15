@@ -20,6 +20,8 @@ export type {
   RecordingState,
   RecordingSession,
   GifConfig,
+  CropConfig,
+  CropPreset,
   ReplayConfig,
   Platform,
 } from './recording.js';
