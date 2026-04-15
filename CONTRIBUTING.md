@@ -6,14 +6,14 @@ Thank you for contributing! This document outlines our contribution and testing 
 
 The echo format lives in `schemas/gecho-v1.schema.json` and `src/types/echo.ts`.
 
-**Before the v1.0.0 extension release**, additive schema changes (new step types, new optional fields) do **not** require a version bump or migration function. The schema version string stays at `"1.0"` and existing echo files remain valid.
+**Before the v1.0.0 extension release**, any schema change — additive or breaking — does **not** require a version bump or migration function. Move fast and iterate freely.
 
-Once v1.0.0 is published to the VS Code Marketplace, any breaking change to the echo format requires:
+Once v1.0.0 is published to the VS Code Marketplace, breaking changes to the echo format require:
 1. A schema version bump (e.g. `"1.1"`)
 2. A migration function in `src/echo/echo.ts` that upgrades older files on read
 3. An update to `ECHO_VERSION` in `src/types/echo.ts`
 
-New step types added after release are always additive and do not require migration, as long as older players can safely ignore unknown step types (the `default` case in the `switch` handles this).
+Purely additive changes after release (new optional step types, new optional fields) remain safe without migration, as long as older players silently skip unknown step types via the `default` case in the player `switch`.
 
 ## Testing Requirements
 
