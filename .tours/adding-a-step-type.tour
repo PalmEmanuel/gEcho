@@ -1,0 +1,49 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "Adding a New Step Type",
+  "description": "A contributor guide for implementing a new echo step type. Uses the `scroll` step as a worked example. Follow these steps in order — all 7 must be completed.",
+  "steps": [
+    {
+      "file": "src/types/echo.ts",
+      "line": 42,
+      "title": "Step 1 — Define the TypeScript interface",
+      "description": "Define your new step interface here, next to the existing ones. The `scroll` step is a good reference — it has a required typed enum field (`direction`) and a numeric field:\n\n```typescript\nexport interface MyStep {\n  type: 'myStep';\n  // ...fields\n}\n```\n\nIf your step has a field constrained to a fixed set of values, consider modelling it as a `const` tuple + type alias + type guard (similar to the `direction: 'up' | 'down'` inline union here, but extracted when the list is long or reused by the validator)."
+    },
+    {
+      "file": "src/types/echo.ts",
+      "line": 48,
+      "title": "Step 2 — Add to the StepType union",
+      "description": "Add your new interface to the `StepType` discriminated union:\n\n```typescript\nexport type StepType =\n  | TypeStep\n  | ...\n  | MyStep;   // ← add here\n```\n\nTypeScript will now flag any exhaustive switch (like the one in the player) that is missing your new case. Fix those before moving on."
+    },
+    {
+      "file": "src/types/index.ts",
+      "line": 1,
+      "title": "Step 3 — Re-export from the types barrel",
+      "description": "Add your new type (and any companion constants/guards) to the re-export list in `src/types/index.ts`.\n\n- Interface types go in the `export type { ... }` block\n- Runtime values (const arrays, type guard functions) go in the `export { ... }` block\n\nThis ensures other modules can import from `'../types/index.js'` without reaching into `'../types/echo.js'` directly."
+    },
+    {
+      "file": "schemas/gecho-v1.schema.json",
+      "line": 256,
+      "title": "Step 4 — Add JSON Schema definition",
+      "description": "Add a `$defs` entry for your new step type and reference it in the `Step.oneOf` array (around line 72).\n\nThe `scroll` step definition here is a good template — `additionalProperties: false` keeps the schema tight, and `const` on the `type` field is what makes `oneOf` discrimination work:\n\n```json\n\"MyStep\": {\n  \"type\": \"object\",\n  \"required\": [\"type\", \"myField\"],\n  \"additionalProperties\": false,\n  \"description\": \"What this step does\",\n  \"properties\": {\n    \"type\": { \"type\": \"string\", \"const\": \"myStep\" },\n    \"myField\": { ... }\n  }\n}\n```\n\nThen add `{ \"$ref\": \"#/$defs/MyStep\" }` to the `oneOf` list.\n\nBefore v1.0.0 release, no schema version bump or migration is needed for any change."
+    },
+    {
+      "file": "src/echo/echo.ts",
+      "line": 72,
+      "title": "Step 5 — Add to isValidStep()",
+      "description": "Add a `case` for your new step type in `isValidStep()`. This is the runtime guard that `readEcho()` uses — without it, any echo file containing your new step will throw `\"Invalid echo format\"`.\n\nThe `scroll` case here shows validating both a number and an enum string:\n```typescript\ncase 'myStep':\n  return typeof s['myField'] === 'string';\n```\n\nFor constrained fields, import and use your type guard instead of a raw string check for a single source of truth."
+    },
+    {
+      "file": "src/replay/player.ts",
+      "line": 202,
+      "title": "Step 6 — Handle in EchoPlayer",
+      "description": "Add a `case` to the step `switch` in `EchoPlayer.play()`. The `scroll` case dispatches a single `executeCommand` with structured args — a common pattern.\n\nKey rules:\n- If your step takes a user-supplied command ID, call `sanitizeCommandId()` first\n- If your step takes a user-supplied file path, call `sanitizeFilePath()` first\n- If your step maps a typed enum to VS Code commands, hoist a `Record<MyTarget, string>` constant to module level (typed against your enum, not `Record<string, string>`) for compile-time exhaustiveness\n\nThe `default` case is intentionally a no-op — older players skip unknown step types gracefully when replaying newer echo files."
+    },
+    {
+      "file": "docs/echo-reference.md",
+      "line": 43,
+      "title": "Step 7 — Document it",
+      "description": "Update `docs/echo-reference.md`:\n\n1. Increment the step type count in the intro paragraph (currently `8 step types`)\n2. Add a new `### \\`myStep\\` — Title` section following the existing pattern (JSON example, field table, Notes)\n3. Add your step to the example echo at the bottom of the file\n4. Add an authoring tip if relevant\n\nAlso check `echoes/example.echo.json` — if it demonstrates all step types, add yours there too."
+    }
+  ]
+}

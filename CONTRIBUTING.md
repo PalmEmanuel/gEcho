@@ -2,6 +2,15 @@
 
 Thank you for contributing! This document outlines our contribution and testing policy.
 
+## Code Tours
+
+The `.tours/` directory contains [CodeTour](https://marketplace.visualstudio.com/items?itemName=vsls-contrib.codetour) files for VS Code. Install the CodeTour extension and run **CodeTour: Start Tour** to explore:
+
+- **Architecture Overview** — module structure and core concepts; start here if you are new to the codebase
+- **Adding a New Step Type** — step-by-step guide for implementing a new echo step type (uses the `scroll` step as a worked example)
+
+**Keeping tours current:** tour steps reference specific line numbers. If you significantly change a file that a tour references, check whether the tour step still points to the right place and update the line number if needed. The affected file is listed in each `.tour` JSON step's `"file"` field.
+
 ## Testing Requirements
 
 **All contributions must include tests.** This is a hard requirement:
