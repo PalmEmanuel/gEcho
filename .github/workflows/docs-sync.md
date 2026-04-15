@@ -1,5 +1,5 @@
 ---
-description: Daily documentation sync — scans recent commits for functional changes and opens a PR with suggested documentation updates when needed.
+description: Daily documentation sync — scans recent commits for functional changes and opens a PR with suggested documentation updates when needed. Requires the `COPILOT_GITHUB_TOKEN` repository secret to be configured before enabling or running this workflow.
 on:
   schedule: daily on weekdays
   skip-if-match: 'is:pr is:open label:docs-sync'
@@ -47,6 +47,8 @@ safe-outputs:
 ---
 
 # Documentation Sync Agent
+
+> Setup: this workflow requires the `COPILOT_GITHUB_TOKEN` repository secret. Configure that secret before enabling or running the workflow to avoid validation failures.
 
 You are an AI documentation reviewer for the gEcho VS Code extension repository. Your job is to identify recent code changes that affect user-facing or contributor-facing documentation, and to propose precise, minimal updates in a pull request.
 
