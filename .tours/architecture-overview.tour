@@ -1,0 +1,67 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "Architecture Overview",
+  "description": "A guided walkthrough of gEcho's module structure and core concepts. Start here if you are new to the codebase.",
+  "steps": [
+    {
+      "file": "src/types/echo.ts",
+      "line": 60,
+      "title": "1. The Echo Format — StepType Union",
+      "description": "Every echo is a sequence of `StepType` steps. The union is a **discriminated union** on the `type` string literal — this is the central data contract of the whole extension.\n\nAll step types are defined in this file. When you add a new step type, this is your first stop. The `default` case in the player's switch statement must always handle unknown steps (exhaustiveness check).\n\nThe echo format itself is a `.echo.json` file: `{ version, metadata, steps[] }`. See `schemas/gecho-v1.schema.json` for the JSON Schema definition."
+    },
+    {
+      "file": "src/echo/echo.ts",
+      "line": 26,
+      "title": "2. Echo I/O — validateEcho",
+      "description": "`validateEcho()` is a runtime type guard that checks every field and step before trusting the data. It is called by `readEcho()` before returning an `Echo` to callers.\n\nThe `isValidStep()` function below it has a `switch` mirroring the `StepType` union — every new step type must be added to both.\n\nThis module has **no VS Code dependency** — it is pure Node.js `fs/promises` and is tested by plain Mocha without an Extension Host."
+    },
+    {
+      "file": "src/recording/recorder.ts",
+      "line": 7,
+      "title": "3. Recording — EchoRecorder",
+      "description": "`EchoRecorder` listens to three VS Code events and translates them into `StepType[]`:\n\n- `onDidChangeTextDocument` → `TypeStep` (with coalescing of adjacent single-char inserts)\n- `onDidChangeTextEditorSelection` → `SelectStep`\n- `onDidChangeActiveTextEditor` → `OpenFileStep`\n\nCall `start()` to begin recording, `stop()` to receive the collected steps. The recorder is **stateless between sessions** — `start()` resets everything.\n\nNote: The VS Code API does not expose mouse events or widget-level focus changes, so those cannot be recorded automatically."
+    },
+    {
+      "file": "src/replay/player.ts",
+      "line": 38,
+      "title": "4. Replay — EchoPlayer",
+      "description": "`EchoPlayer` is the inverse of `EchoRecorder`. It takes a `StepType[]` and executes each step against the VS Code API.\n\nKey behaviours:\n- **`cancelOnInput`**: if a real user types or clicks while replay is running, it stops. Implemented by watching `onDidChangeTextDocument` and `onDidChangeTextEditorSelection`.\n- **`speed`**: all delay values are divided by this multiplier.\n- **`isExecutingStep` flag**: guards the cancel listeners so they don't fire on the player's own programmatic changes."
+    },
+    {
+      "file": "src/replay/player.ts",
+      "line": 97,
+      "title": "5. Step Dispatch — The Switch Statement",
+      "description": "The core of the player is this `switch` on `step.type`. Each case maps one `StepType` to VS Code API calls.\n\nArchitectural rules enforced here:\n- `sanitizeCommandId()` must be called before every `executeCommand` that takes a step-supplied ID\n- `sanitizeFilePath()` must be called before every file open that takes a step-supplied path\n- The `default` case is the exhaustiveness fallback — unknown step types are silently skipped so old players can replay newer echo files gracefully"
+    },
+    {
+      "file": "src/security/sanitizer.ts",
+      "line": 5,
+      "title": "6. Security — Sanitizers",
+      "description": "Three sanitizer functions guard all externally-supplied inputs:\n\n- **`sanitizeFilePath()`** — rejects path traversal (`../`), absolute paths outside the workspace\n- **`sanitizeCommandId()`** — allowlists command IDs to `[a-zA-Z0-9._-]+` only\n- **`sanitizeFfmpegPath()`** — validates the ffmpeg binary path\n\n**Architecture rule**: these must be called before every `executeCommand(step.id)`, every file open from an echo step, and every ffmpeg spawn. Skipping them is a security defect."
+    },
+    {
+      "file": "src/screen/capture.ts",
+      "line": 80,
+      "title": "7. Screen Capture — ScreenCapture",
+      "description": "`ScreenCapture` wraps ffmpeg for recording the VS Code window as a video file (later converted to GIF).\n\nPlatform-specific details:\n- **macOS**: AVFoundation device — index is dynamic, enumerated at runtime via `enumerateAvfDevices()` (cached as a Promise to avoid double-spawning)\n- **Linux**: x11grab\n- **Windows**: gdigrab\n\nThe class spawns ffmpeg as a child process. `stop()` sends SIGINT and waits for the process to exit cleanly.\n\n**All errors thrown from this file must begin with `'gEcho:'`** for consistency."
+    },
+    {
+      "file": "src/platform/platform.ts",
+      "line": 71,
+      "title": "8. Platform Layer — getWindowInfo",
+      "description": "`getWindowInfo()` resolves the VS Code window's pixel bounds and which display it is on. This is used by `ScreenCapture` to crop the ffmpeg input to just the VS Code window.\n\nIt spawns a platform-specific helper binary from `resources/bin/{platform}/gecho-helper*` (compiled separately — not a Node.js file). The result is **cached as a module-level Promise** so concurrent callers share one subprocess invocation.\n\nFallback: if the helper fails, bounds default to `{ x:0, y:0, width:1920, height:1080 }`."
+    },
+    {
+      "file": "src/config.ts",
+      "line": 4,
+      "title": "9. Configuration — getConfig",
+      "description": "`getConfig()` is the single access point for all `gecho.*` VS Code settings. Every feature reads configuration through here — no raw `vscode.workspace.getConfiguration()` calls scattered around the codebase.\n\nSettings are defined in `package.json` under `contributes.configuration`. The current settings cover: replay speed, cancelOnInput, output format, scale, crop, and startup/stop timeouts."
+    },
+    {
+      "file": "src/extension.ts",
+      "line": 75,
+      "title": "10. Entry Point — activate()",
+      "description": "`activate()` is the only entry point VS Code calls. It is intentionally thin: it registers commands, creates the status bar, and checks dependencies. All real logic lives in the modules above.\n\n**Activation policy**: gEcho activates only on `onCommand:gecho.*` — never on startup. Do not add `onStartupFinished` or `\"*\"` activation.\n\nThe module-level `currentState: RecordingState` and `active*` variables (recorder, player, capture) are the only global state. There is no separate state manager.\n\n`deactivate()` at the bottom of this file cleans up all three active objects."
+    }
+  ]
+}

@@ -77,7 +77,8 @@
         { "$ref": "#/$defs/WaitStep" },
         { "$ref": "#/$defs/OpenFileStep" },
         { "$ref": "#/$defs/PasteStep" },
-        { "$ref": "#/$defs/ScrollStep" }
+        { "$ref": "#/$defs/ScrollStep" },
+        { "$ref": "#/$defs/FocusStep" }
       ]
     },
     "TypeStep": {
@@ -273,6 +274,24 @@
           "type": "integer",
           "minimum": 1,
           "description": "Number of lines to scroll"
+        }
+      }
+    },
+    "FocusStep": {
+      "type": "object",
+      "required": ["type", "target"],
+      "additionalProperties": false,
+      "description": "Move keyboard focus to a named VS Code UI area",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "focus",
+          "description": "Step type identifier"
+        },
+        "target": {
+          "type": "string",
+          "enum": ["editor", "terminal", "panel", "sidebar"],
+          "description": "UI area to focus: 'editor' (active editor group), 'terminal' (integrated terminal), 'panel' (bottom panel), 'sidebar' (primary side bar)"
         }
       }
     }

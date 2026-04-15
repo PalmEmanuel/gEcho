@@ -24,6 +24,7 @@ function makeFullEcho(): Echo {
     { type: 'openFile', path: 'src/main.ts' },
     { type: 'paste', text: 'pasted text' },
     { type: 'scroll', direction: 'down', lines: 3 },
+    { type: 'focus', target: 'editor' },
   ];
   return {
     version: '1.0',
@@ -84,6 +85,23 @@ describe('validateEcho', () => {
       metadata: { name: 'x' },
       steps: [{ type: 'scroll', lines: 3, direction: 'sideways' }],
     };
+    assert.strictEqual(validateEcho(bad), false);
+  });
+
+  it('returns true for focus step with valid target', () => {
+    for (const target of ['editor', 'terminal', 'panel', 'sidebar']) {
+      const echo = { version: '1.0', metadata: { name: 'x' }, steps: [{ type: 'focus', target }] };
+      assert.strictEqual(validateEcho(echo), true, `Expected valid for target: ${target}`);
+    }
+  });
+
+  it('returns false for focus step with invalid target', () => {
+    const bad = { version: '1.0', metadata: { name: 'x' }, steps: [{ type: 'focus', target: 'statusbar' }] };
+    assert.strictEqual(validateEcho(bad), false);
+  });
+
+  it('returns false for focus step missing target', () => {
+    const bad = { version: '1.0', metadata: { name: 'x' }, steps: [{ type: 'focus' }] };
     assert.strictEqual(validateEcho(bad), false);
   });
 });
