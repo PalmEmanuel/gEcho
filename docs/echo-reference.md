@@ -256,7 +256,7 @@ Moves keyboard focus to a named VS Code UI area. Use this after `command` or `ke
 
 ## JSON Schema
 
-gEcho ships with a JSON Schema at `schemas/gecho-v1.schema.json`. VS Code automatically validates `.echo.json` files against this schema, providing IntelliSense, auto-completion, and error highlighting as you edit echoes.
+gEcho ships with a JSON Schema at `schemas/gecho-v1.schema.json`. VS Code automatically validates `.echo.json` files (current extension) and `.gecho.json` files (legacy extension, supported for backward compatibility) against this schema, providing IntelliSense, auto-completion, and error highlighting as you edit echoes.
 
 ## Example Echo
 

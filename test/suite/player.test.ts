@@ -239,69 +239,28 @@ describe('EchoPlayer', () => {
       }
     });
 
-    it('focus step with target "editor" executes focusActiveEditorGroup', async () => {
-      const calls: string[] = [];
-      const orig = (vscode.commands as any).executeCommand;
-      (vscode.commands as any).executeCommand = async (cmd: string) => { calls.push(cmd); };
-      try {
-        const player = new EchoPlayer();
-        await player.play({
-          version: '1.0', metadata: { name: 't' },
-          steps: [{ type: 'focus', target: 'editor' }],
-        });
-        assert.deepStrictEqual(calls, ['workbench.action.focusActiveEditorGroup']);
-      } finally {
-        (vscode.commands as any).executeCommand = orig;
-      }
-    });
-
-    it('focus step with target "terminal" executes terminal.focus', async () => {
-      const calls: string[] = [];
-      const orig = (vscode.commands as any).executeCommand;
-      (vscode.commands as any).executeCommand = async (cmd: string) => { calls.push(cmd); };
-      try {
-        const player = new EchoPlayer();
-        await player.play({
-          version: '1.0', metadata: { name: 't' },
-          steps: [{ type: 'focus', target: 'terminal' }],
-        });
-        assert.deepStrictEqual(calls, ['workbench.action.terminal.focus']);
-      } finally {
-        (vscode.commands as any).executeCommand = orig;
-      }
-    });
-
-    it('focus step with target "panel" executes focusPanel', async () => {
-      const calls: string[] = [];
-      const orig = (vscode.commands as any).executeCommand;
-      (vscode.commands as any).executeCommand = async (cmd: string) => { calls.push(cmd); };
-      try {
-        const player = new EchoPlayer();
-        await player.play({
-          version: '1.0', metadata: { name: 't' },
-          steps: [{ type: 'focus', target: 'panel' }],
-        });
-        assert.deepStrictEqual(calls, ['workbench.action.focusPanel']);
-      } finally {
-        (vscode.commands as any).executeCommand = orig;
-      }
-    });
-
-    it('focus step with target "sidebar" executes focusSideBar', async () => {
-      const calls: string[] = [];
-      const orig = (vscode.commands as any).executeCommand;
-      (vscode.commands as any).executeCommand = async (cmd: string) => { calls.push(cmd); };
-      try {
-        const player = new EchoPlayer();
-        await player.play({
-          version: '1.0', metadata: { name: 't' },
-          steps: [{ type: 'focus', target: 'sidebar' }],
-        });
-        assert.deepStrictEqual(calls, ['workbench.action.focusSideBar']);
-      } finally {
-        (vscode.commands as any).executeCommand = orig;
-      }
-    });
+    for (const { target, expectedCommand } of [
+      { target: 'editor' as const, expectedCommand: 'workbench.action.focusActiveEditorGroup' },
+      { target: 'terminal' as const, expectedCommand: 'workbench.action.terminal.focus' },
+      { target: 'panel' as const, expectedCommand: 'workbench.action.focusPanel' },
+      { target: 'sidebar' as const, expectedCommand: 'workbench.action.focusSideBar' },
+    ]) {
+      it(`focus step with target "${target}" executes correct command`, async () => {
+        const calls: string[] = [];
+        const orig = (vscode.commands as any).executeCommand;
+        (vscode.commands as any).executeCommand = async (cmd: string) => { calls.push(cmd); };
+        try {
+          const player = new EchoPlayer();
+          await player.play({
+            version: '1.0', metadata: { name: 't' },
+            steps: [{ type: 'focus', target }],
+          });
+          assert.deepStrictEqual(calls, [expectedCommand]);
+        } finally {
+          (vscode.commands as any).executeCommand = orig;
+        }
+      });
+    }
 
     it('select step does not throw when no active editor', async () => {
       const player = new EchoPlayer();
