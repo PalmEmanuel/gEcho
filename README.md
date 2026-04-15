@@ -114,7 +114,7 @@ Echoes are human-readable JSON files with a `.echo.json` extension:
 
 ## Requirements
 
-- **VS Code** 1.101.0 or later
+- **VS Code** 1.115.0 or later
 - **ffmpeg** installed and available in PATH ([install guide](https://ffmpeg.org/download.html))
 
 ## How It Works
