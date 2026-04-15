@@ -239,6 +239,29 @@ describe('EchoPlayer', () => {
       }
     });
 
+    for (const { target, expectedCommand } of [
+      { target: 'editor' as const, expectedCommand: 'workbench.action.focusActiveEditorGroup' },
+      { target: 'terminal' as const, expectedCommand: 'workbench.action.terminal.focus' },
+      { target: 'panel' as const, expectedCommand: 'workbench.action.focusPanel' },
+      { target: 'sidebar' as const, expectedCommand: 'workbench.action.focusSideBar' },
+    ]) {
+      it(`focus step with target "${target}" executes correct command`, async () => {
+        const calls: string[] = [];
+        const orig = (vscode.commands as any).executeCommand;
+        (vscode.commands as any).executeCommand = async (cmd: string) => { calls.push(cmd); };
+        try {
+          const player = new EchoPlayer();
+          await player.play({
+            version: '1.0', metadata: { name: 't' },
+            steps: [{ type: 'focus', target }],
+          });
+          assert.deepStrictEqual(calls, [expectedCommand]);
+        } finally {
+          (vscode.commands as any).executeCommand = orig;
+        }
+      });
+    }
+
     it('select step does not throw when no active editor', async () => {
       const player = new EchoPlayer();
       // activeTextEditor is undefined in plain test host — step is silently skipped

@@ -10,6 +10,7 @@
     { "type": "wait", "ms": 500 },
     { "type": "type", "text": "// Hello from gEcho!", "delay": 55 },
     { "type": "command", "id": "workbench.action.files.save" },
+    { "type": "focus", "target": "editor" },
     { "type": "select", "anchor": [0, 0], "active": [0, 20] },
     { "type": "key", "key": "escape" },
     { "type": "paste", "text": "// Pasted text" },

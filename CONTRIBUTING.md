@@ -2,6 +2,28 @@
 
 Thank you for contributing! This document outlines our contribution and testing policy.
 
+## Code Tours
+
+The `.tours/` directory contains [CodeTour](https://marketplace.visualstudio.com/items?itemName=vsls-contrib.codetour) files for VS Code. Install the CodeTour extension and run **CodeTour: Start Tour** to explore:
+
+- **Architecture Overview** — module structure and core concepts; start here if you are new to the codebase
+- **Adding a New Step Type** — step-by-step guide for implementing a new echo step type (uses the `focus` step as a worked example)
+
+**Keeping tours current:** tour steps reference specific line numbers. If you significantly change a file that a tour references (e.g. restructure `player.ts`, rename a function in `echo.ts`), check whether the tour step still points to the right place and update the line number if needed. The affected file is listed in each `.tour` JSON step's `"file"` field.
+
+## Echo Schema Changes
+
+The echo format lives in `schemas/gecho-v1.schema.json` and `src/types/echo.ts`.
+
+**Before the v1.0.0 extension release**, any schema change — additive or breaking — does **not** require a version bump or migration function. Move fast and iterate freely.
+
+Once v1.0.0 is published to the VS Code Marketplace, changes to the echo format that affect what older versions must read require:
+1. A schema version bump (e.g. `"1.1"`)
+2. A migration function in `src/echo/echo.ts` that upgrades older files on read
+3. An update to `ECHO_VERSION` in `src/types/echo.ts`
+
+Do **not** assume purely additive changes after release (for example, new optional step types or new optional fields) are automatically safe without migration. Older versions may reject unknown step types during echo validation before replay reaches the player's `default` case, so post-release format changes should include a version bump and migration whenever backward compatibility matters.
+
 ## Testing Requirements
 
 **All contributions must include tests.** This is a hard requirement:
