@@ -72,6 +72,46 @@ let activePlayer: EchoPlayer | undefined;
 let activeCapture: ScreenCapture | undefined;
 let activeCountdownSource: vscode.CancellationTokenSource | undefined;
 
+const SPEED_PRESETS = [0.5, 0.75, 1, 1.5, 2] as const;
+
+/**
+ * Show a quick-pick for per-run speed override.
+ * Returns the chosen speed multiplier, or `undefined` if the user cancelled.
+ */
+async function promptSpeedOverride(): Promise<number | undefined> {
+  const currentSpeed = getConfig().replay.speed;
+
+  const items: vscode.QuickPickItem[] = SPEED_PRESETS.map(s => ({
+    label: `${s}×`,
+    description: s === currentSpeed ? '(current setting)' : undefined,
+    picked: s === currentSpeed,
+  }));
+  items.push({ label: 'Custom…', description: 'Enter a custom speed multiplier' });
+
+  const pick = await vscode.window.showQuickPick(items, {
+    placeHolder: 'Select replay speed',
+  });
+  if (!pick) { return undefined; }
+
+  if (pick.label === 'Custom…') {
+    const input = await vscode.window.showInputBox({
+      prompt: 'Enter replay speed multiplier (0.1–10)',
+      value: String(currentSpeed),
+      validateInput(value: string): string | undefined {
+        const num = Number(value);
+        if (isNaN(num) || num < 0.1 || num > 10) {
+          return 'Speed must be a number between 0.1 and 10';
+        }
+        return undefined;
+      },
+    });
+    if (input === undefined) { return undefined; }
+    return Number(input);
+  }
+
+  return parseFloat(pick.label.replace('×', ''));
+}
+
 export function activate(context: vscode.ExtensionContext): void {
   // Check for required external dependencies (e.g. ffmpeg) in the background
   checkDependencies(context);
@@ -320,6 +360,9 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       try {
+        const speed = await promptSpeedOverride();
+        if (speed === undefined) { return; }
+
         const uris = await vscode.window.showOpenDialog({
           filters: { 'gEcho Echo': [ECHO_FILTER_EXT, 'gecho.json'] },
           canSelectMany: false,
@@ -334,7 +377,8 @@ export function activate(context: vscode.ExtensionContext): void {
         setState('replaying');
         activePlayer = new EchoPlayer();
 
-        await activePlayer.play(echo, getConfig().replay);
+        const replayConfig = { ...getConfig().replay, speed };
+        await activePlayer.play(echo, replayConfig);
 
         activePlayer = undefined;
         setState('idle');
@@ -479,6 +523,9 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       let tmpMp4Path: string | undefined;
       try {
+        const speed = await promptSpeedOverride();
+        if (speed === undefined) { return; }
+
         const uris = await vscode.window.showOpenDialog({
           filters: { 'gEcho Echo': [ECHO_FILTER_EXT, 'gecho.json'] },
           canSelectMany: false,
@@ -523,7 +570,8 @@ export function activate(context: vscode.ExtensionContext): void {
         tmpMp4Path = path.join(context.globalStorageUri.fsPath, `gecho-replay-${Date.now()}.mp4`);
         await activeCapture.start(tmpMp4Path);
         await activeCapture.waitForReady();
-        await activePlayer.play(echo, getConfig().replay);
+        const replayConfig = { ...getConfig().replay, speed };
+        await activePlayer.play(echo, replayConfig);
         const mp4Path = await activeCapture?.stop(getConfig().recording.stopTimeoutMs);
 
         activePlayer = undefined;
