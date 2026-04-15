@@ -6,7 +6,7 @@ This guide walks you through installing gEcho, setting up ffmpeg, and creating y
 
 ### VS Code
 
-gEcho requires **VS Code 1.101.0** or later. Download it from [code.visualstudio.com](https://code.visualstudio.com/).
+gEcho requires **VS Code 1.115.0** or later. Download it from [code.visualstudio.com](https://code.visualstudio.com/).
 
 ### ffmpeg
 
