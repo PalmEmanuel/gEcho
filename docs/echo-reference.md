@@ -40,7 +40,7 @@ gEcho echoes are human-readable JSON files with a `.echo.json` extension. They d
 
 ## Step Types
 
-Every step object has a `type` field that determines its behavior. There are 8 step types.
+Every step object has a `type` field that determines its behavior. There are 9 step types.
 
 ---
 
@@ -226,9 +226,37 @@ Scrolls the active editor up or down by a specified number of lines.
 
 ---
 
+### `focus` — Move Focus to a UI Area
+
+Moves keyboard focus to a named VS Code UI area. Use this after `command` or `key` steps that shift focus away from the editor (e.g. opening the Command Palette, toggling the terminal).
+
+```json
+{ "type": "focus", "target": "editor" }
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | `"focus"` | ✅ | Step type identifier. |
+| `target` | `"editor"` \| `"terminal"` \| `"panel"` \| `"sidebar"` | ✅ | UI area to focus. |
+
+**Targets:**
+
+| Target | VS Code action |
+|--------|----------------|
+| `editor` | Focus the active editor group — use this to restore text-editor focus so subsequent `type`/`select`/`paste`/`scroll` steps land in the right place. |
+| `terminal` | Focus the integrated terminal. |
+| `panel` | Focus the bottom panel (Output, Problems, etc.). |
+| `sidebar` | Focus the primary side bar (Explorer, Search, etc.). |
+
+**Notes:**
+- Insert a `{ "type": "focus", "target": "editor" }` step whenever a prior `command` or `key` step may have moved focus away from the editor and you want subsequent keystrokes to target the text pane.
+- The VS Code API does not expose which widget currently holds keyboard focus, so gEcho cannot auto-insert focus steps — authors must add them manually where needed.
+
+---
+
 ## JSON Schema
 
-gEcho ships with a JSON Schema at `schemas/gecho-v1.schema.json`. VS Code automatically validates `.echo.json` files against this schema, providing IntelliSense, auto-completion, and error highlighting as you edit echoes.
+gEcho ships with a JSON Schema at `schemas/gecho-v1.schema.json`. VS Code automatically validates `.echo.json` files (current extension) and `.gecho.json` files (legacy extension, supported for backward compatibility) against this schema, providing IntelliSense, auto-completion, and error highlighting as you edit echoes.
 
 ## Example Echo
 
@@ -247,6 +275,7 @@ A complete example echo demonstrating all step types is available at [`echoes/ex
     { "type": "wait", "ms": 500 },
     { "type": "type", "text": "// Hello from gEcho!", "delay": 55 },
     { "type": "command", "id": "workbench.action.files.save" },
+    { "type": "focus", "target": "editor" },
     { "type": "select", "anchor": [0, 0], "active": [0, 20] },
     { "type": "key", "key": "escape" },
     { "type": "paste", "text": "// Pasted text" },
@@ -264,3 +293,4 @@ A complete example echo demonstrating all step types is available at [`echoes/ex
 - **End with a `wait`** so the final state is visible in the GIF output.
 - **Keep `delay` values between 30–80 ms** for natural-looking typing in GIFs.
 - **Use `paste`** for large code blocks to avoid lengthy typing animations.
+- **Insert `focus` steps** after any `command` or `key` that shifts focus away from the editor (e.g., after `workbench.action.terminal.toggleTerminal`, add `{ "type": "focus", "target": "editor" }` before the next `type` or `select` step).

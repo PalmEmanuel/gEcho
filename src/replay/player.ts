@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { Echo, ReplayConfig } from '../types/index.js';
+import type { Echo, FocusTarget, ReplayConfig } from '../types/index.js';
 import { sanitizeCommandId, sanitizeFilePath } from '../security/index.js';
 
 const DEFAULT_CHAR_DELAY_MS = 55;
@@ -25,6 +25,14 @@ const KEY_COMMAND_MAP: Record<string, string> = {
   'escape': 'cancelSelection',
   'tab': 'tab',
   'enter': 'acceptSelectedSuggestion',
+};
+
+/** Maps focus targets to their VS Code command IDs */
+const FOCUS_COMMANDS: Record<FocusTarget, string> = {
+  editor: 'workbench.action.focusActiveEditorGroup',
+  terminal: 'workbench.action.terminal.focus',
+  panel: 'workbench.action.focusPanel',
+  sidebar: 'workbench.action.focusSideBar',
 };
 
 export class EchoPlayer {
@@ -205,6 +213,11 @@ export class EchoPlayer {
                 by: 'line',
                 value: step.lines,
               });
+              break;
+            }
+
+            case 'focus': {
+              await vscode.commands.executeCommand(FOCUS_COMMANDS[step.target]);
               break;
             }
 

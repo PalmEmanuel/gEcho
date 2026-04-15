@@ -7,11 +7,13 @@ export type {
   OpenFileStep,
   PasteStep,
   ScrollStep,
+  FocusStep,
+  FocusTarget,
   StepType,
   EchoMetadata,
   Echo,
 } from './echo.js';
-export { ECHO_VERSION, ECHO_FILE_EXTENSION } from './echo.js';
+export { ECHO_VERSION, ECHO_FILE_EXTENSION, FOCUS_TARGETS, isFocusTarget } from './echo.js';
 
 export type {
   RecordingMode,

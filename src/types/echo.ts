@@ -45,6 +45,18 @@ export interface ScrollStep {
   lines: number;
 }
 
+export const FOCUS_TARGETS = ['editor', 'terminal', 'panel', 'sidebar'] as const;
+export type FocusTarget = (typeof FOCUS_TARGETS)[number];
+
+export function isFocusTarget(value: unknown): value is FocusTarget {
+  return typeof value === 'string' && (FOCUS_TARGETS as readonly string[]).includes(value);
+}
+
+export interface FocusStep {
+  type: 'focus';
+  target: FocusTarget;
+}
+
 export type StepType =
   | TypeStep
   | CommandStep
@@ -53,7 +65,8 @@ export type StepType =
   | WaitStep
   | OpenFileStep
   | PasteStep
-  | ScrollStep;
+  | ScrollStep
+  | FocusStep;
 
 export interface EchoMetadata {
   name: string;
