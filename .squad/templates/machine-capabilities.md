@@ -34,7 +34,6 @@ Add `needs:*` labels to issues that require specific capabilities:
 | `needs:azure-cli` | Requires authenticated Azure CLI |
 | `needs:docker` | Requires Docker daemon |
 | `needs:onedrive` | Requires OneDrive sync |
-| `needs:teams-mcp` | Requires Teams MCP tools |
 
 Custom capabilities are supported — any `needs:X` label works if `X` is in the machine's `capabilities` array.
 
