@@ -9,7 +9,9 @@
     "strict": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "types": ["node"]
   },
   "include": ["src", "test"],
   "exclude": ["node_modules", ".vscode-test", "out"]
