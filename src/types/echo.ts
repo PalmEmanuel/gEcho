@@ -45,6 +45,11 @@ export interface ScrollStep {
   lines: number;
 }
 
+export interface FocusStep {
+  type: 'focus';
+  target: 'editor' | 'terminal' | 'panel' | 'sidebar';
+}
+
 export type StepType =
   | TypeStep
   | CommandStep
@@ -53,7 +58,8 @@ export type StepType =
   | WaitStep
   | OpenFileStep
   | PasteStep
-  | ScrollStep;
+  | ScrollStep
+  | FocusStep;
 
 export interface EchoMetadata {
   name: string;

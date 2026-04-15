@@ -208,6 +208,20 @@ export class EchoPlayer {
               break;
             }
 
+            case 'focus': {
+              const FOCUS_COMMANDS: Record<string, string> = {
+                editor: 'workbench.action.focusActiveEditorGroup',
+                terminal: 'workbench.action.terminal.focus',
+                panel: 'workbench.action.focusPanel',
+                sidebar: 'workbench.action.focusSideBar',
+              };
+              const cmd = FOCUS_COMMANDS[step.target];
+              if (cmd) {
+                await vscode.commands.executeCommand(cmd);
+              }
+              break;
+            }
+
             default: {
               break;
             }
