@@ -54,7 +54,7 @@ jobs:
 
       - name: Download native binary (macOS only)
         if: runner.os == 'macOS'
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: native-binary
           path: resources/bin/darwin/
