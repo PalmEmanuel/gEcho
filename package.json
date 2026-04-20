@@ -224,14 +224,14 @@
   "devDependencies": {
     "@azure/msal-node": "^2.0.0",
     "@eslint/js": "^10.0.1",
-    "@types/vscode": "^1.115.0",
+    "@types/vscode": "^1.116.0",
     "@types/mocha": "^10.0.0",
     "@types/node": "25.x",
     "@vscode/test-electron": "^2.4.0",
-    "@vscode/vsce": "^3.8.0",
-    "eslint": "^10.2.0",
+    "@vscode/vsce": "^3.9.1",
+    "eslint": "^10.2.1",
     "mocha": "^11.7.5",
-    "typescript": "^6.0.2",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.58.1"
   },
   "activationEvents": [
