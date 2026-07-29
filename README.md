@@ -5,6 +5,8 @@
 
 <img src="images/icon.png" alt="gEcho logo" width="256" />
 
+> gEcho is still very experimental, use at your own risk!
+
 **Record, replay, and generate reproducible GIFs from VS Code interactions.**
 
 gEcho is a VS Code extension with two recording modes:
