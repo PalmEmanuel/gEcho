@@ -140,7 +140,7 @@
         },
         "gecho.replay.speed": {
           "type": "number",
-          "default": 1.0,
+          "default": 1,
           "description": "Replay speed multiplier."
         },
         "gecho.replay.cancelOnInput": {
@@ -222,17 +222,17 @@
     "vscode:prepublish": "npm run build"
   },
   "devDependencies": {
-    "@azure/msal-node": "^2.0.0",
+    "@azure/msal-node": "^5.2.1",
     "@eslint/js": "^10.0.1",
-    "@types/vscode": "^1.115.0",
     "@types/mocha": "^10.0.0",
     "@types/node": "25.x",
-    "@vscode/test-electron": "^2.4.0",
-    "@vscode/vsce": "^3.8.0",
-    "eslint": "^10.2.0",
-    "mocha": "^11.7.5",
+    "@types/vscode": "^1.115.0",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^3.9.2",
+    "eslint": "^10.7.0",
+    "mocha": "^11.7.6",
     "typescript": "^6.0.2",
-    "typescript-eslint": "^8.58.1"
+    "typescript-eslint": "^8.59.3"
   },
   "activationEvents": [
     "onStartupFinished"
