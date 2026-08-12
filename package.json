@@ -140,7 +140,7 @@
         },
         "gecho.replay.speed": {
           "type": "number",
-          "default": 1.0,
+          "default": 1,
           "description": "Replay speed multiplier."
         },
         "gecho.replay.cancelOnInput": {
@@ -224,10 +224,10 @@
   "devDependencies": {
     "@azure/msal-node": "^5.2.1",
     "@eslint/js": "^10.0.1",
-    "@types/vscode": "^1.125.0",
     "@types/mocha": "^10.0.0",
     "@types/node": "25.x",
-    "@vscode/test-electron": "^2.4.0",
+    "@types/vscode": "^1.125.0",
+    "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.9.2",
     "eslint": "^10.7.0",
     "mocha": "^11.7.6",
