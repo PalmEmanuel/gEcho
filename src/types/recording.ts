@@ -10,10 +10,21 @@ export interface RecordingSession {
   steps: StepType[];
 }
 
+export type CropPreset = 'none' | 'no-title-bar' | 'no-status-bar' | 'content-only';
+
+export interface CropConfig {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+}
+
 export interface GifConfig {
   fps: number;
   width: number;
   quality: 'high' | 'balanced' | 'small';
+  cropPreset: CropPreset;
+  crop: CropConfig;
 }
 
 export interface ReplayConfig {
